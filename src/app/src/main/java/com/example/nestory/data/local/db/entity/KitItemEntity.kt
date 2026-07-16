@@ -15,7 +15,7 @@ import androidx.room.PrimaryKey
             childColumns = ["document_kit_id"],
             onDelete = ForeignKey.CASCADE
         )
-        // Khi tích hợp với bảng documents, khóa ngoại sẽ liên kết ở đây:
+        // Khi tích hợp với bảng documents của SCRUM-92, hãy mở comment đoạn này:
         /*
         ,ForeignKey(
             entity = DocumentEntity::class,
@@ -31,10 +31,10 @@ data class KitItemEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     
-    val status: String, 
+    val status: String, // "READY", "MISSING", "EXPIRED", "NEEDS_REVIEW"
     
     @ColumnInfo(name = "document_kit_id")
-    val documentKitId: Long, 
+    val documentKitId: Long,
     
     @ColumnInfo(name = "linked_document_id")
     val linkedDocumentId: Long? 

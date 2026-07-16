@@ -9,7 +9,7 @@ data class KitWithItems(
     @Embedded val kit: DocumentKitEntity,
     @Relation(
         parentColumn = "id",
-        entityColumn = "document_kit_id" 
+        entityColumn = "document_kit_id"
     )
     val items: List<KitItemEntity>
 )

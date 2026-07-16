@@ -10,22 +10,22 @@ data class BackupRecordEntity(
     val id: Long = 0,
     
     @ColumnInfo(name = "file_name")
-    val fileName: String, // file_name text NN
+    val fileName: String,
     
     @ColumnInfo(name = "file_path")
-    val filePath: String, // file_path text NN
+    val filePath: String,
     
     @ColumnInfo(name = "created_at")
-    val createdAt: String, 
+    val createdAt: String,
     
     @ColumnInfo(name = "backup_version")
-    val backupVersion: String, // backup_version text NN
+    val backupVersion: String,
     
     @ColumnInfo(name = "app_version")
-    val appVersion: String, // app_version text NN
+    val appVersion: String,
     
-    val checksum: String, // checksum text NN
+    val checksum: String,
     
     @ColumnInfo(name = "file_size")
-    val fileSize: Long // file_size integer NN
+    val fileSize: Long
 )

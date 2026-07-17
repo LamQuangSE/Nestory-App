@@ -13,6 +13,6 @@ interface BackupRecordDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertBackupRecord(record: BackupRecordEntity): Long
 
-    @Query("SELECT * FROM backup_records ORDER BY id DESC")
+    @Query("SELECT * FROM backup_records ORDER BY created_at DESC")
     fun getAllBackupRecords(): Flow<List<BackupRecordEntity>>
 }

@@ -17,8 +17,8 @@ import androidx.room.PrimaryKey
             entity = ContainerEntity::class,
             parentColumns = ["id"],
             childColumns = ["container_id"],
-            onDelete = ForeignKey.CASCADE,   // Delete documents when their container is removed
-            onUpdate = ForeignKey.NO_ACTION  // Container ID (PK) never changes; keep as NO_ACTION
+            onDelete = ForeignKey.RESTRICT,   // Prevent deleting container with documents
+            onUpdate = ForeignKey.NO_ACTION   // Container ID (PK) never changes; keep as NO_ACTION
         )
     ],
     indices = [Index(value = ["container_id"])] // Speed up lookups by container

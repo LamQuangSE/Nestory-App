@@ -17,7 +17,10 @@ import androidx.room.PrimaryKey
             onUpdate = ForeignKey.NO_ACTION
         )
     ],
-    indices = [Index(value = ["document_id"])]
+    indices = [
+        Index(value = ["document_id"]),
+        Index(value = ["document_id", "display_order"], unique = true)
+    ]
 )
 data class AttachmentEntity(
 
@@ -28,5 +31,8 @@ data class AttachmentEntity(
     val fileUri: String,
 
     @ColumnInfo(name = "document_id")
-    val documentId: Long
+    val documentId: Long,
+
+    @ColumnInfo(name = "display_order")
+    val displayOrder: Int = 0
 )

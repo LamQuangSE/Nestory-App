@@ -5,6 +5,7 @@ import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 import com.example.nestory.data.entity.ReminderEntity
 
 @Dao
@@ -20,14 +21,14 @@ interface ReminderDao {
     suspend fun delete(reminder: ReminderEntity)
 
     @Query("SELECT * FROM reminders")
-    suspend fun getAll(): List<ReminderEntity>
+    fun getAll(): Flow<List<ReminderEntity>>
 
     @Query("SELECT * FROM reminders WHERE id = :id LIMIT 1")
-    suspend fun getById(id: Long): ReminderEntity?
+    fun getById(id: Long): Flow<ReminderEntity?>
 
     @Query("SELECT * FROM reminders WHERE document_id = :documentId LIMIT 1")
-    suspend fun getByDocumentId(documentId: Long): ReminderEntity?
+    fun getByDocumentId(documentId: Long): Flow<ReminderEntity?>
 
     @Query("SELECT * FROM reminders WHERE document_kit_id = :documentKitId LIMIT 1")
-    suspend fun getByDocumentKitId(documentKitId: Long): ReminderEntity?
+    fun getByDocumentKitId(documentKitId: Long): Flow<ReminderEntity?>
 }

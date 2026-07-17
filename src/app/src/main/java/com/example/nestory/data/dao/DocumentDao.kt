@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 import com.example.nestory.data.entity.DocumentEntity
 
 /**
@@ -28,9 +29,13 @@ interface DocumentDao {
 
     /** Retrieve all documents ordered by title (ascending). */
     @Query("SELECT * FROM documents ORDER BY title ASC")
-    suspend fun getAllDocuments(): List<DocumentEntity>
+    fun getAllDocuments(): Flow<List<DocumentEntity>>
 
     /** Retrieve a single document by its primary key. */
     @Query("SELECT * FROM documents WHERE id = :documentId LIMIT 1")
-    suspend fun getById(documentId: Long): DocumentEntity?
+    fun getById(documentId: Long): Flow<DocumentEntity?>
+
+    /** Retrieve all documents belonging to a specific container. */
+    @Query("SELECT * FROM documents WHERE container_id = :containerId")
+    fun getDocumentsByContainer(containerId: Long): Flow<List<DocumentEntity>>
 }

@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 import com.example.nestory.data.entity.ContainerEntity
 
 /**
@@ -28,9 +29,13 @@ interface ContainerDao {
 
     /** Retrieve all containers ordered by name (ascending). */
     @Query("SELECT * FROM containers ORDER BY name ASC")
-    suspend fun getAllContainers(): List<ContainerEntity>
+    fun getAllContainers(): Flow<List<ContainerEntity>>
 
     /** Retrieve a single container by its primary key. */
     @Query("SELECT * FROM containers WHERE id = :containerId LIMIT 1")
-    suspend fun getById(containerId: Long): ContainerEntity?
+    fun getById(containerId: Long): Flow<ContainerEntity?>
+
+    /** Retrieve all child containers of a given parent container. */
+    @Query("SELECT * FROM containers WHERE parent_id = :parentId ORDER BY name ASC")
+    fun getChildren(parentId: Long): Flow<List<ContainerEntity>>
 }

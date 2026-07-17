@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import kotlinx.coroutines.flow.Flow
 import com.example.nestory.data.entity.AttachmentEntity
 
 /**
@@ -26,15 +27,19 @@ interface AttachmentDao {
     @Delete
     suspend fun delete(attachment: AttachmentEntity)
 
-    /** Retrieve all attachments ordered by file name (ascending). */
-    @Query("SELECT * FROM attachments ORDER BY file_name ASC")
-    suspend fun getAllAttachments(): List<AttachmentEntity>
+    /** Retrieve all attachments ordered by display order (ascending). */
+    @Query("SELECT * FROM attachments ORDER BY display_order ASC")
+    fun getAllAttachments(): Flow<List<AttachmentEntity>>
 
     /** Retrieve a single attachment by its primary key. */
     @Query("SELECT * FROM attachments WHERE id = :attachmentId LIMIT 1")
-    suspend fun getById(attachmentId: Long): AttachmentEntity?
+    fun getById(attachmentId: Long): Flow<AttachmentEntity?>
 
-    /** Retrieve all attachments belonging to a specific document. */
-    @Query("SELECT * FROM attachments WHERE document_id = :documentId")
-    suspend fun getByDocumentId(documentId: Long): List<AttachmentEntity>
+    /** Retrieve all attachments belonging to a specific document, ordered by display order. */
+    @Query("SELECT * FROM attachments WHERE document_id = :documentId ORDER BY display_order ASC")
+    fun getByDocumentId(documentId: Long): Flow<List<AttachmentEntity>>
+
+    /** Update the display order of an attachment (for drag & drop reordering). */
+    @Query("UPDATE attachments SET display_order = :newOrder WHERE id = :attachmentId")
+    suspend fun updateDisplayOrder(attachmentId: Long, newOrder: Int)
 }

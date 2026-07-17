@@ -18,7 +18,7 @@ import androidx.room.PrimaryKey
             entity = ContainerEntity::class, // points to same table
             parentColumns = ["id"],          // primary key of parent container
             childColumns = ["parent_id"],    // foreign key column in this table
-            onDelete = ForeignKey.CASCADE,   // delete child containers when parent is deleted
+            onDelete = ForeignKey.RESTRICT,   // prevent deletion of container with children
             onUpdate = ForeignKey.NO_ACTION  // primary key never changes; no action needed on update
         )
     ],

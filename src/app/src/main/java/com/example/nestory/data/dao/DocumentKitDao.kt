@@ -1,9 +1,9 @@
-package com.example.nestory.data.local.db.dao
+package com.example.nestory.data.dao
 
 import androidx.room.*
-import com.example.nestory.data.local.db.entity.DocumentKitEntity
-import com.example.nestory.data.local.db.entity.KitItemEntity
-import com.example.nestory.data.local.db.relation.KitWithItems
+import com.example.nestory.data.entity.DocumentKitEntity
+import com.example.nestory.data.entity.KitItemEntity
+import com.example.nestory.relation.KitWithItems
 import kotlinx.coroutines.flow.Flow
 
 @Dao

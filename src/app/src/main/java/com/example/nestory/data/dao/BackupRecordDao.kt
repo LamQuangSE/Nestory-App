@@ -1,10 +1,10 @@
-package com.example.nestory.data.local.db.dao
+package com.example.nestory.data.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import com.example.nestory.data.local.db.entity.BackupRecordEntity
+import com.example.nestory.data.entity.BackupRecordEntity
 import kotlinx.coroutines.flow.Flow
 
 @Dao

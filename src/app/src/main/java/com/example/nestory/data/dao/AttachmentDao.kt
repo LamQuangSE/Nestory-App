@@ -37,7 +37,7 @@ interface AttachmentDao {
 
     /** Retrieve all attachments belonging to a specific document, ordered by display order. */
     @Query("SELECT * FROM attachments WHERE document_id = :documentId ORDER BY display_order ASC")
-    fun getByDocumentId(documentId: Long): Flow<List<AttachmentEntity>>
+    fun getAttachmentsByDocumentId(documentId: Long): Flow<List<AttachmentEntity>>
 
     /** Update the display order of an attachment (for drag & drop reordering). */
     @Query("UPDATE attachments SET display_order = :newOrder WHERE id = :attachmentId")

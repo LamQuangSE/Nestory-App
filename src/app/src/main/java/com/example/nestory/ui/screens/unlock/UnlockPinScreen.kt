@@ -42,7 +42,7 @@ fun UnlockPinScreen(
     onForgotPin: () -> Unit,
     onUnlocked: () -> Unit
 ) {
-    var pin by remember { mutableStateOf("12") }
+    var pin by remember { mutableStateOf("") }
     var complete by remember { mutableStateOf(false) }
 
     LaunchedEffect(complete) {

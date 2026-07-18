@@ -36,18 +36,37 @@ import com.example.nestory.ui.theme.NestorySpacing
 import com.example.nestory.ui.theme.NestoryTextStyles
 import kotlinx.coroutines.delay
 
+import androidx.compose.ui.platform.LocalContext
+import com.example.nestory.data.filesystem.FileSystemManager
+
 @Composable
 fun WaitingScreen(
     onComplete: () -> Unit
 ) {
+    val context = LocalContext.current
+    val fileSystemManager = remember { FileSystemManager(context) }
     var visibleSteps by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
-        repeat(4) {
-            delay(320)
-            visibleSteps = it + 1
-        }
-        delay(700)
+        // Step 1: Khởi tạo (creates files/ and cache/)
+        delay(400)
+        visibleSteps = 1
+        
+        // Step 2: Tạo không gian lưu trữ (creates shared_prefs/)
+        delay(500)
+        visibleSteps = 2
+        
+        // Step 3: Thiết lập cấu hình (creates databases/)
+        // We run the actual file system creation here
+        fileSystemManager.createVaultStructure()
+        delay(500)
+        visibleSteps = 3
+        
+        // Step 4: Hoàn tất
+        delay(500)
+        visibleSteps = 4
+        
+        delay(800)
         onComplete()
     }
 

@@ -3,6 +3,29 @@
 
 # Project Structure
 
+app/
+│
+├── ui/
+│   ├── home/
+│   ├── document/
+│   ├── reminder/
+│   ├── scanner/
+│   └── ...
+│
+├── data/
+│   ├── database/
+│   ├── entity/
+│   ├── dao/
+│   └── repository/
+│
+├── navigation/
+│
+├── common/
+│
+├── utils/
+│
+└── MainActivity.kt
+
 ## Purpose
 
 This document defines the project structure used in Nestory.
@@ -25,24 +48,46 @@ The application follows a layered architecture.
 
 ```text
 User
-    │
-    ▼
-Screen (UI)
-    │
-    ▼
+
+↓
+
+Screen
+
+↓
+
 ViewModel
-    │
-    ▼
+
+↓
+
 Repository
-    │
-    ▼
+
+↓
+
 DAO
-    │
-    ▼
-Room Database
-    │
-    ▼
-SQLite
+
+↓
+
+Room
+
+↑
+
+Flow<List<DocumentEntity>>
+
+↑
+
+Repository
+
+↑
+
+ViewModel
+
+↑
+
+StateFlow<DocumentUiState>
+
+↑
+
+Compose recomposition
 ```
 
 Each layer has a single responsibility.
@@ -345,8 +390,17 @@ It only knows **how**.
 ```text
 data/repository/
 ```
+For this project, repositories primarily act as a data access layer between ViewModel and DAO. Most repository functions simply delegate CRUD operations to DAO while exposing a clean API to the UI layer. Repositories may coordinate multiple DAO calls when necessary, but business rules should remain lightweight.
 
 ### Responsibility
+
+Repositories in Nestory follow a lightweight data repository pattern.
+
+Repositories primarily forward CRUD operations to DAO and expose clean APIs to ViewModel.
+
+Business logic should remain minimal.
+
+Repositories are not intended to become service classes.
 
 Repository sits between ViewModel and DAO.
 

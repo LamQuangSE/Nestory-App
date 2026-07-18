@@ -31,4 +31,8 @@ interface ReminderDao {
 
     @Query("SELECT * FROM reminders WHERE document_kit_id = :documentKitId LIMIT 1")
     fun getByDocumentKitId(documentKitId: Long): Flow<ReminderEntity?>
+
+    @Query(" SELECT * FROM reminders WHERE is_enabled = 1")
+    fun getEnabled(): Flow<List<ReminderEntity>>
+    
 }

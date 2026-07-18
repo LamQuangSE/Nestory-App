@@ -8,4 +8,7 @@ object AppImages {
     val FigmaLogoSuccess = R.drawable.img_figma_logo_success
     val FigmaVaultComplete = R.drawable.img_figma_vault_complete
     val NestoryVaultIllustration = R.drawable.img_nestory_vault_illustration
+    val VaultLoading = R.drawable.img_vault_loading
+    val VaultSuccess = R.drawable.img_figma_vault_complete
+    val VaultError = R.drawable.img_vault_error
 }

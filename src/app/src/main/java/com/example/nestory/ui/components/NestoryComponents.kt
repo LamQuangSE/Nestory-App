@@ -310,7 +310,8 @@ fun BackTextButton(
 fun SafeIllustration(
     modifier: Modifier = Modifier,
     checked: Boolean = false,
-    compact: Boolean = false
+    compact: Boolean = false,
+    @DrawableRes imageRes: Int? = null
 ) {
     val boxSize = if (checked) 300.dp else if (compact) 170.dp else 280.dp
     Box(
@@ -319,7 +320,7 @@ fun SafeIllustration(
     ) {
         Image(
             painter = painterResource(
-                if (checked) AppImages.FigmaVaultComplete else AppImages.NestoryVaultIllustration
+                imageRes ?: if (checked) AppImages.FigmaVaultComplete else AppImages.NestoryVaultIllustration
             ),
             contentDescription = null,
             modifier = Modifier.fillMaxSize(),

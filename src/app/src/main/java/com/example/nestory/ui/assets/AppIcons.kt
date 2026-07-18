@@ -18,6 +18,8 @@ object AppIcons {
     val FigmaLoadingRing = R.drawable.ic_figma_loading_ring
     val NestoryNote = R.drawable.ic_nestory_note
     val NestoryTickCircle = R.drawable.ic_nestory_tick_circle
+    val VaultStepPending = R.drawable.ic_vault_step_pending
+    val VaultStepError = R.drawable.ic_vault_step_error
     val NestoryNotification = R.drawable.ic_nestory_notification
     val NestoryLockGray = R.drawable.ic_nestory_lock_gray
 }

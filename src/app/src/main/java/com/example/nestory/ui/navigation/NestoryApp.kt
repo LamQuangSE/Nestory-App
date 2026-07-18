@@ -10,9 +10,12 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import com.example.nestory.data.filesystem.FileSystemManager
 import com.example.nestory.ui.screens.home.HomeDashboardScreen
 import com.example.nestory.ui.screens.start.StartVaultScreen
 import com.example.nestory.ui.screens.unlock.UnlockChoiceScreen
@@ -24,7 +27,16 @@ import com.example.nestory.ui.screens.vault.WaitingScreen
 
 @Composable
 fun NestoryApp() {
-    var destination by remember { mutableStateOf(NestoryDestination.StartVault) }
+    val context = LocalContext.current.applicationContext
+    val initialDestination = remember {
+        if (FileSystemManager(context).isVaultInitialized()) {
+            NestoryDestination.UnlockChoice
+        } else {
+            NestoryDestination.StartVault
+        }
+    }
+    var destination by remember { mutableStateOf(initialDestination) }
+    var vaultCreationSession by remember { mutableIntStateOf(0) }
 
     AnimatedContent(
         targetState = destination,
@@ -52,10 +64,15 @@ fun NestoryApp() {
 
             NestoryDestination.CreateVault -> CreateVaultScreen(
                 onBack = { destination = NestoryDestination.StartVault },
-                onCreateVault = { destination = NestoryDestination.Waiting }
+                onCreateVault = {
+                    vaultCreationSession += 1
+                    destination = NestoryDestination.Waiting
+                }
             )
 
             NestoryDestination.Waiting -> WaitingScreen(
+                sessionKey = vaultCreationSession,
+                onBack = { destination = NestoryDestination.CreateVault },
                 onComplete = { destination = NestoryDestination.UnlockChoice }
             )
 

@@ -35,7 +35,15 @@ interface ContainerDao {
     @Query("SELECT * FROM containers WHERE id = :containerId LIMIT 1")
     fun getById(containerId: Long): Flow<ContainerEntity?>
 
-    /** Retrieve all child containers of a given parent container. */
-    @Query("SELECT * FROM containers WHERE parent_id = :parentId ORDER BY name ASC")
-    fun getChildren(parentId: Long): Flow<List<ContainerEntity>>
+    /**
+     * Retrieve all child containers of a given parent container.
+     * If [parentId] is null, returns top‑level containers (where parent_id IS NULL).
+     */
+    @Query("""
+        SELECT * FROM containers
+        WHERE (:parentId IS NULL AND parent_id IS NULL)
+           OR (:parentId IS NOT NULL AND parent_id = :parentId)
+        ORDER BY name ASC
+    """)
+    fun getChildrenByParentId(parentId: Long?): Flow<List<ContainerEntity>>
 }

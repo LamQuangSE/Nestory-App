@@ -15,6 +15,8 @@ import com.example.nestory.data.entity.DocumentEntity
 import com.example.nestory.data.entity.DocumentKitEntity
 import com.example.nestory.data.entity.KitItemEntity
 import com.example.nestory.data.entity.ReminderEntity
+import androidx.room.TypeConverters
+import com.example.nestory.data.database.converter.Converters
 
 @Database(
     entities = [
@@ -32,6 +34,7 @@ import com.example.nestory.data.entity.ReminderEntity
     version = 1,
     exportSchema = true
 )
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
 
     // SCRUM-92

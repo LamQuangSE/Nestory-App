@@ -1,40 +1,60 @@
-    package com.example.nestory.data.dao
+package com.example.nestory.data.dao
 
-    import androidx.room.*
-    import com.example.nestory.data.entity.DocumentKitEntity
-    import com.example.nestory.data.entity.KitItemEntity
-    import com.example.nestory.relation.KitWithItems
-    import kotlinx.coroutines.flow.Flow
+import androidx.room.Dao
+import androidx.room.Delete
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Transaction
+import androidx.room.Update
+import com.example.nestory.data.entity.DocumentKitEntity
+import com.example.nestory.data.entity.KitItemEntity
+import com.example.nestory.relation.KitWithItems
+import kotlinx.coroutines.flow.Flow
 
-    @Dao
-    interface DocumentKitDao {
+@Dao
+interface DocumentKitDao {
 
-        @Insert(onConflict = OnConflictStrategy.REPLACE)
-        suspend fun insertKit(kit: DocumentKitEntity): Long
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertKit(kit: DocumentKitEntity): Long
 
-        @Update
-        suspend fun updateKit(kit: DocumentKitEntity)
+    @Update
+    suspend fun updateKit(kit: DocumentKitEntity)
 
-        @Delete
-        suspend fun deleteKit(kit: DocumentKitEntity)
+    @Delete
+    suspend fun deleteKit(kit: DocumentKitEntity)
 
-        @Transaction
-        @Query("SELECT * FROM document_kits")
-        fun getAllKitsWithItems(): Flow<List<KitWithItems>>
+    @Transaction
+    @Query("SELECT * FROM document_kits")
+    fun observeAllKitsWithItems(): Flow<List<KitWithItems>>
 
-        @Transaction
-        @Query("SELECT * FROM document_kits WHERE id = :kitId")
-        suspend fun getKitWithItemsById(kitId: Long): KitWithItems?
+    @Transaction
+    @Query("SELECT * FROM document_kits")
+    suspend fun getAllKitsWithItems(): List<KitWithItems>
 
-        @Insert(onConflict = OnConflictStrategy.REPLACE)
-        suspend fun insertKitItem(item: KitItemEntity): Long
+    @Transaction
+    @Query("SELECT * FROM document_kits WHERE id = :kitId")
+    fun observeKitWithItemsById(kitId: Long): Flow<KitWithItems?>
 
-        @Insert(onConflict = OnConflictStrategy.REPLACE)
-        suspend fun insertKitItems(items: List<KitItemEntity>)
+    @Transaction
+    @Query("SELECT * FROM document_kits WHERE id = :kitId")
+    suspend fun getKitWithItemsById(kitId: Long): KitWithItems?
 
-        @Update
-        suspend fun updateKitItem(item: KitItemEntity)
+    @Query("SELECT * FROM document_kits WHERE id = :kitId")
+    suspend fun getKitById(kitId: Long): DocumentKitEntity?
 
-        @Delete
-        suspend fun deleteKitItem(item: KitItemEntity)
-    }
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertKitItem(item: KitItemEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertKitItems(items: List<KitItemEntity>)
+
+    @Update
+    suspend fun updateKitItem(item: KitItemEntity)
+
+    @Delete
+    suspend fun deleteKitItem(item: KitItemEntity)
+
+    @Query("SELECT * FROM kit_items WHERE id = :itemId")
+    suspend fun getKitItemById(itemId: Long): KitItemEntity?
+}

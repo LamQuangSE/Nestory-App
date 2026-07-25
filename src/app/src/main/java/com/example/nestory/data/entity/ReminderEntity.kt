@@ -14,30 +14,27 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "reminders",
     foreignKeys = [
-
         ForeignKey(
             entity = DocumentEntity::class,
             parentColumns = ["id"],
             childColumns = ["document_id"],
             onDelete = ForeignKey.CASCADE,
-            onUpdate = ForeignKey.NO_ACTION
+            onUpdate = ForeignKey.NO_ACTION,
         ),
-
         ForeignKey(
             entity = DocumentKitEntity::class,
             parentColumns = ["id"],
             childColumns = ["document_kit_id"],
             onDelete = ForeignKey.CASCADE,
-            onUpdate = ForeignKey.NO_ACTION
-        )
+            onUpdate = ForeignKey.NO_ACTION,
+        ),
     ],
     indices = [
         Index(value = ["document_id"]),
-        Index(value = ["document_kit_id"])
-    ]
+        Index(value = ["document_kit_id"]),
+    ],
 )
 data class ReminderEntity(
-
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
@@ -48,5 +45,5 @@ data class ReminderEntity(
     val documentKitId: Long? = null,
 
     @ColumnInfo(name = "is_enabled")
-    val isEnabled: Boolean = true
+    val isEnabled: Boolean = true,
 )

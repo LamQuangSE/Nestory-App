@@ -6,8 +6,8 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import kotlinx.coroutines.flow.Flow
 import com.example.nestory.data.entity.ContainerEntity
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Data Access Object for the `containers` table.
@@ -47,20 +47,24 @@ interface ContainerDao {
      * Retrieve all child containers of a given parent container.
      * If [parentId] is null, returns top‑level containers (where parent_id IS NULL).
      */
-    @Query("""
+    @Query(
+        """
         SELECT * FROM containers
         WHERE (:parentId IS NULL AND parent_id IS NULL)
            OR (:parentId IS NOT NULL AND parent_id = :parentId)
         ORDER BY name ASC
-    """)
+        """
+    )
     fun observeChildrenByParentId(parentId: Long?): Flow<List<ContainerEntity>>
 
     /** Retrieve child containers once for a parent. Null returns top-level containers. */
-    @Query("""
+    @Query(
+        """
         SELECT * FROM containers
         WHERE (:parentId IS NULL AND parent_id IS NULL)
            OR (:parentId IS NOT NULL AND parent_id = :parentId)
         ORDER BY name ASC
-    """)
+        """
+    )
     suspend fun getChildrenByParentId(parentId: Long?): List<ContainerEntity>
 }

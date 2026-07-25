@@ -32,7 +32,7 @@ class DocumentRepositoryImpl(
         documentDao.filterDocuments(
             category = filter.category,
             isFavorite = filter.isFavorite,
-            containerId = filter.containerId
+            containerId = filter.containerId,
         )
 
     override suspend fun createDocument(document: DocumentEntity): Result<Long> =

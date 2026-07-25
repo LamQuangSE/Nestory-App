@@ -1,8 +1,8 @@
 package com.example.nestory.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
-import androidx.room.ColumnInfo
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.nestory.data.model.DocumentCategory
@@ -18,11 +18,11 @@ import com.example.nestory.data.model.DocumentCategory
             entity = ContainerEntity::class,
             parentColumns = ["id"],
             childColumns = ["container_id"],
-            onDelete = ForeignKey.RESTRICT,   // Prevent deleting container with documents
-            onUpdate = ForeignKey.NO_ACTION   // Container ID (PK) never changes; keep as NO_ACTION
-        )
+            onDelete = ForeignKey.RESTRICT,
+            onUpdate = ForeignKey.NO_ACTION,
+        ),
     ],
-    indices = [Index(value = ["container_id"])] // Speed up lookups by container
+    indices = [Index(value = ["container_id"])],
 )
 data class DocumentEntity(
     @PrimaryKey(autoGenerate = true)
@@ -30,20 +30,20 @@ data class DocumentEntity(
     val id: Long = 0,
 
     @ColumnInfo(name = "title")
-    val title: String,                     // Title of the document
+    val title: String,
 
     @ColumnInfo(name = "category")
-    val category: DocumentCategory,                  // User‑defined category (e.g., "Invoice", "Photo")
+    val category: DocumentCategory,
 
     @ColumnInfo(name = "expiration_date")
-    val expirationDate: String? = null,    // Optional expiration date (ISO‑8601 string)
+    val expirationDate: String? = null,
 
     @ColumnInfo(name = "notes")
-    val notes: String? = null,             // Free‑form notes
+    val notes: String? = null,
 
     @ColumnInfo(name = "is_favorite")
-    val isFavorite: Boolean = false,       // Starred flag
+    val isFavorite: Boolean = false,
 
     @ColumnInfo(name = "container_id")
-    val containerId: Long                  // FK to ContainerEntity.id
+    val containerId: Long,
 )

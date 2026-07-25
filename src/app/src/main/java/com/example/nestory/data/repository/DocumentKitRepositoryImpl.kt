@@ -8,7 +8,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlin.runCatching
 
 class DocumentKitRepositoryImpl(
-    private val dao: DocumentKitDao
+    private val dao: DocumentKitDao,
 ) : DocumentKitRepository {
 
     // Kit operations
@@ -23,7 +23,7 @@ class DocumentKitRepositoryImpl(
 
     override suspend fun getKitById(kitId: Long): Result<KitWithItems?> =
         runCatching { dao.getKitWithItemsById(kitId) }
-    
+
     override suspend fun createKit(kit: DocumentKitEntity): Result<Long> =
         runCatching { dao.insertKit(kit) }
 
@@ -45,5 +45,4 @@ class DocumentKitRepositoryImpl(
 
     override suspend fun deleteKitItem(item: KitItemEntity): Result<Unit> =
         runCatching { dao.deleteKitItem(item) }
-
 }

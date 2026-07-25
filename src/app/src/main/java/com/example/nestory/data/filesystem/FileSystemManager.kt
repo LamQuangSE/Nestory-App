@@ -21,14 +21,14 @@ class FileSystemManager(private val context: Context) {
             return@withContext VaultCreationResult(
                 completedSteps = completedSteps,
                 failedStep = VaultCreationStep.FilesDirectory,
-                errorCode = VaultCreationError.FilesDirectoryUnavailable
+                errorCode = VaultCreationError.FilesDirectoryUnavailable,
             )
         }
         if (!filesReady) {
             return@withContext VaultCreationResult(
                 completedSteps = completedSteps,
                 failedStep = VaultCreationStep.FilesDirectory,
-                errorCode = VaultCreationError.FilesDirectoryUnavailable
+                errorCode = VaultCreationError.FilesDirectoryUnavailable,
             )
         }
         completedSteps += VaultCreationStep.FilesDirectory
@@ -37,14 +37,14 @@ class FileSystemManager(private val context: Context) {
             return@withContext VaultCreationResult(
                 completedSteps = completedSteps,
                 failedStep = VaultCreationStep.CacheDirectory,
-                errorCode = VaultCreationError.CacheDirectoryUnavailable
+                errorCode = VaultCreationError.CacheDirectoryUnavailable,
             )
         }
         if (!cacheReady) {
             return@withContext VaultCreationResult(
                 completedSteps = completedSteps,
                 failedStep = VaultCreationStep.CacheDirectory,
-                errorCode = VaultCreationError.CacheDirectoryUnavailable
+                errorCode = VaultCreationError.CacheDirectoryUnavailable,
             )
         }
         completedSteps += VaultCreationStep.CacheDirectory
@@ -57,7 +57,7 @@ class FileSystemManager(private val context: Context) {
             return@withContext VaultCreationResult(
                 completedSteps = completedSteps,
                 failedStep = VaultCreationStep.Preferences,
-                errorCode = VaultCreationError.PreferencesWriteFailed
+                errorCode = VaultCreationError.PreferencesWriteFailed,
             )
         }
         completedSteps += VaultCreationStep.Preferences
@@ -66,7 +66,7 @@ class FileSystemManager(private val context: Context) {
             val db = Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
-                "nestory_database"
+                "nestory_database",
             ).build()
 
             try {
@@ -79,7 +79,7 @@ class FileSystemManager(private val context: Context) {
             return@withContext VaultCreationResult(
                 completedSteps = completedSteps,
                 failedStep = VaultCreationStep.Database,
-                errorCode = VaultCreationError.DatabaseOpenFailed
+                errorCode = VaultCreationError.DatabaseOpenFailed,
             )
         }
         completedSteps += VaultCreationStep.Database
@@ -89,7 +89,7 @@ class FileSystemManager(private val context: Context) {
             return@withContext VaultCreationResult(
                 completedSteps = completedSteps,
                 failedStep = VaultCreationStep.Preferences,
-                errorCode = VaultCreationError.PreferencesWriteFailed
+                errorCode = VaultCreationError.PreferencesWriteFailed,
             )
         }
 

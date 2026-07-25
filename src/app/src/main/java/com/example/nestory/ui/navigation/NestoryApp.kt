@@ -47,19 +47,19 @@ fun NestoryApp() {
 
             (slideInHorizontally(
                 animationSpec = tween(260),
-                initialOffsetX = enterOffset
+                initialOffsetX = enterOffset,
             ) + fadeIn(animationSpec = tween(180))).togetherWith(
                 slideOutHorizontally(
                     animationSpec = tween(220),
-                    targetOffsetX = exitOffset
+                    targetOffsetX = exitOffset,
                 ) + fadeOut(animationSpec = tween(160))
             ).using(SizeTransform(clip = false))
         },
-        label = "NestoryRouteTransition"
+        label = "NestoryRouteTransition",
     ) { currentDestination ->
         when (currentDestination) {
             NestoryDestination.StartVault -> StartVaultScreen(
-                onCreateVault = { destination = NestoryDestination.CreateVault }
+                onCreateVault = { destination = NestoryDestination.CreateVault },
             )
 
             NestoryDestination.CreateVault -> CreateVaultScreen(
@@ -67,39 +67,39 @@ fun NestoryApp() {
                 onCreateVault = {
                     vaultCreationSession += 1
                     destination = NestoryDestination.Waiting
-                }
+                },
             )
 
             NestoryDestination.Waiting -> WaitingScreen(
                 sessionKey = vaultCreationSession,
                 onBack = { destination = NestoryDestination.CreateVault },
-                onComplete = { destination = NestoryDestination.UnlockChoice }
+                onComplete = { destination = NestoryDestination.UnlockChoice },
             )
 
             NestoryDestination.UnlockChoice -> UnlockChoiceScreen(
                 onFingerprint = { destination = NestoryDestination.Fingerprint },
-                onPin = { destination = NestoryDestination.Pin }
+                onPin = { destination = NestoryDestination.Pin },
             )
 
             NestoryDestination.Fingerprint -> UnlockFingerprintScreen(
                 onCancel = { destination = NestoryDestination.UnlockChoice },
                 onUsePin = { destination = NestoryDestination.Pin },
-                onUnlocked = { destination = NestoryDestination.UnlockSuccess }
+                onUnlocked = { destination = NestoryDestination.UnlockSuccess },
             )
 
             NestoryDestination.Pin -> UnlockPinScreen(
                 onBack = { destination = NestoryDestination.UnlockChoice },
                 onForgotPin = { destination = NestoryDestination.UnlockChoice },
-                onUnlocked = { destination = NestoryDestination.UnlockSuccess }
+                onUnlocked = { destination = NestoryDestination.UnlockSuccess },
             )
 
             NestoryDestination.UnlockSuccess -> UnlockSuccessScreen(
-                onLoaded = { destination = NestoryDestination.Home }
+                onLoaded = { destination = NestoryDestination.Home },
             )
 
             NestoryDestination.Home -> HomeDashboardScreen(
                 onOpenAll = { },
-                onAddDocument = { }
+                onAddDocument = { },
             )
         }
     }

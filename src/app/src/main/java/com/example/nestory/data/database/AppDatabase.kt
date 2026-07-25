@@ -2,9 +2,11 @@ package com.example.nestory.data.database
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.TypeConverters
 import com.example.nestory.data.dao.AttachmentDao
 import com.example.nestory.data.dao.BackupRecordDao
 import com.example.nestory.data.dao.ContainerDao
+import com.example.nestory.data.database.converter.Converters
 import com.example.nestory.data.dao.DocumentDao
 import com.example.nestory.data.dao.DocumentKitDao
 import com.example.nestory.data.dao.ReminderDao
@@ -15,8 +17,6 @@ import com.example.nestory.data.entity.DocumentEntity
 import com.example.nestory.data.entity.DocumentKitEntity
 import com.example.nestory.data.entity.KitItemEntity
 import com.example.nestory.data.entity.ReminderEntity
-import androidx.room.TypeConverters
-import com.example.nestory.data.database.converter.Converters
 
 @Database(
     entities = [
@@ -29,15 +29,13 @@ import com.example.nestory.data.database.converter.Converters
         // SCRUM-93
         DocumentKitEntity::class,
         KitItemEntity::class,
-        BackupRecordEntity::class
+        BackupRecordEntity::class,
     ],
     version = 1,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
-
-    // SCRUM-92
     abstract fun containerDao(): ContainerDao
 
     abstract fun documentDao(): DocumentDao
@@ -46,7 +44,6 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun reminderDao(): ReminderDao
 
-    // SCRUM-93
     abstract fun documentKitDao(): DocumentKitDao
 
     abstract fun backupRecordDao(): BackupRecordDao

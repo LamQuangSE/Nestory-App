@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class WaitingViewModel(
-    private val fileSystemManager: FileSystemManager
+    private val fileSystemManager: FileSystemManager,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WaitingUiState())
@@ -35,21 +35,21 @@ class WaitingViewModel(
             }.getOrElse {
                 VaultCreationResult(
                     completedSteps = emptyList(),
-                    errorCode = VaultCreationError.Unknown
+                    errorCode = VaultCreationError.Unknown,
                 )
             }
 
             _uiState.value = if (result.isSuccess) {
                 WaitingUiState(
                     phase = WaitingPhase.Success,
-                    completedSteps = result.completedSteps
+                    completedSteps = result.completedSteps,
                 )
             } else {
                 WaitingUiState(
                     phase = WaitingPhase.Error,
                     completedSteps = result.completedSteps,
                     failedStep = result.failedStep,
-                    errorCode = result.errorCode ?: VaultCreationError.Unknown
+                    errorCode = result.errorCode ?: VaultCreationError.Unknown,
                 )
             }
         }
@@ -57,7 +57,7 @@ class WaitingViewModel(
 }
 
 class WaitingViewModelFactory(
-    private val fileSystemManager: FileSystemManager
+    private val fileSystemManager: FileSystemManager,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {

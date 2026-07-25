@@ -5,7 +5,7 @@ import com.example.nestory.data.entity.ContainerEntity
 import kotlinx.coroutines.flow.Flow
 
 class ContainerRepositoryImpl(
-    private val containerDao: ContainerDao
+    private val containerDao: ContainerDao,
 ) : ContainerRepository {
 
     override fun observeAllContainers(): Flow<List<ContainerEntity>> =
@@ -32,12 +32,10 @@ class ContainerRepositoryImpl(
         var currentId: Long? = containerId
 
         while (currentId != null) {
-
             val container = containerDao.getById(currentId)
                 ?: break
 
             path.add(0, container)
-
             currentId = container.parentId
         }
 

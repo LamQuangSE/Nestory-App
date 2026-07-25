@@ -6,9 +6,9 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import kotlinx.coroutines.flow.Flow
 import com.example.nestory.data.entity.DocumentEntity
 import com.example.nestory.data.model.DocumentCategory
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Data Access Object for the `documents` table.
@@ -53,17 +53,35 @@ interface DocumentDao {
     suspend fun getDocumentsByContainer(containerId: Long): List<DocumentEntity>
 
     @Query("UPDATE documents SET is_favorite = :isFavorite WHERE id = :documentId")
-    suspend fun updateFavoriteStatus( documentId: Long, isFavorite: Boolean)
+    suspend fun updateFavoriteStatus(documentId: Long, isFavorite: Boolean)
 
-    @Query("UPDATE documents SET container_id = :containerId WHERE id = :documentId ")
+    @Query("UPDATE documents SET container_id = :containerId WHERE id = :documentId")
     suspend fun updateDocumentLocation(documentId: Long, containerId: Long)
 
     @Query("UPDATE documents SET expiration_date = :expirationDate WHERE id = :documentId")
-    suspend fun updateDocumentExpiryDate( documentId: Long, expirationDate: String?)
+    suspend fun updateDocumentExpiryDate(documentId: Long, expirationDate: String?)
 
-    @Query(" SELECT * FROM documents WHERE title LIKE '%' || :keyword || '%' COLLATE NOCASE ORDER BY title")
+    @Query(
+        """
+        SELECT * FROM documents
+        WHERE title LIKE '%' || :keyword || '%' COLLATE NOCASE
+        ORDER BY title
+        """
+    )
     fun searchDocuments(keyword: String): Flow<List<DocumentEntity>>
 
-    @Query("SELECT * FROM documents WHERE (:category IS NULL OR category = :category) AND (:isFavorite IS NULL OR is_favorite = :isFavorite) AND (:containerId IS NULL OR container_id = :containerId) ORDER BY title COLLATE NOCASE")
-    fun filterDocuments(category: DocumentCategory?, isFavorite: Boolean?, containerId: Long?): Flow<List<DocumentEntity>>
+    @Query(
+        """
+        SELECT * FROM documents
+        WHERE (:category IS NULL OR category = :category)
+            AND (:isFavorite IS NULL OR is_favorite = :isFavorite)
+            AND (:containerId IS NULL OR container_id = :containerId)
+        ORDER BY title COLLATE NOCASE
+        """
+    )
+    fun filterDocuments(
+        category: DocumentCategory?,
+        isFavorite: Boolean?,
+        containerId: Long?,
+    ): Flow<List<DocumentEntity>>
 }

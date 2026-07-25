@@ -2,6 +2,8 @@ package com.example.nestory.ui.screens.unlock
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -24,13 +26,13 @@ import com.example.nestory.ui.theme.NestoryTextStyles
 @Composable
 fun UnlockChoiceScreen(
     onFingerprint: () -> Unit,
-    onPin: () -> Unit
+    onPin: () -> Unit,
 ) {
     NestoryScreen {
         Spacer(modifier = Modifier.height(NestorySpacing.S40))
         NestoryLogo(
             modifier = Modifier.align(Alignment.CenterHorizontally),
-            centered = true
+            centered = true,
         )
         Spacer(modifier = Modifier.height(NestorySpacing.S30))
         Text(
@@ -38,7 +40,7 @@ fun UnlockChoiceScreen(
             modifier = Modifier.fillMaxWidth(),
             color = GeneratedColor.Figma000000,
             style = NestoryTextStyles.Title21Bold,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(NestorySpacing.S14))
         Text(
@@ -46,42 +48,42 @@ fun UnlockChoiceScreen(
             modifier = Modifier.fillMaxWidth(),
             color = GeneratedColor.Figma919191,
             style = NestoryTextStyles.Body18Semi,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
         Spacer(modifier = Modifier.height(NestorySpacing.S24))
         SafeIllustration(
             modifier = Modifier.align(Alignment.CenterHorizontally),
-            compact = false
+            compact = false,
         )
         Spacer(modifier = Modifier.height(NestorySpacing.S24))
         PrimaryActionButton(
             text = "Mở khóa bằng sinh trắc học",
             leadingIcon = AppIcons.FigmaFingerprint,
-            onClick = onFingerprint
+            onClick = onFingerprint,
         )
         Spacer(modifier = Modifier.height(NestorySpacing.S17))
-        androidx.compose.foundation.layout.Row(
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            androidx.compose.foundation.layout.Box(
+            Box(
                 modifier = Modifier
                     .height(1.dp)
                     .weight(1f)
-                    .background(GeneratedColor.FigmaE5e7eb)
+                    .background(GeneratedColor.FigmaE5e7eb),
             )
             Text(
                 text = "hoặc",
                 modifier = Modifier.width(NestorySpacing.S75),
                 color = GeneratedColor.Figma717171,
                 style = NestoryTextStyles.Body17Medium,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
             )
-            androidx.compose.foundation.layout.Box(
+            Box(
                 modifier = Modifier
                     .height(1.dp)
                     .weight(1f)
-                    .background(GeneratedColor.FigmaE5e7eb)
+                    .background(GeneratedColor.FigmaE5e7eb),
             )
         }
         Spacer(modifier = Modifier.height(NestorySpacing.S17))
@@ -93,7 +95,7 @@ fun UnlockChoiceScreen(
                 .clickable(onClick = onPin),
             color = GeneratedColor.Figma1a60e2,
             style = NestoryTextStyles.Body17Medium,
-            textAlign = TextAlign.Center
+            textAlign = TextAlign.Center,
         )
     }
 }

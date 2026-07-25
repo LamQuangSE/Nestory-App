@@ -31,6 +31,7 @@ and animation guidance, read [`UI_VIBE_GUIDE.md`](./UI_VIBE_GUIDE.md) before sta
 
    - `figma_asset_manifest.json`
    - `figma_asset_manifest.md`
+   - `figma_ai_build_packet.md`
    - `figma_screen_blueprints.json`
    - `figma_screen_blueprints.md`
    - `figma_text_nodes.json`
@@ -42,6 +43,40 @@ and animation guidance, read [`UI_VIBE_GUIDE.md`](./UI_VIBE_GUIDE.md) before sta
    The screen blueprints include each screen's direct children, relative positions, sizes, text nodes, and
    asset nodes. Use them when implementing Compose layouts so spacing, typography, and screen structure are
    not guessed from the summary.
+
+   Read the generated files by fidelity level:
+
+   - `figma_ai_build_packet.md`: primary AI handoff for building all extracted screens in one pass; read this first.
+   - `figma_ai_context.md`: quick orientation only.
+   - `figma_screen_blueprints.md`: screen structure, direct children, relative positions, text, and assets.
+   - `figma_specs.md`: human-readable detail for sizes, fills, strokes, radius, layout, text, and assets.
+   - `figma_specs.json`: source of truth for implementation; verify exact fields such as `strokeDashes`,
+     `strokeAlign`, `strokeCap`, `strokeJoin`, image fills, and nested node attributes here.
+   - `figma_raw.json`: untouched Figma API response; use it to audit suspected missing details or extractor bugs.
+
+   Do not implement from screenshots, `figma_ai_context.md`, or full-file skimming alone. Use
+   `figma_ai_build_packet.md` for the all-screen plan and risk report, then inspect matching nodes in
+   `figma_specs.json` or `figma_raw.json` before choosing a fallback.
+
+   Minimum no-missing-details checklist before implementing a screen:
+
+   1. Pick the exact screen/state in `figma_screen_blueprints.md`.
+   2. Read its contract and risk nodes in `figma_ai_build_packet.md`.
+   3. Use direct children and text nodes from the blueprint to identify the relevant node names/positions.
+   4. Open each important node by `id` in `figma_specs.json`.
+   5. Verify geometry, layout, fills, strokes, radius, text, assets, effects, children order, and interactions.
+   6. For detail-critical fields, explicitly check `strokeDashes`, `strokeAlign`, `strokeCap`, `strokeJoin`,
+      `strokeWeight`, `fills`, `strokes`, `opacity`, `blendMode`, `cornerRadius`, `rectangleCornerRadii`,
+      `assetExports`, image fills, `componentProperties`, and `reactions`.
+   7. If preview/markdown/spec disagree, inspect the same node `id` in `figma_raw.json`.
+
+   Useful audit commands:
+
+   ```bash
+   jq '.. | objects | select(.id? == "NODE_ID")' build/figma/Detailed_Design_UI/figma_specs.json
+   jq '.. | objects | select(.id? == "NODE_ID")' build/figma/Detailed_Design_UI/figma_raw.json
+   jq '[.. | objects | select(.strokeDashes? != null) | {id,name,type,strokeDashes}]' build/figma/Detailed_Design_UI/figma_raw.json
+   ```
 
    The asset manifest includes semantic metadata for each exported node:
 

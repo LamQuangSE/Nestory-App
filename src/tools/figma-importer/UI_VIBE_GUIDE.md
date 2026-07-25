@@ -59,21 +59,93 @@ Sau đó chờ quota hồi hoặc dùng `semantic` với file/node nhỏ hơn.
 
 ## 2. Output Nào Phải Đọc Trước Khi Code
 
-Luôn đọc các file này trước:
+Luôn đọc các file này trước khi code hoặc review UI:
 
+- `figma_ai_build_packet.md`
 - `figma_screen_blueprints.md`
 - `figma_asset_manifest.md`
 - `figma_ai_context.md`
 - `figma_specs.md`
+- `figma_specs.json`
+- `figma_raw.json` khi có chi tiết nghi ngờ, conflict, hoặc cần kiểm đủ field.
 
 Ưu tiên theo thứ tự:
 
-1. `figma_screen_blueprints.md`: tọa độ screen, direct children, text node, asset node.
-2. `figma_asset_manifest.md`: asset nào dùng cho màn nào, role gì, kích thước render.
-3. `figma_ai_context.md`: overview cho AI.
-4. `figma_specs.md`: token màu/type/spacing tổng quan.
+1. `figma_ai_build_packet.md`: file chính cho AI khi vibe toàn bộ screens một lần. Nó chứa all-screen contract, global risk report, per-screen risk nodes và final checklist.
+2. `figma_ai_context.md`: chỉ để biết file có những screen nào, màu/type chính nào. Không dùng file này để quyết định chi tiết visual.
+3. `figma_screen_blueprints.md`: chọn đúng screen/state cần làm, lấy direct children, tọa độ tương đối, text nodes và asset nodes.
+4. `figma_asset_manifest.md`: xác định asset nào đã export, role gì, thuộc screen nào, kích thước render ra sao.
+5. `figma_specs.md`: đọc nhanh cây node của screen khi cần debug. Không đọc full file này như input chính vì dài và dễ miss.
+6. `figma_specs.json`: source of truth để implement chi tiết. Mọi node quan trọng phải được kiểm trong JSON, không chỉ markdown.
+7. `figma_raw.json`: dữ liệu Figma API gốc. Dùng khi ảnh preview, markdown, JSON spec, hoặc implementation mâu thuẫn nhau.
 
-Không chỉ đọc specs rồi code. Specs thiếu quan hệ cụm, thứ tự layout và một số asset context.
+Không implement từ screenshot, `figma_ai_context.md`, hoặc `figma_specs.md` một mình. Markdown là bản đọc nhanh; JSON mới là nguồn kiểm đầy đủ.
+
+### Protocol đọc không bỏ sót
+
+Với mỗi màn cần code:
+
+1. Đọc `figma_ai_build_packet.md` trước để nắm toàn bộ màn, token, reusable patterns và risk nodes.
+2. Xác định đúng screen/state trong packet hoặc `figma_screen_blueprints.md`, ví dụ `Category Selection - After Add Mode`.
+3. Ghi lại `nodeId` screen, `directChildren`, và toàn bộ risk nodes của screen đó trong packet.
+4. Với từng direct child quan trọng, mở node tương ứng trong `figma_specs.json` bằng `nodeId`.
+5. Với từng node con có visual riêng như button, input, card, list item, icon, divider, image, text, tiếp tục mở đúng node con trong `figma_specs.json`.
+6. Không được bỏ qua node nào trong `Global Risk Report` hoặc `Risk nodes in this screen` của packet.
+7. Chỉ khi `figma_specs.json` thiếu hoặc nhìn không khớp Figma preview, đối chiếu cùng node `id` trong `figma_raw.json`.
+8. Nếu field có trong `figma_raw.json` nhưng không có trong `figma_specs.json`/`.md`, dừng implement chi tiết đó và sửa extractor trước.
+
+Command mẫu để mở node theo id:
+
+```bash
+jq '.. | objects | select(.id? == "0:332")' build/figma/Category_UI/figma_specs.json
+jq '.. | objects | select(.id? == "0:332")' build/figma/Category_UI/figma_raw.json
+```
+
+Command mẫu để tìm tất cả border dashed:
+
+```bash
+jq '[.. | objects | select(.strokeDashes? != null) | {id,name,type,strokeDashes,box:.absoluteBoundingBox}]' build/figma/Category_UI/figma_raw.json
+```
+
+### Checklist field bắt buộc kiểm trong JSON
+
+Kiểm các field này trong `figma_specs.json` cho mọi node được code thủ công:
+
+- Identity: `id`, `name`, `type`, `visible`, `locked`.
+- Geometry: `size`, `position`, `renderBounds`, `rotation`, `relativeTransform`, `preserveRatio`.
+- Layout: `layout.layoutMode`, `layout.itemSpacing`, `layout.counterAxisSpacing`, `layout.paddingLeft`, `layout.paddingRight`, `layout.paddingTop`, `layout.paddingBottom`, `layout.primaryAxisAlignItems`, `layout.counterAxisAlignItems`, `layout.primaryAxisSizingMode`, `layout.counterAxisSizingMode`, `layout.layoutGrow`, `layout.layoutAlign`, `constraints`.
+- Clipping/mask: `clipsContent`, `overflowDirection`, `isMask`, `maskType`.
+- Shape: `cornerRadius`, `rectangleCornerRadii`.
+- Fill: `fills[].type`, `fills[].color.hex`, `fills[].color.alpha`, `fills[].opacity`, `fills[].blendMode`, gradients, image fills.
+- Stroke: `strokes[].type`, `strokes[].color.hex`, `strokes[].color.alpha`, `strokeWeight`, `strokeAlign`, `strokeDashes`, `dashPattern`, `strokeCap`, `strokeJoin`.
+- Effects: `effects[].type`, `effects[].radius`, `effects[].spread`, `effects[].offset`, `effects[].color`, `effects[].blendMode`.
+- Text: `text.characters`, `text.style.fontFamily`, `fontSize`, `fontWeight`, `lineHeightPx`, `letterSpacing`, `textAlignHorizontal`, `textAlignVertical`, `textCase`, `textDecoration`, `paragraphSpacing`, `paragraphIndent`, `textAutoResize`, `maxLines`, `textTruncation`, `characterStyleOverrides`, `styleOverrideTable`, `lineTypes`, `lineIndentations`.
+- Assets: `assetExports`, image fills, asset manifest role, rendered size, source node path.
+- Components/interactions: `componentId`, `componentProperties`, `variantProperties`, `styles`, `exportSettings`, `reactions`, `transitionNodeID`, `transitionDuration`, `transitionEasing`.
+- Children: thứ tự `children` trong JSON. Không tự đổi thứ tự list/item nếu Figma có node line/divider chen giữa.
+
+### Các lỗi dễ xảy ra nếu không đọc JSON
+
+- Border dashed bị render thành border liền nếu bỏ qua `strokeDashes`.
+- Divider bị mất nếu chỉ đọc text nodes mà không đọc child `LINE`.
+- Icon sai size nếu dùng icon library mặc định thay vì đọc node icon/vector.
+- Button sai màu nếu dùng theme color thay vì `fills`.
+- Radius sai nếu dùng shape mặc định thay vì `cornerRadius`.
+- Text sai weight/line-height nếu chỉ nhìn screenshot.
+- Asset biến mất nếu PNG trắng/transparent mà không check asset thật.
+- Layout bị lệch nếu chỉ dùng spacing token tổng quan, không đọc direct children và nested children.
+
+### Khi có mâu thuẫn
+
+Thứ tự ưu tiên khi các nguồn không giống nhau:
+
+1. `figma_raw.json` cùng `id` node: nguồn gốc Figma API, dùng để audit extractor.
+2. `figma_specs.json`: nguồn implement chính sau khi extractor đúng.
+3. `figma_specs.md`: đọc nhanh cho người/AI.
+4. `figma_screen_blueprints.md`: cấu trúc screen và relative positions.
+5. Screenshot/preview: dùng để sanity check, không dùng để thay field đã có trong JSON.
+
+Nếu raw có field mà specs không có, lỗi nằm ở extractor/spec generation. Nếu specs có field mà implementation không có, lỗi nằm ở bước code.
 
 ## 3. Quy Tắc Dựng Compose Từ Figma
 

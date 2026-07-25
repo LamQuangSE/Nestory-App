@@ -197,6 +197,16 @@ def extract_effect(effect):
     return clean_dict(data)
 
 
+def extract_arc_data(arc_data):
+    if not isinstance(arc_data, dict):
+        return None
+    return clean_dict({
+        "startingAngle": round_num(arc_data.get("startingAngle")),
+        "endingAngle": round_num(arc_data.get("endingAngle")),
+        "innerRadius": round_num(arc_data.get("innerRadius")),
+    })
+
+
 def extract_layout(node):
     data = {
         "layoutMode": node.get("layoutMode"),
@@ -284,6 +294,7 @@ def extract_node(node, image_assets=None, node_assets=None):
         "locked": node.get("locked", False),
         "opacity": round_num(node.get("opacity")),
         "blendMode": node.get("blendMode"),
+        "scrollBehavior": node.get("scrollBehavior"),
 
         "size": {
             "width": round_num((box or {}).get("width")),
@@ -305,6 +316,7 @@ def extract_node(node, image_assets=None, node_assets=None):
         "rotation": round_num(node.get("rotation")),
         "relativeTransform": node.get("relativeTransform"),
         "preserveRatio": node.get("preserveRatio"),
+        "targetAspectRatio": node.get("targetAspectRatio"),
         "clipsContent": node.get("clipsContent"),
         "isMask": node.get("isMask"),
         "maskType": node.get("maskType"),
@@ -316,13 +328,23 @@ def extract_node(node, image_assets=None, node_assets=None):
         "layoutGrids": node.get("layoutGrids"),
 
         "cornerRadius": round_num(node.get("cornerRadius")),
+        "cornerSmoothing": round_num(node.get("cornerSmoothing")),
         "rectangleCornerRadii": node.get("rectangleCornerRadii"),
+        "arcData": extract_arc_data(node.get("arcData")),
 
         "strokeWeight": round_num(node.get("strokeWeight")),
         "strokeAlign": node.get("strokeAlign"),
         "strokeCap": node.get("strokeCap"),
         "strokeJoin": node.get("strokeJoin"),
+        "strokeDashes": [round_num(x) for x in node.get("strokeDashes", [])]
+        if isinstance(node.get("strokeDashes"), list) else None,
         "dashPattern": node.get("dashPattern"),
+        "complexStrokeProperties": node.get("complexStrokeProperties"),
+        "backgroundColor": color_obj_to_hex(node.get("backgroundColor")),
+        "background": [
+            extract_paint(p, image_assets=image_assets) for p in node.get("background", [])
+            if isinstance(p, dict)
+        ] if isinstance(node.get("background"), list) else None,
 
         "fills": [
             extract_paint(p, image_assets=image_assets) for p in node.get("fills", [])
@@ -346,7 +368,9 @@ def extract_node(node, image_assets=None, node_assets=None):
         "variantProperties": node.get("variantProperties"),
         "styles": node.get("styles"),
         "exportSettings": node.get("exportSettings"),
+        "interactions": node.get("interactions"),
         "reactions": node.get("reactions"),
+        "prototypeDevice": node.get("prototypeDevice"),
         "transitionNodeID": node.get("transitionNodeID"),
         "transitionDuration": node.get("transitionDuration"),
         "transitionEasing": node.get("transitionEasing"),
@@ -542,8 +566,15 @@ def direct_child_entry(child, screen):
         "rect": relative_rect(child, screen),
         "layout": child.get("layout"),
         "fills": child.get("fills"),
+        "backgroundColor": child.get("backgroundColor"),
         "strokes": child.get("strokes"),
+        "strokeWeight": child.get("strokeWeight"),
+        "strokeAlign": child.get("strokeAlign"),
+        "strokeDashes": child.get("strokeDashes"),
         "cornerRadius": child.get("cornerRadius"),
+        "targetAspectRatio": child.get("targetAspectRatio"),
+        "arcData": child.get("arcData"),
+        "interactions": child.get("interactions"),
         "text": text.get("characters"),
         "assetExports": child.get("assetExports"),
     })
@@ -649,7 +680,11 @@ def render_ai_context(specs):
     lines = [
         "# Figma AI Context",
         "",
-        "Use this file as the high-signal source for implementing the UI. For exact values, inspect `figma_specs.json`; for untouched Figma API data, inspect `figma_raw.json`.",
+        "Use this file for quick orientation only. Before implementing, follow the no-missing-details protocol in `tools/figma-importer/UI_VIBE_GUIDE.md`.",
+        "",
+        "Read `figma_ai_build_packet.md` as the primary all-screen handoff. Implement from that packet plus `figma_screen_blueprints.md`, `figma_asset_manifest.md`, and especially `figma_specs.json`; for untouched Figma API data or suspected missing fields, inspect `figma_raw.json`.",
+        "",
+        "Detail-critical fields such as `strokeDashes`, `strokeAlign`, `strokeCap`, `strokeJoin`, exact fills/strokes, image fills, and nested node attributes must be verified in `figma_specs.json` or `figma_raw.json` before choosing fallbacks.",
         "",
         "## Source",
         "",
@@ -688,6 +723,362 @@ def render_ai_context(specs):
     lines.append(f"- Spacing: `{tokens.get('spacing', [])}`")
     lines.append(f"- Radius: `{tokens.get('radius', [])}`")
     lines.append("")
+    return "\n".join(lines)
+
+
+def is_primary_screen_node(node):
+    size = node.get("size") or {}
+    width = size.get("width")
+    height = size.get("height")
+    if not isinstance(width, (int, float)) or not isinstance(height, (int, float)):
+        return False
+    return width >= 390 and height >= 800
+
+
+def node_path(root, target_id):
+    path = []
+
+    def visit(node, current):
+        next_path = current + [node.get("name") or node.get("id") or "-"]
+        if node.get("id") == target_id:
+            path.extend(next_path)
+            return True
+        for child in node.get("children", []) or []:
+            if visit(child, next_path):
+                return True
+        return False
+
+    visit(root, [])
+    return " / ".join(path)
+
+
+def paint_summary(paints):
+    parts = []
+    for paint in paints or []:
+        paint_type = paint.get("type")
+        if paint_type == "SOLID" and paint.get("color"):
+            color = paint.get("color") or {}
+            if color.get("hex") is None:
+                color = color_obj_to_hex(color) or {}
+            alpha = color.get("alpha")
+            suffix = "" if alpha in (None, 1) else f"@{alpha}"
+            parts.append(f"{color.get('hex')}{suffix}")
+        elif paint_type == "IMAGE":
+            asset = ((paint.get("image") or {}).get("asset") or {}).get("path")
+            parts.append(f"IMAGE:{asset or (paint.get('image') or {}).get('imageRef')}")
+        else:
+            parts.append(str(paint_type))
+    return ", ".join(part for part in parts if part)
+
+
+def style_override_runs(text):
+    chars = text.get("characters") or ""
+    overrides = text.get("characterStyleOverrides") or []
+    table = text.get("styleOverrideTable") or {}
+    if not chars or not overrides or not table:
+        return []
+    runs = []
+    run_start = 0
+    limit = min(len(chars), len(overrides))
+    for index in range(1, limit + 1):
+        if index == limit or overrides[index] != overrides[run_start]:
+            override_id = str(overrides[run_start])
+            override = table.get(override_id) or {}
+            run_text = chars[run_start:index]
+            details = []
+            fill = paint_summary(override.get("fills"))
+            if fill:
+                details.append(f"fill={fill}")
+            for key in ("fontSize", "fontWeight", "textDecoration", "textCase"):
+                if key in override:
+                    details.append(f"{key}={round_num(override.get(key))}")
+            if details and run_text:
+                runs.append({
+                    "text": run_text.replace("\n", "\\n"),
+                    "range": f"{run_start}:{index}",
+                    "details": " ".join(details),
+                })
+            run_start = index
+    return runs
+
+
+def risk_entry(node, risk, root, primary_screens):
+    screen = nearest_screen(node, primary_screens)
+    rect = relative_rect(node, screen) if screen else {
+        "x": (node.get("position") or {}).get("x"),
+        "y": (node.get("position") or {}).get("y"),
+        "width": (node.get("size") or {}).get("width"),
+        "height": (node.get("size") or {}).get("height"),
+    }
+    return clean_dict({
+        "risk": risk,
+        "id": node.get("id"),
+        "name": node.get("name"),
+        "type": node.get("type"),
+        "screen": (screen or {}).get("name"),
+        "screenId": (screen or {}).get("id"),
+        "rect": rect,
+        "path": node_path(root, node.get("id")),
+    })
+
+
+def collect_risk_entries(specs):
+    root = specs.get("document") or {}
+    primary_screens = [
+        child for child in root.get("children", []) or []
+        if is_primary_screen_node(child)
+    ]
+    risks = []
+    for node in walk_nodes(root):
+        fills = node.get("fills") or []
+        strokes = node.get("strokes") or []
+        text = node.get("text") or {}
+        if node.get("strokeDashes"):
+            entry = risk_entry(node, "dashed-stroke", root, primary_screens)
+            entry["details"] = f"dashes={node.get('strokeDashes')} stroke={paint_summary(strokes)} weight={node.get('strokeWeight')}"
+            risks.append(entry)
+        override_runs = style_override_runs(text)
+        if override_runs:
+            entry = risk_entry(node, "text-style-overrides", root, primary_screens)
+            entry["details"] = "; ".join(
+                f"`{run['text']}` range={run['range']} {run['details']}"
+                for run in override_runs[:6]
+            )
+            risks.append(entry)
+        if node.get("type") == "LINE":
+            entry = risk_entry(node, "divider-line", root, primary_screens)
+            entry["details"] = f"stroke={paint_summary(strokes)} weight={node.get('strokeWeight')}"
+            risks.append(entry)
+        if node.get("interactions"):
+            entry = risk_entry(node, "interaction", root, primary_screens)
+            pieces = []
+            for interaction in node.get("interactions", [])[:3]:
+                trigger = (interaction.get("trigger") or {}).get("type")
+                actions = interaction.get("actions") or []
+                action_text = []
+                for action in actions[:3]:
+                    transition = action.get("transition") or {}
+                    action_text.append(
+                        f"{action.get('type')} nav={action.get('navigation')} "
+                        f"dest={action.get('destinationId')} trans={transition.get('type')} "
+                        f"duration={round_num(transition.get('duration'))}"
+                    )
+                pieces.append(f"{trigger}: {'; '.join(action_text)}")
+            entry["details"] = " | ".join(pieces)
+            risks.append(entry)
+        if node.get("assetExports"):
+            entry = risk_entry(node, "asset-export", root, primary_screens)
+            paths = [asset.get("path") for asset in node.get("assetExports", []) if asset.get("path")]
+            entry["details"] = ", ".join(paths[:4])
+            risks.append(entry)
+        if any(paint.get("type") == "IMAGE" for paint in fills + strokes):
+            entry = risk_entry(node, "image-fill", root, primary_screens)
+            entry["details"] = f"fills={paint_summary(fills)} strokes={paint_summary(strokes)}"
+            risks.append(entry)
+        if node.get("cornerSmoothing") not in (None, 0, 0.0):
+            entry = risk_entry(node, "corner-smoothing", root, primary_screens)
+            entry["details"] = f"radius={node.get('cornerRadius')} smoothing={node.get('cornerSmoothing')}"
+            risks.append(entry)
+        if node.get("rectangleCornerRadii"):
+            entry = risk_entry(node, "per-corner-radius", root, primary_screens)
+            entry["details"] = f"radii={node.get('rectangleCornerRadii')}"
+            risks.append(entry)
+        if node.get("targetAspectRatio"):
+            entry = risk_entry(node, "target-aspect-ratio", root, primary_screens)
+            entry["details"] = f"targetAspectRatio={node.get('targetAspectRatio')}"
+            risks.append(entry)
+        if node.get("arcData"):
+            arc = node.get("arcData") or {}
+            full_circle = (
+                arc.get("startingAngle") in (None, 0, 0.0)
+                and arc.get("innerRadius") in (None, 0, 0.0)
+                and arc.get("endingAngle") in (6.28, 6.2831854820251465)
+            )
+            if not full_circle:
+                entry = risk_entry(node, "arc-data", root, primary_screens)
+                entry["details"] = f"arc={arc}"
+                risks.append(entry)
+    return risks
+
+
+def summarize_direct_child(child):
+    rect = child.get("rect") or {}
+    bits = [
+        f"`{child.get('name')}`",
+        f"`{child.get('nodeId')}`",
+        child.get("type") or "-",
+        f"x={rect.get('x')} y={rect.get('y')} w={rect.get('width')} h={rect.get('height')}",
+    ]
+    if child.get("layout"):
+        layout = child.get("layout") or {}
+        bits.append(f"layout={layout.get('layoutMode')} gap={layout.get('itemSpacing')}")
+    if child.get("fills"):
+        bits.append(f"fill={paint_summary(child.get('fills'))}")
+    if child.get("strokes"):
+        stroke = f"stroke={paint_summary(child.get('strokes'))} weight={child.get('strokeWeight')}"
+        if child.get("strokeDashes"):
+            stroke += f" dashes={child.get('strokeDashes')}"
+        bits.append(stroke)
+    if child.get("cornerRadius") is not None:
+        bits.append(f"radius={child.get('cornerRadius')}")
+    if child.get("assetExports"):
+        bits.append("assetExport=yes")
+    if child.get("interactions"):
+        bits.append("interaction=yes")
+    return " | ".join(bits)
+
+
+def render_ai_build_packet(specs):
+    source = specs.get("source") or {}
+    tokens = specs.get("designTokens") or {}
+    primary_ids = {
+        child.get("id")
+        for child in (specs.get("document") or {}).get("children", []) or []
+        if is_primary_screen_node(child)
+    }
+    blueprints = [
+        screen for screen in specs.get("screenBlueprints", [])
+        if screen.get("nodeId") in primary_ids
+    ]
+    risks = collect_risk_entries(specs)
+    risks_by_screen = {}
+    for risk in risks:
+        risks_by_screen.setdefault(risk.get("screen") or "GLOBAL/UNKNOWN", []).append(risk)
+
+    lines = [
+        "# Figma AI Build Packet",
+        "",
+        "This is the primary handoff for building all extracted screens in one pass. It is generated from `figma_specs.json` and is designed to reduce token usage without allowing visual guessing.",
+        "",
+        "## Non-Negotiable Rules",
+        "",
+        "- Do not implement from screenshots, memory, or `figma_ai_context.md` alone.",
+        "- Use this packet for global planning, then verify every component you code against `figma_specs.json` by `nodeId`.",
+        "- If a detail is missing, conflicting, or surprising, query the same `id` in `figma_raw.json` before choosing a fallback.",
+        "- Do not ignore any node listed in Global Risk Report or Per-Screen Risk Nodes.",
+        "- Preserve children order. `LINE` nodes are real dividers unless proven otherwise.",
+        "- Text overrides are part of the design. Use spans/annotated text when a range has a different fill/font.",
+        "",
+        "## Required Query Commands",
+        "",
+        "```bash",
+        "jq '.. | objects | select(.id? == \"NODE_ID\")' figma_specs.json",
+        "jq '.. | objects | select(.id? == \"NODE_ID\")' figma_raw.json",
+        "```",
+        "",
+        "## Source",
+        "",
+        f"- File: `{source.get('name', '-')}`",
+        f"- File key: `{source.get('fileKey', '-')}`",
+        f"- Node: `{source.get('nodeId', 'FULL FILE')}`",
+        f"- Primary screens: `{len(blueprints)}`",
+        "",
+        "## Core Tokens",
+        "",
+        "### Colors",
+    ]
+    for color in (tokens.get("colors") or [])[:18]:
+        lines.append(f"- `{color.get('hex')}` alpha `{color.get('alpha')}` count `{color.get('count')}`")
+    lines.extend(["", "### Text Styles"])
+    for style in (tokens.get("textStyles") or [])[:14]:
+        examples = ", ".join(f"`{item}`" for item in style.get("examples", [])[:2])
+        lines.append(
+            f"- {style.get('fontFamily')} {style.get('fontSize')}px "
+            f"w{style.get('fontWeight')} line={style.get('lineHeightPx')} "
+            f"letter={style.get('letterSpacing')} count={style.get('count')} {examples}"
+        )
+    lines.extend([
+        "",
+        f"- Spacing values: `{tokens.get('spacing', [])}`",
+        f"- Radius values: `{tokens.get('radius', [])}`",
+        "",
+        "## All Primary Screens",
+        "",
+    ])
+    for index, screen in enumerate(blueprints, start=1):
+        size = screen.get("size") or {}
+        layout = screen.get("layout") or {}
+        text_preview = [str((text.get("characters") or "")).replace("\n", "\\n") for text in screen.get("texts", [])[:8]]
+        lines.append(
+            f"{index}. `{screen.get('name')}` `{screen.get('nodeId')}` "
+            f"{size.get('width')}x{size.get('height')} layout={layout.get('layoutMode')} gap={layout.get('itemSpacing')}"
+        )
+        if text_preview:
+            lines.append(f"   Text: {', '.join('`' + item[:40] + '`' for item in text_preview)}")
+        if screen.get("assets"):
+            asset_names = [f"`{asset.get('name')}` `{asset.get('nodeId')}`" for asset in screen.get("assets", [])[:6]]
+            lines.append(f"   Assets: {', '.join(asset_names)}")
+
+    lines.extend(["", "## Global Risk Report", ""])
+    risk_groups = [
+        ("dashed-stroke", "Dashed Strokes"),
+        ("text-style-overrides", "Text Overrides"),
+        ("divider-line", "Divider Lines"),
+        ("interaction", "Interactions"),
+        ("asset-export", "Asset Exports"),
+        ("image-fill", "Image Fills"),
+        ("target-aspect-ratio", "Target Aspect Ratios"),
+        ("corner-smoothing", "Corner Smoothing"),
+        ("per-corner-radius", "Per-Corner Radius"),
+        ("arc-data", "Non-Full Arc Data"),
+    ]
+    for risk_key, title in risk_groups:
+        items = [risk for risk in risks if risk.get("risk") == risk_key]
+        if not items:
+            continue
+        lines.append(f"### {title} ({len(items)})")
+        for risk in items[:40]:
+            rect = risk.get("rect") or {}
+            lines.append(
+                f"- `{risk.get('id')}` `{risk.get('name')}` {risk.get('type')} "
+                f"screen=`{risk.get('screen')}` rect=x{rect.get('x')} y{rect.get('y')} "
+                f"w{rect.get('width')} h{rect.get('height')} :: {risk.get('details')}"
+            )
+        if len(items) > 40:
+            lines.append(f"- ... {len(items) - 40} more. Query `figma_specs.json` by risk type before implementation.")
+        lines.append("")
+
+    lines.extend(["## Per-Screen Contracts", ""])
+    for screen in blueprints:
+        size = screen.get("size") or {}
+        layout = screen.get("layout") or {}
+        lines.append(f"### {screen.get('name')} `{screen.get('nodeId')}`")
+        lines.append(
+            f"- Size: {size.get('width')}x{size.get('height')} "
+            f"layout={layout.get('layoutMode')} gap={layout.get('itemSpacing')} "
+            f"padding=({layout.get('paddingLeft')},{layout.get('paddingTop')},{layout.get('paddingRight')},{layout.get('paddingBottom')})"
+        )
+        lines.append("- Direct children, in order:")
+        for child in screen.get("directChildren", [])[:16]:
+            lines.append(f"  - {summarize_direct_child(child)}")
+        screen_risks = risks_by_screen.get(screen.get("name"), [])
+        if screen_risks:
+            lines.append("- Risk nodes in this screen, all must be handled:")
+            for risk in screen_risks[:24]:
+                rect = risk.get("rect") or {}
+                lines.append(
+                    f"  - {risk.get('risk')}: `{risk.get('id')}` `{risk.get('name')}` "
+                    f"{risk.get('type')} rect=x{rect.get('x')} y{rect.get('y')} "
+                    f"w{rect.get('width')} h{rect.get('height')} :: {risk.get('details')}"
+                )
+            if len(screen_risks) > 24:
+                lines.append(f"  - ... {len(screen_risks) - 24} more risk nodes. Query screen subtree before coding.")
+        lines.append("")
+
+    lines.extend([
+        "## Final Verification Checklist",
+        "",
+        "- Every primary screen above has a route/state or intentional implementation mapping.",
+        "- Every dashed-stroke node is rendered dashed, not solid.",
+        "- Every text-style-overrides node uses spans/rich text for overridden ranges.",
+        "- Every divider-line node is either rendered or explicitly mapped to an equivalent border.",
+        "- Every asset-export/image-fill node is visible on its intended background.",
+        "- Button fills, strokes, radius, text size/weight, and disabled/selected states match `figma_specs.json`.",
+        "- Icons use the node/vector size from `figma_specs.json`, not arbitrary library defaults.",
+        "- Per-screen direct child order is preserved.",
+        "- If implementation differs from this packet, document the node id and reason.",
+        "",
+    ])
     return "\n".join(lines)
 
 
@@ -1323,6 +1714,8 @@ def node_to_markdown(node, depth=0):
 
     if "cornerRadius" in node:
         lines.append(f"{indent}  - Radius: {node.get('cornerRadius')}")
+    if node.get("cornerSmoothing") not in (None, 0, 0.0):
+        lines.append(f"{indent}  - Corner smoothing: {node.get('cornerSmoothing')}")
 
     fills = node.get("fills", [])
     if fills:
@@ -1337,6 +1730,19 @@ def node_to_markdown(node, depth=0):
                 fill_text.append(str(fill.get("type")))
         lines.append(f"{indent}  - Fill: {', '.join(fill_text)}")
 
+    background_color = node.get("backgroundColor") or {}
+    if background_color and background_color.get("alpha") not in (None, 0):
+        fill_colors = [
+            (fill.get("color") or {}).get("hex")
+            for fill in fills
+            if fill.get("type") == "SOLID" and fill.get("color")
+        ]
+        if not fills or background_color.get("hex") not in fill_colors:
+            lines.append(
+                f"{indent}  - Background color: "
+                f"{background_color.get('hex')} / {background_color.get('flutter')}"
+            )
+
     strokes = node.get("strokes", [])
     if strokes:
         stroke_text = []
@@ -1345,7 +1751,27 @@ def node_to_markdown(node, depth=0):
                 stroke_text.append(f"{stroke['color'].get('hex')} / {stroke['color'].get('flutter')}")
             else:
                 stroke_text.append(str(stroke.get("type")))
-        lines.append(f"{indent}  - Stroke: {', '.join(stroke_text)} weight={node.get('strokeWeight')}")
+        stroke_details = [f"weight={node.get('strokeWeight')}"]
+        if node.get("strokeAlign"):
+            stroke_details.append(f"align={node.get('strokeAlign')}")
+        if node.get("strokeDashes"):
+            stroke_details.append(f"dashes={node.get('strokeDashes')}")
+        if node.get("strokeCap"):
+            stroke_details.append(f"cap={node.get('strokeCap')}")
+        if node.get("strokeJoin"):
+            stroke_details.append(f"join={node.get('strokeJoin')}")
+        lines.append(f"{indent}  - Stroke: {', '.join(stroke_text)} {' '.join(stroke_details)}")
+
+    arc_data = node.get("arcData")
+    if arc_data and (
+        arc_data.get("startingAngle") not in (None, 0, 0.0)
+        or arc_data.get("endingAngle") not in (None, 6.28)
+        or arc_data.get("innerRadius") not in (None, 0, 0.0)
+    ):
+        lines.append(
+            f"{indent}  - Arc: start={arc_data.get('startingAngle')} "
+            f"end={arc_data.get('endingAngle')} inner={arc_data.get('innerRadius')}"
+        )
 
     effects = node.get("effects", [])
     if effects:
@@ -1369,12 +1795,60 @@ def node_to_markdown(node, depth=0):
             f"weight={style.get('fontWeight')} "
             f"lineHeight={style.get('lineHeightPx')}"
         )
+        overrides = text.get("characterStyleOverrides") or []
+        override_table = text.get("styleOverrideTable") or {}
+        original_chars = text.get("characters", "")
+        if overrides and override_table and original_chars:
+            runs = []
+            run_start = 0
+            for index in range(1, min(len(overrides), len(original_chars)) + 1):
+                if index == len(overrides) or overrides[index] != overrides[run_start]:
+                    override_id = str(overrides[run_start])
+                    override = override_table.get(override_id) or {}
+                    run_text = original_chars[run_start:index]
+                    details = []
+                    fills = override.get("fills") or []
+                    if fills:
+                        fill_details = []
+                        for fill in fills:
+                            if fill.get("type") == "SOLID" and fill.get("color"):
+                                color = color_obj_to_hex(fill.get("color"))
+                                fill_details.append((color or {}).get("hex"))
+                            else:
+                                fill_details.append(str(fill.get("type")))
+                        details.append(f"fill={','.join(x for x in fill_details if x)}")
+                    for key in ("fontSize", "fontWeight", "textDecoration", "textCase"):
+                        if key in override:
+                            details.append(f"{key}={round_num(override.get(key))}")
+                    if details and run_text:
+                        safe_text = run_text.replace("\n", "\\n")
+                        runs.append(f"`{safe_text}` range={run_start}:{index} {' '.join(details)}")
+                    run_start = index
+            if runs:
+                lines.append(f"{indent}  - Text overrides: {'; '.join(runs[:8])}")
 
     asset_exports = node.get("assetExports", [])
     if asset_exports:
         paths = [asset.get("path") for asset in asset_exports if asset.get("path")]
         if paths:
             lines.append(f"{indent}  - Asset exports: {', '.join(paths)}")
+
+    interactions = node.get("interactions", [])
+    if interactions:
+        summaries = []
+        for interaction in interactions[:4]:
+            trigger = (interaction.get("trigger") or {}).get("type")
+            actions = interaction.get("actions") or []
+            action_bits = []
+            for action in actions[:3]:
+                transition = action.get("transition") or {}
+                action_bits.append(
+                    f"{action.get('type')} navigation={action.get('navigation')} "
+                    f"destination={action.get('destinationId')} "
+                    f"transition={transition.get('type')} duration={round_num(transition.get('duration'))}"
+                )
+            summaries.append(f"{trigger}: {'; '.join(action_bits)}")
+        lines.append(f"{indent}  - Interactions: {' | '.join(summaries)}")
 
     for child in node.get("children", []):
         lines.extend(node_to_markdown(child, depth + 1))
@@ -1572,6 +2046,9 @@ def main():
     with (out_dir / "figma_ai_context.md").open("w", encoding="utf-8") as f:
         f.write(render_ai_context(specs))
 
+    with (out_dir / "figma_ai_build_packet.md").open("w", encoding="utf-8") as f:
+        f.write(render_ai_build_packet(specs))
+
     with (out_dir / "figma_asset_manifest.md").open("w", encoding="utf-8") as f:
         f.write(render_asset_manifest_markdown(asset_manifest))
 
@@ -1586,6 +2063,7 @@ def main():
     print(f"- {out_dir / 'figma_specs.md'}")
     print(f"- {out_dir / 'figma_ai_context.json'}")
     print(f"- {out_dir / 'figma_ai_context.md'}")
+    print(f"- {out_dir / 'figma_ai_build_packet.md'}")
     print(f"- {out_dir / 'figma_asset_manifest.json'}")
     print(f"- {out_dir / 'figma_asset_manifest.md'}")
     print(f"- {out_dir / 'figma_screen_blueprints.json'}")

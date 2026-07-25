@@ -16,7 +16,76 @@ The objectives are to:
 
 ---
 
-# 2. Branch Strategy
+# 2. Naming Convention
+
+| Item | Format | Notes |
+| --- | --- | --- |
+| Branch | `<type>/<jira-key>-<short-description>` | Description must be lowercase. |
+| Commit | `<type>(scope): <jira-key> <description>` | Description must be lowercase. |
+| Pull Request | `<jira-key> <type>(scope): <description>` | Description must be lowercase. |
+| Jira Issue Name | `<area> - <action> <object>` | Keep it concise and action-oriented. |
+
+Allowed types:
+
+| Type | Meaning |
+| --- | --- |
+| feature | New feature |
+| bugfix | Bug fix |
+| refactor | Code refactor |
+| chore | Setup, config, CI/CD |
+| docs | Documentation |
+| test | Unit test or integration test |
+
+Examples:
+
+```text
+feature/SCRUM-96-implement-local-vault
+bugfix/SCRUM-92-fix-room-foreign-key
+docs/SCRUM-20-update-git-workflow
+```
+
+```text
+feature(data): SCRUM-94 add document repository
+bugfix(database): SCRUM-92 fix room foreign key
+docs(workflow): SCRUM-20 update git convention
+```
+
+```text
+SCRUM-94 feature(data): add document repository
+SCRUM-96 feature(vault): implement local vault
+```
+
+Do not use `feat`. Use `feature` so branch, commit, and PR types match.
+
+---
+
+# 3. Pull Request Description Template
+
+Use this structure as the default. Add extra notes when useful; the template does not need to be followed rigidly if the PR needs more context.
+
+```markdown
+## Jira
+SCRUM-94
+
+## What changed
+- Added document repository interface and implementation.
+- Added one-shot DAO reads for document and attachment flows.
+- Standardized `observe...` and `get...` naming.
+
+## Testing
+- Ran `./gradlew testDebugUnitTest`
+- Ran `./gradlew assembleDebug`
+- Ran `./gradlew lintDebug`
+
+## Screenshot
+(if any)
+```
+
+`What changed` must be specific enough for reviewers to understand and test the change carefully.
+
+---
+
+# 4. Branch Strategy
 
 ```
 main
@@ -35,7 +104,7 @@ main
 
 ---
 
-# 3. Branch Responsibilities
+# 5. Branch Responsibilities
 
 ## main
 
@@ -105,7 +174,7 @@ bugfix/SCRUM-92-room-foreign-key
 
 ---
 
-# 4. Initial Repository Setup
+# 6. Initial Repository Setup
 
 Performed once by the Project Manager.
 
@@ -126,7 +195,7 @@ dev
 
 ---
 
-# 5. Starting a New Task
+# 7. Starting a New Task
 
 Always create the feature branch from the latest `dev`.
 
@@ -142,7 +211,7 @@ Never create feature branches from `main`.
 
 ---
 
-# 6. Development Workflow
+# 8. Development Workflow
 
 Developer implements the assigned Jira task.
 
@@ -153,7 +222,7 @@ Example
 ```bash
 git add .
 
-git commit -m "feat(database): add Container entity"
+git commit -m "feature(database): SCRUM-92 add container entity"
 ```
 
 Push changes.
@@ -164,7 +233,7 @@ git push
 
 ---
 
-# 7. Update Feature Branch Before Pull Request
+# 9. Update Feature Branch Before Pull Request
 
 Before opening a Pull Request, synchronize the feature branch with the latest `dev`.
 
@@ -186,7 +255,7 @@ Push updated branch.
 
 ---
 
-# 8. Create Pull Request
+# 10. Create Pull Request
 
 After development is completed:
 
@@ -199,11 +268,17 @@ feature/SCRUM-92-document-core
 
 Create a Pull Request.
 
+Use the PR title format:
+
+```text
+SCRUM-92 feature(database): add container entity
+```
+
 Never merge directly.
 
 ---
 
-# 9. Code Review
+# 11. Code Review
 
 The reviewer checks:
 
@@ -253,7 +328,7 @@ Request Changes.
 
 ---
 
-# 10. Merge into dev
+# 12. Merge into dev
 
 After approval
 
@@ -270,7 +345,7 @@ Do not squash unless agreed by the team.
 
 ---
 
-# 11. QA Testing on dev
+# 13. QA Testing on dev
 
 QA always tests the latest `dev`.
 
@@ -302,7 +377,7 @@ QA ensures these tasks work together correctly.
 
 ---
 
-# 12. Bug Fix Workflow
+# 14. Bug Fix Workflow
 
 If a bug is found
 
@@ -344,7 +419,7 @@ Merge → dev
 
 ---
 
-# 13. Release Workflow
+# 15. Release Workflow
 
 At the end of the Sprint
 
@@ -365,7 +440,7 @@ Now `main` contains the stable Sprint release.
 
 ---
 
-# 14. Workflow Summary
+# 16. Workflow Summary
 
 ```
 Jira Issue
@@ -434,7 +509,7 @@ Merge dev → main
 
 ---
 
-# 15. Workflow for SCRUM-20 (Project Foundation)
+# 17. Workflow for SCRUM-20 (Project Foundation)
 
 ```
 Developer
@@ -501,7 +576,7 @@ SCRUM-20 must be completed and merged into `dev` before other implementation tas
 
 ---
 
-# 16. Pull Request Checklist
+# 18. Pull Request Checklist
 
 Before requesting review:
 
@@ -510,12 +585,13 @@ Before requesting review:
 * [ ] Project builds successfully.
 * [ ] No unnecessary files are included.
 * [ ] Commit messages follow the convention.
+* [ ] Pull Request title follows the convention.
 * [ ] Pull Request description is completed.
 * [ ] Slack-up is updated (if applicable).
 
 ---
 
-# 17. Definition of Done
+# 19. Definition of Done
 
 A Jira task is considered **Done** only when:
 
@@ -531,7 +607,7 @@ A Jira task is considered **Done** only when:
 
 ---
 
-# 18. Workflow Principles
+# 20. Workflow Principles
 
 Every team member should follow these principles:
 

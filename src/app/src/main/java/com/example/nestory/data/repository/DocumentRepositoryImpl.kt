@@ -10,7 +10,7 @@ class DocumentRepositoryImpl(
     override fun observeAllDocuments(): Flow<List<DocumentEntity>> =
         documentDao.observeAllDocuments()
 
-    override fun getDocumentById(documentId: Long): Flow<DocumentEntity?> =
+    override fun observeDocumentById(documentId: Long): Flow<DocumentEntity?> =
         documentDao.observeById(documentId)
 
     override fun searchDocuments(query: String): Flow<List<DocumentEntity>> =
@@ -20,9 +20,7 @@ class DocumentRepositoryImpl(
         documentDao.filterDocuments(
             category = filter.category,
             isFavorite = filter.isFavorite,
-            containerId = filter.containerId,
-            expiresBefore = filter.expiresBefore,
-            expiresAfter = filter.expiresAfter,
+            containerId = filter.containerId
         )
 
     override suspend fun createDocument(document: DocumentEntity): Result<Long> =

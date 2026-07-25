@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 interface DocumentRepository {
     fun observeAllDocuments(): Flow<List<DocumentEntity>>
 
-    fun getDocumentById(documentId: Long): Flow<DocumentEntity?>
+    fun observeDocumentById(documentId: Long): Flow<DocumentEntity?>
 
     fun searchDocuments(query: String): Flow<List<DocumentEntity>>
 

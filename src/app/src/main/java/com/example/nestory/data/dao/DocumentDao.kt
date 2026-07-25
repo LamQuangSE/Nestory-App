@@ -8,7 +8,7 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 import com.example.nestory.data.entity.DocumentEntity
-import kotlinx.coroutines.flow.Flow
+import com.example.nestory.data.model.DocumentCategory
 
 /**
  * Data Access Object for the `documents` table.
@@ -30,13 +30,28 @@ interface DocumentDao {
 
     /** Retrieve all documents ordered by title (ascending). */
     @Query("SELECT * FROM documents ORDER BY title ASC")
-    fun getAllDocuments(): Flow<List<DocumentEntity>>
+    fun observeAllDocuments(): Flow<List<DocumentEntity>>
 
     /** Retrieve a single document by its primary key. */
     @Query("SELECT * FROM documents WHERE id = :documentId LIMIT 1")
-    fun getById(documentId: Long): Flow<DocumentEntity?>
+    fun observeById(documentId: Long): Flow<DocumentEntity?>
 
     /** Retrieve all documents belonging to a specific container. */
     @Query("SELECT * FROM documents WHERE container_id = :containerId")
-    fun getDocumentsByContainer(containerId: Long): Flow<List<DocumentEntity>>
+    fun observeDocumentsByContainer(containerId: Long): Flow<List<DocumentEntity>>
+
+    @Query("UPDATE documents SET is_favorite = :isFavorite WHERE id = :documentId")
+    suspend fun updateFavoriteStatus( documentId: Long, isFavorite: Boolean)
+
+    @Query("UPDATE documents SET container_id = :containerId WHERE id = :documentId ")
+    suspend fun updateDocumentLocation(documentId: Long, containerId: Long)
+
+    @Query("UPDATE documents SET expiration_date = :expirationDate WHERE id = :documentId")
+    suspend fun updateDocumentExpiryDate( documentId: Long, expirationDate: String?)
+
+    @Query(" SELECT * FROM documents WHERE title LIKE '%' || :keyword || '%' COLLATE NOCASE ORDER BY title")
+    fun searchDocuments(keyword: String): Flow<List<DocumentEntity>>
+
+    @Query("SELECT * FROM documents WHERE (:category IS NULL OR category = :category) AND (:isFavorite IS NULL OR is_favorite = :isFavorite) AND (:containerId IS NULL OR container_id = :containerId) ORDER BY title COLLATE NOCASE")
+    fun filterDocuments(category: DocumentCategory?, isFavorite: Boolean?, containerId: Long?): Flow<List<DocumentEntity>>
 }

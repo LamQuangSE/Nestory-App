@@ -29,15 +29,11 @@ interface AttachmentDao {
 
     /** Retrieve all attachments ordered by display order (ascending). */
     @Query("SELECT * FROM attachments ORDER BY display_order ASC")
-    fun getAllAttachments(): Flow<List<AttachmentEntity>>
-
-    /** Retrieve a single attachment by its primary key. */
-    @Query("SELECT * FROM attachments WHERE id = :attachmentId LIMIT 1")
-    fun getById(attachmentId: Long): Flow<AttachmentEntity?>
+    fun observeAllAttachments(): Flow<List<AttachmentEntity>>
 
     /** Retrieve all attachments belonging to a specific document, ordered by display order. */
     @Query("SELECT * FROM attachments WHERE document_id = :documentId ORDER BY display_order ASC")
-    fun getByDocumentId(documentId: Long): Flow<List<AttachmentEntity>>
+    fun observeByDocumentId(documentId: Long): Flow<List<AttachmentEntity>>
 
     /** Update the display order of an attachment (for drag & drop reordering). */
     @Query("UPDATE attachments SET display_order = :newOrder WHERE id = :attachmentId")

@@ -4,7 +4,7 @@ import com.example.nestory.data.entity.AttachmentEntity
 import kotlinx.coroutines.flow.Flow
 
 interface AttachmentRepository {
-    fun getAttachmentsByDocumentId(documentId: Long): Flow<List<AttachmentEntity>>
+    fun observeAttachmentsByDocumentId(documentId: Long): Flow<List<AttachmentEntity>>
 
     suspend fun addAttachmentMetadata(attachment: AttachmentEntity): Result<Long>
 

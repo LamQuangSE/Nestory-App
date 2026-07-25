@@ -18,13 +18,13 @@
         @Delete
         suspend fun deleteKit(kit: DocumentKitEntity)
 
-        @Transaction
-        @Query("SELECT * FROM document_kits")
-        fun getAllKitsWithItems(): Flow<List<KitWithItems>>
+    @Transaction
+    @Query("SELECT * FROM document_kits")
+    fun observeAllKitsWithItems(): Flow<List<KitWithItems>>
 
-        @Transaction
-        @Query("SELECT * FROM document_kits WHERE id = :kitId")
-        suspend fun getKitWithItemsById(kitId: Long): KitWithItems?
+    @Transaction
+    @Query("SELECT * FROM document_kits WHERE id = :kitId")
+    fun observeKitWithItemsById(kitId: Long):  Flow<KitWithItems?>
 
         @Insert(onConflict = OnConflictStrategy.REPLACE)
         suspend fun insertKitItem(item: KitItemEntity): Long
@@ -35,6 +35,13 @@
         @Update
         suspend fun updateKitItem(item: KitItemEntity)
 
-        @Delete
-        suspend fun deleteKitItem(item: KitItemEntity)
-    }
+    @Delete
+    suspend fun deleteKitItem(item: KitItemEntity)
+
+    // --- Repository helpers ---
+    @Query("SELECT * FROM document_kits WHERE id = :kitId")
+    fun getKitById(kitId: Long): Flow<DocumentKitEntity?>
+
+    @Query("SELECT * FROM kit_items WHERE id = :itemId")
+    suspend fun observeKitItemById(itemId: Long): KitItemEntity?
+}

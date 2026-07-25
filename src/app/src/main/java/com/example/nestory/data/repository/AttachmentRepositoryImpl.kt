@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.Flow
 class AttachmentRepositoryImpl(
     private val attachmentDao: AttachmentDao,
 ) : AttachmentRepository {
-    override fun getAttachmentsByDocumentId(documentId: Long): Flow<List<AttachmentEntity>> =
-        attachmentDao.getAttachmentsByDocumentId(documentId)
+    override fun observeAttachmentsByDocumentId(documentId: Long): Flow<List<AttachmentEntity>> =
+        attachmentDao.observeByDocumentId(documentId)
 
     override suspend fun addAttachmentMetadata(
         attachment: AttachmentEntity,

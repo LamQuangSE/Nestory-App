@@ -5,6 +5,7 @@ import androidx.room.ForeignKey
 import androidx.room.ColumnInfo
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.example.nestory.data.model.DocumentCategory
 
 /**
  * Represents a document stored in the database.
@@ -32,7 +33,7 @@ data class DocumentEntity(
     val title: String,                     // Title of the document
 
     @ColumnInfo(name = "category")
-    val category: String,                  // User‑defined category (e.g., "Invoice", "Photo")
+    val category: DocumentCategory,                  // User‑defined category (e.g., "Invoice", "Photo")
 
     @ColumnInfo(name = "expiration_date")
     val expirationDate: String? = null,    // Optional expiration date (ISO‑8601 string)

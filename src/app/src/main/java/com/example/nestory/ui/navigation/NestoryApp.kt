@@ -24,6 +24,7 @@ import com.example.nestory.ui.screens.unlock.UnlockPinScreen
 import com.example.nestory.ui.screens.unlock.UnlockSuccessScreen
 import com.example.nestory.ui.screens.vault.CreateVaultScreen
 import com.example.nestory.ui.screens.vault.WaitingScreen
+import com.example.nestory.ui.screens.category.CategoryRoute
 
 @Composable
 fun NestoryApp() {
@@ -34,7 +35,7 @@ fun NestoryApp() {
         } else {
             NestoryDestination.StartVault
         }
-    }
+    }   
     var destination by remember { mutableStateOf(initialDestination) }
     var vaultCreationSession by remember { mutableIntStateOf(0) }
 
@@ -100,6 +101,9 @@ fun NestoryApp() {
             NestoryDestination.Home -> HomeDashboardScreen(
                 onOpenAll = { },
                 onAddDocument = { },
+            )
+            NestoryDestination.Category -> CategoryRoute(
+                onBack = { destination = NestoryDestination.Home }
             )
         }
     }

@@ -1,12 +1,13 @@
 package com.example.nestory.ui.theme
 
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 object NestoryTextStyles {
     private fun interStyle(weight: FontWeight, size: androidx.compose.ui.unit.TextUnit, lineHeight: androidx.compose.ui.unit.TextUnit) = TextStyle(
-        fontFamily = InterFontFamily,
+        fontFamily = FontFamily.Default,
         fontWeight = weight,
         fontSize = size,
         lineHeight = lineHeight,

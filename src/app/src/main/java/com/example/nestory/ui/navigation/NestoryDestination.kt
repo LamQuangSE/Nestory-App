@@ -8,5 +8,6 @@ enum class NestoryDestination {
     Fingerprint,
     Pin,
     UnlockSuccess,
-    Home
+    Home,
+    Category
 }

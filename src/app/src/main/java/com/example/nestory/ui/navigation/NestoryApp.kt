@@ -9,35 +9,66 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.nestory.data.filesystem.FileSystemManager
+import com.example.nestory.security.VaultUnlockSessionProvider
+import com.example.nestory.ui.screens.category.CategoryRoute
 import com.example.nestory.ui.screens.home.HomeDashboardScreen
 import com.example.nestory.ui.screens.start.StartVaultScreen
-import com.example.nestory.ui.screens.unlock.UnlockChoiceScreen
-import com.example.nestory.ui.screens.unlock.UnlockFingerprintScreen
-import com.example.nestory.ui.screens.unlock.UnlockPinScreen
+import com.example.nestory.ui.screens.unlock.UnlockRoute
 import com.example.nestory.ui.screens.unlock.UnlockSuccessScreen
 import com.example.nestory.ui.screens.vault.CreateVaultScreen
 import com.example.nestory.ui.screens.vault.WaitingScreen
-import com.example.nestory.ui.screens.category.CategoryRoute
 
 @Composable
 fun NestoryApp() {
     val context = LocalContext.current.applicationContext
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val unlockSessionManager = remember { VaultUnlockSessionProvider.manager }
     val initialDestination = remember {
         if (FileSystemManager(context).isVaultInitialized()) {
-            NestoryDestination.UnlockChoice
+            if (unlockSessionManager.isSessionValid()) {
+                NestoryDestination.Home
+            } else {
+                NestoryDestination.Unlock
+            }
         } else {
             NestoryDestination.StartVault
         }
-    }   
+    }
     var destination by remember { mutableStateOf(initialDestination) }
     var vaultCreationSession by remember { mutableIntStateOf(0) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> unlockSessionManager.onAppBackgrounded()
+                Lifecycle.Event.ON_START -> {
+                    val isVaultInitialized = FileSystemManager(context).isVaultInitialized()
+                    val isSessionValid = unlockSessionManager.onAppForegrounded()
+                    if (isVaultInitialized && !isSessionValid) {
+                        destination = NestoryDestination.Unlock
+                    }
+                }
+
+                else -> Unit
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     AnimatedContent(
         targetState = destination,
@@ -74,24 +105,14 @@ fun NestoryApp() {
             NestoryDestination.Waiting -> WaitingScreen(
                 sessionKey = vaultCreationSession,
                 onBack = { destination = NestoryDestination.CreateVault },
-                onComplete = { destination = NestoryDestination.UnlockChoice },
+                onComplete = { destination = NestoryDestination.Unlock },
             )
 
-            NestoryDestination.UnlockChoice -> UnlockChoiceScreen(
-                onFingerprint = { destination = NestoryDestination.Fingerprint },
-                onPin = { destination = NestoryDestination.Pin },
-            )
-
-            NestoryDestination.Fingerprint -> UnlockFingerprintScreen(
-                onCancel = { destination = NestoryDestination.UnlockChoice },
-                onUsePin = { destination = NestoryDestination.Pin },
-                onUnlocked = { destination = NestoryDestination.UnlockSuccess },
-            )
-
-            NestoryDestination.Pin -> UnlockPinScreen(
-                onBack = { destination = NestoryDestination.UnlockChoice },
-                onForgotPin = { destination = NestoryDestination.UnlockChoice },
-                onUnlocked = { destination = NestoryDestination.UnlockSuccess },
+            NestoryDestination.Unlock -> UnlockRoute(
+                onUnlocked = {
+                    unlockSessionManager.markUnlocked()
+                    destination = NestoryDestination.UnlockSuccess
+                },
             )
 
             NestoryDestination.UnlockSuccess -> UnlockSuccessScreen(

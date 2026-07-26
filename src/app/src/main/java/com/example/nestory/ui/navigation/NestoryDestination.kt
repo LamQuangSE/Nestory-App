@@ -4,9 +4,7 @@ enum class NestoryDestination {
     StartVault,
     CreateVault,
     Waiting,
-    UnlockChoice,
-    Fingerprint,
-    Pin,
+    Unlock,
     UnlockSuccess,
     Home,
     Category

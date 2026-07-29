@@ -1,0 +1,193 @@
+package com.example.nestory.ui.screens.container
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.nestory.ui.assets.AppIcons
+import com.example.nestory.ui.theme.GeneratedColor
+import com.example.nestory.ui.theme.NestorySpacing
+import com.example.nestory.ui.theme.NestoryTextStyles
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
+
+enum class CreateContainerState {
+    Default,
+    Filled
+}
+
+@Composable
+fun CreateContainerScreen(
+    initialState: CreateContainerState = CreateContainerState.Default,
+    parentContainerName: String = "Ngăn 1",
+    isParentLocked: Boolean = false,
+    onBackClick: () -> Unit,
+    onCreate: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var containerName by remember { mutableStateOf("") }
+    var currentState by remember { mutableStateOf(initialState) }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(GeneratedColor.FigmaFfffff)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // Frame 83 — Header
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(80.dp)
+                    .padding(bottom = 20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                IconButton(onClick = onBackClick) {
+                    Icon(
+                        painter = painterResource(id = AppIcons.GlyphsArrowBold),
+                        contentDescription = "Back",
+                        modifier = Modifier.size(26.dp),
+                        tint = GeneratedColor.Figma000000
+                    )
+                }
+                Text(
+                    text = "Tạo container",
+                    style = NestoryTextStyles.Body20Bold,
+                    color = GeneratedColor.Figma000000
+                )
+            }
+
+            // "Tên container *" label
+            Text(
+                text = buildAnnotatedString {
+                    append("Tên container ")
+                    withStyle(SpanStyle(color = GeneratedColor.FigmaFf0000)) {
+                        append("*")
+                    }
+                },
+                style = NestoryTextStyles.Body16Bold,
+                color = GeneratedColor.Figma000000
+            )
+
+            // Title Frame — text input
+            ContainerFormField(
+                value = containerName,
+                onValueChange = {
+                    containerName = it
+                    currentState = if (it.isNotEmpty()) CreateContainerState.Filled
+                    else CreateContainerState.Default
+                },
+                placeholder = "Nhập tên container"
+            )
+
+            // "Container cha" label
+            Text(
+                text = "Container cha",
+                style = NestoryTextStyles.Body16Bold,
+                color = GeneratedColor.Figma000000
+            )
+
+            // Title Frame — parent container selector
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(12.dp))
+                    .padding(horizontal = 15.dp)
+                    .clickable { },
+                contentAlignment = Alignment.CenterStart
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = parentContainerName,
+                        style = NestoryTextStyles.Body15Medium,
+                        color = GeneratedColor.Figma000000
+                    )
+                    if (isParentLocked) {
+                        Icon(
+                            painter = painterResource(id = AppIcons.MaterialSymbolsLightLock),
+                            contentDescription = null,
+                            modifier = Modifier.size(25.dp),
+                            tint = GeneratedColor.Figma919191
+                        )
+                    }
+                }
+            }
+
+            // Info text
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier.size(40.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        painter = painterResource(id = AppIcons.Vector),
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = GeneratedColor.Figma919191
+                    )
+                }
+                Text(
+                    text = "Container mới sẽ được tạo bên trong vị trí này.",
+                    style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold),
+                    color = GeneratedColor.Figma919191,
+                    lineHeight = 14.52.sp
+                )
+            }
+        }
+
+        // Frame 127 — Action button
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(vertical = 6.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                ContainerActionButton(
+                    text = "Tạo container mới",
+                    onClick = { onCreate(containerName) },
+                    isPrimary = false,
+                    isDashed = true,
+                    textStyle = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}

@@ -20,68 +20,55 @@ class ContainerViewModel(
     val uiState: StateFlow<ContainerUiState> = _uiState.asStateFlow()
 
     private var observeJob: Job? = null
-    private var pathJob: Job? = null
 
     init {
-        navigateTo(null)
+        observeAllContainers()
     }
 
-    fun navigateTo(newParentId: Long?) {
-        setCurrentParent(newParentId)
-        observeChildren(newParentId)
-        loadPathForParentId(newParentId)
-    }
-
-    private fun setCurrentParent(parentId: Long?) {
-        _uiState.update {
-            it.copy(
-                parentId = parentId,
-                isLoading = true,
-                errorMessage = null
-            )
-        }
-    }
-
-    private fun loadPathForParentId(parentId: Long?) {
-        pathJob?.cancel()
-        pathJob = viewModelScope.launch {
-            val path = if (parentId == null) {
-                emptyList()
-            } else {
-                containerRepository.getContainerPath(parentId)
-            }
-            _uiState.update { it.copy(containerPath = path) }
-        }
-    }
-
-    private fun observeChildren(parentId: Long?) {
+    private fun observeAllContainers() {
         observeJob?.cancel()
         observeJob = viewModelScope.launch {
-            containerRepository.observeChildContainers(parentId)
+            containerRepository.observeAllContainers()
                 .catch { e ->
                     _uiState.update { it.copy(isLoading = false, errorMessage = getErrorMessage(e)) }
                 }
-                .collect { children ->
-                    _uiState.update { it.copy(containerList = children, isLoading = false) }
+                .collect { containers ->
+                    _uiState.update { it.copy(allContainers = containers, isLoading = false) }
                 }
         }
     }
 
-    fun openContainer(containerId: Long) {
-        navigateTo(containerId)
-    }
-
-    fun goBack() {
-        val currentParentId = _uiState.value.parentId ?: return
-
-        viewModelScope.launch {
-            val parent = containerRepository.getContainerById(currentParentId).getOrNull()
-            navigateTo(parent?.parentId)
+    fun toggleContainer(containerId: Long) {
+        _uiState.update { state ->
+            val newExpandedIds = if (containerId in state.expandedIds) {
+                state.expandedIds - containerId
+            } else {
+                state.expandedIds + containerId
+            }
+            state.copy(expandedIds = newExpandedIds)
         }
     }
 
-    fun loadContainerPath(containerId: Long) {
-        navigateTo(containerId)
+    fun selectContainer(containerId: Long) {
+        _uiState.update { state ->
+            val path = buildContainerPath(containerId, state.allContainers)
+            state.copy(selectedContainerId = containerId, containerPath = path)
+        }
+    }
+
+    fun clearSelection() {
+        _uiState.update { it.copy(selectedContainerId = null, containerPath = emptyList()) }
+    }
+
+    private fun buildContainerPath(containerId: Long, allContainers: List<ContainerEntity>): List<ContainerEntity> {
+        val path = mutableListOf<ContainerEntity>()
+        var currentId: Long? = containerId
+        while (currentId != null) {
+            val container = allContainers.find { it.id == currentId } ?: break
+            path.add(0, container)
+            currentId = container.parentId
+        }
+        return path
     }
 
     fun createContainer(name: String, parentId: Long?) {

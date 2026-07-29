@@ -44,6 +44,8 @@ import com.example.nestory.ui.theme.NestoryTextStyles
 @Composable
 fun HomeDashboardScreen(
     onOpenAll: () -> Unit,
+    onOpenCategory: () -> Unit,
+    onOpenContainer: () -> Unit,
     onAddDocument: () -> Unit
 ) {
     Surface(
@@ -75,11 +77,12 @@ fun HomeDashboardScreen(
                 Spacer(modifier = Modifier.height(NestorySpacing.S24))
                 SectionCard {
                     SectionHeader(title = "Cần chú ý", action = "Xem tất cả", onAction = onOpenAll)
+
                     Spacer(modifier = Modifier.height(NestorySpacing.S16))
                     EmptyStateLine()
                 }
                 Spacer(modifier = Modifier.height(NestorySpacing.S24))
-                SectionHeader(title = "Gần đây", action = "Xem tất cả", onAction = onOpenAll)
+                SectionHeader(title = "Gần đây", action = "Xem tất cả", onAction = onOpenCategory)
                 Spacer(modifier = Modifier.height(NestorySpacing.S14))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -91,7 +94,7 @@ fun HomeDashboardScreen(
                     EmptyRecentCard(Modifier.weight(1f))
                 }
                 Spacer(modifier = Modifier.height(NestorySpacing.S24))
-                SectionHeader(title = "Container của bạn", action = "Xem tất cả", onAction = onOpenAll)
+                SectionHeader(title = "Container của bạn", action = "Xem tất cả", onAction = onOpenContainer)
                 Spacer(modifier = Modifier.height(NestorySpacing.S14))
                 SectionCard {
                     EmptyStateLine()

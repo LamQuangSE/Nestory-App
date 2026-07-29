@@ -25,6 +25,7 @@ import com.example.nestory.ui.screens.unlock.UnlockSuccessScreen
 import com.example.nestory.ui.screens.vault.CreateVaultScreen
 import com.example.nestory.ui.screens.vault.WaitingScreen
 import com.example.nestory.ui.screens.category.CategoryRoute
+import com.example.nestory.ui.screens.container.ContainerRoute
 
 @Composable
 fun NestoryApp() {
@@ -99,10 +100,15 @@ fun NestoryApp() {
             )
 
             NestoryDestination.Home -> HomeDashboardScreen(
-                onOpenAll = { },
+                onOpenAll = { destination = NestoryDestination.Container },
+                onOpenCategory = { destination = NestoryDestination.Category },
+                onOpenContainer = { destination = NestoryDestination.Container },
                 onAddDocument = { },
             )
             NestoryDestination.Category -> CategoryRoute(
+                onBack = { destination = NestoryDestination.Home }
+            )
+            NestoryDestination.Container -> ContainerRoute(
                 onBack = { destination = NestoryDestination.Home }
             )
         }

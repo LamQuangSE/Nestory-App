@@ -1,0 +1,244 @@
+package com.example.nestory.ui.screens.container
+
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Divider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.dp
+import com.example.nestory.data.entity.ContainerEntity
+import com.example.nestory.ui.assets.AppIcons
+import com.example.nestory.ui.assets.AppImages
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import com.example.nestory.ui.theme.GeneratedColor
+import com.example.nestory.ui.theme.NestorySpacing
+import com.example.nestory.ui.theme.NestoryTextStyles
+
+@Composable
+fun ContainerSelectionScreen(
+    uiState: ContainerUiState,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onSelectContainer: (Long) -> Unit,
+    onToggleContainer: (Long) -> Unit,
+    onCreateClick: () -> Unit,
+    onEditClick: () -> Unit,
+    onConfirmClick: () -> Unit,
+    onDeleteClick: (Long) -> Unit,
+    onCloseBreadcrumb: () -> Unit,
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val isEmpty = uiState.rootContainers.isEmpty()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(GeneratedColor.FigmaFfffff)
+            .padding(horizontal = NestorySpacing.S20),
+        verticalArrangement = Arrangement.spacedBy(NestorySpacing.S15)
+    ) {
+        Spacer(modifier = Modifier.height(NestorySpacing.S10))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    painter = painterResource(id = AppIcons.GlyphsArrowBold),
+                    contentDescription = "Back",
+                    modifier = Modifier.size(26.dp),
+                    tint = GeneratedColor.Figma000000
+                )
+            }
+            Text(
+                text = "Chọn vị trí lưu trữ",
+                style = NestoryTextStyles.Body20Bold,
+                color = GeneratedColor.Figma000000
+            )
+        }
+
+        if (!isEmpty) {
+            ContainerSearchField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange
+            )
+        }
+
+        if (!isEmpty && uiState.containerPath.isNotEmpty()) {
+            ContainerBreadcrumb(
+                pathSegments = uiState.containerPath.map { it.name },
+                onClose = onCloseBreadcrumb
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .background(Color.Transparent)
+        ) {
+            if (isEmpty) {
+                ContainerEmptyState()
+            } else {
+                ExpandableContainerList(
+                    uiState = uiState,
+                    onSelectContainer = onSelectContainer,
+                    onToggleContainer = onToggleContainer,
+                    onDeleteClick = onDeleteClick
+                )
+            }
+        }
+
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .padding(vertical = NestorySpacing.S10),
+            horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
+        ) {
+            ContainerActionButton(
+                text = "Tạo container mới",
+                onClick = onCreateClick,
+                isPrimary = false,
+                isDashed = true,
+                modifier = Modifier.weight(1f)
+            )
+            if (!isEmpty) {
+                ContainerActionButton(
+                    text = "Chỉnh sửa container",
+                    onClick = onEditClick,
+                    isPrimary = false,
+                    isDashed = true,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+
+        if (!isEmpty) {
+            ContainerActionButton(
+                text = "Xác nhận vị trí",
+                onClick = onConfirmClick,
+                isPrimary = true,
+                textStyle = NestoryTextStyles.Body16Medium,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+
+        Spacer(modifier = Modifier.height(NestorySpacing.S20))
+    }
+}
+
+@Composable
+fun ExpandableContainerList(
+    uiState: ContainerUiState,
+    onSelectContainer: (Long) -> Unit,
+    onToggleContainer: (Long) -> Unit,
+    onDeleteClick: (Long) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+    ) {
+        uiState.rootContainers.forEach { container ->
+            ExpandableContainerNode(
+                container = container,
+                level = 0,
+                uiState = uiState,
+                onSelectContainer = onSelectContainer,
+                onToggleContainer = onToggleContainer,
+                onDeleteClick = onDeleteClick
+            )
+            Divider(color = GeneratedColor.FigmaE5e7eb, thickness = 1.dp)
+        }
+    }
+}
+
+@Composable
+fun ExpandableContainerNode(
+    container: ContainerEntity,
+    level: Int,
+    uiState: ContainerUiState,
+    onSelectContainer: (Long) -> Unit,
+    onToggleContainer: (Long) -> Unit,
+    onDeleteClick: (Long) -> Unit
+) {
+    val hasChildren = uiState.getChildren(container.id).isNotEmpty()
+    val isExpanded = uiState.isExpanded(container.id)
+
+    ContainerItem(
+        name = container.name,
+        isSelected = container.id == uiState.selectedContainerId,
+        isExpanded = isExpanded,
+        hasChildren = hasChildren,
+        level = level,
+        onToggle = { onToggleContainer(container.id) },
+        onItemClick = { onSelectContainer(container.id) },
+        onDeleteClick = { onDeleteClick(container.id) }
+    )
+
+    if (isExpanded) {
+        uiState.getChildren(container.id).forEach { child ->
+            ExpandableContainerNode(
+                container = child,
+                level = level + 1,
+                uiState = uiState,
+                onSelectContainer = onSelectContainer,
+                onToggleContainer = onToggleContainer,
+                onDeleteClick = onDeleteClick
+            )
+            Divider(color = GeneratedColor.FigmaE5e7eb, thickness = 1.dp)
+        }
+    }
+}
+
+@Composable
+fun ContainerEmptyState() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10))
+            .clip(RoundedCornerShape(NestorySpacing.S10)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            modifier = Modifier.padding(NestorySpacing.S20),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Image(
+                painter = painterResource(id = AppImages.ContainerEmptyState),
+                contentDescription = null,
+                modifier = Modifier.size(width = 254.dp, height = 199.dp),
+                contentScale = ContentScale.Fit
+            )
+            Spacer(modifier = Modifier.height(NestorySpacing.S20))
+            Text(
+                text = "Chưa có container nào",
+                style = NestoryTextStyles.Title22Semi,
+                color = GeneratedColor.Figma000000,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(NestorySpacing.S10))
+            Text(
+                text = "Thêm container đầu tiên để bắt đầu quản lý trong Nestory",
+                style = NestoryTextStyles.Body13Semi,
+                color = GeneratedColor.Figma919191,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}

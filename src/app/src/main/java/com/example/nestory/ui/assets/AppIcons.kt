@@ -27,4 +27,12 @@ object AppIcons {
     val IcTrash = R.drawable.ic_trash
     val IcBackwardArrow = R.drawable.ic_backward_arrow
     val IcSearch = R.drawable.ic_search
+    val GlyphsArrowBold = R.drawable.ic_glyphs_arrow_bold
+    val GridiconsCross = R.drawable.ic_gridicons_cross
+    val LsiconDownFilled = R.drawable.ic_lsicon_down_filled
+    val LsiconRightFilled = R.drawable.ic_lsicon_right_filled
+    val MageTrash = R.drawable.ic_mage_trash
+    val MaterialSymbolsLightLock = R.drawable.ic_material_symbols_light_lock
+    val MaterialSymbolsLightSearch = R.drawable.ic_material_symbols_light_search
+    val Vector = R.drawable.ic_vector
 }

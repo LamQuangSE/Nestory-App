@@ -9,5 +9,6 @@ enum class NestoryDestination {
     Pin,
     UnlockSuccess,
     Home,
-    Category
+    Category,
+    Container
 }

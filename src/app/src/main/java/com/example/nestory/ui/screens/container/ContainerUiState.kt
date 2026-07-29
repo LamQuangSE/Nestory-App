@@ -2,14 +2,22 @@ package com.example.nestory.ui.screens.container
 
 import com.example.nestory.data.entity.ContainerEntity
 import kotlin.collections.emptyList
+import kotlin.collections.emptySet
 
-/**
- * UI state for the Container screen.
- */
 data class ContainerUiState(
-    val containerList: List<ContainerEntity> = emptyList(),
-    val parentId: Long? = null,
+    val allContainers: List<ContainerEntity> = emptyList(),
+    val expandedIds: Set<Long> = emptySet(),
+    val selectedContainerId: Long? = null,
     val containerPath: List<ContainerEntity> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null
-)
+) {
+    val rootContainers: List<ContainerEntity>
+        get() = allContainers.filter { it.parentId == null }
+
+    fun getChildren(parentId: Long): List<ContainerEntity> =
+        allContainers.filter { it.parentId == parentId }
+
+    fun isExpanded(containerId: Long): Boolean =
+        containerId in expandedIds
+}

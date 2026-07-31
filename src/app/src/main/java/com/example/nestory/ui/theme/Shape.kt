@@ -7,6 +7,7 @@ object NestoryRadius {
     val R10 = RoundedCornerShape(10.dp)
     val R12 = RoundedCornerShape(12.dp)
     val R14 = RoundedCornerShape(14.dp)
+    val R15 = RoundedCornerShape(15.dp)
     val R16 = RoundedCornerShape(16.dp)
     val R20 = RoundedCornerShape(20.dp)
 }

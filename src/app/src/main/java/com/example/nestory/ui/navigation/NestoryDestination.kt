@@ -9,5 +9,9 @@ enum class NestoryDestination {
     Pin,
     UnlockSuccess,
     Home,
-    Category
+    Category,
+    DocumentSelection,
+    DocumentDetail,
+    FilterSelection,
+    Scan
 }

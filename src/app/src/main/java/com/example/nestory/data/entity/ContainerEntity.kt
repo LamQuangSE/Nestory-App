@@ -1,8 +1,8 @@
 package com.example.nestory.data.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
-import androidx.room.ColumnInfo
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -12,23 +12,23 @@ import androidx.room.PrimaryKey
  */
 @Entity(
     tableName = "containers",
-    // Define a self-referencing foreign key for hierarchical containers
     foreignKeys = [
         ForeignKey(
-            entity = ContainerEntity::class, // points to same table
-            parentColumns = ["id"],          // primary key of parent container
-            childColumns = ["parent_id"],    // foreign key column in this table
-            onDelete = ForeignKey.RESTRICT,   // prevent deletion of container with children
-            onUpdate = ForeignKey.NO_ACTION  // primary key never changes; no action needed on update
-        )
+            entity = ContainerEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["parent_id"],
+            onDelete = ForeignKey.RESTRICT,
+            onUpdate = ForeignKey.NO_ACTION,
+        ),
     ],
-    // Index on parent_id to speed up lookups of children
-    indices = [Index(value = ["parent_id"])]
+    indices = [Index(value = ["parent_id"])],
 )
 data class ContainerEntity(
-    @PrimaryKey(autoGenerate = true) // Auto‑generated row id
+    @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
-    val name: String, // name of the folder/container
-    @ColumnInfo(name = "parent_id") // column name in DB
-    val parentId: Long? = null // null indicates a top‑level container
+
+    val name: String,
+
+    @ColumnInfo(name = "parent_id")
+    val parentId: Long? = null,
 )

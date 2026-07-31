@@ -52,7 +52,7 @@ fun NestoryTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = GeneratedTypography,
         content = content
     )
 }

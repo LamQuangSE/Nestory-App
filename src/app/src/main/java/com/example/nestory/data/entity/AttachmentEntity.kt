@@ -14,16 +14,15 @@ import androidx.room.PrimaryKey
             parentColumns = ["id"],
             childColumns = ["document_id"],
             onDelete = ForeignKey.CASCADE,
-            onUpdate = ForeignKey.NO_ACTION
-        )
+            onUpdate = ForeignKey.NO_ACTION,
+        ),
     ],
     indices = [
         Index(value = ["document_id"]),
-        Index(value = ["document_id", "display_order"], unique = true)
-    ]
+        Index(value = ["document_id", "display_order"], unique = true),
+    ],
 )
 data class AttachmentEntity(
-
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
 
@@ -34,5 +33,5 @@ data class AttachmentEntity(
     val documentId: Long,
 
     @ColumnInfo(name = "display_order")
-    val displayOrder: Int = 0
+    val displayOrder: Int = 0,
 )

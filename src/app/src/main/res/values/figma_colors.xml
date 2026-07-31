@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="figma_000000">#000000</color>
+    <color name="figma_e5e7eb">#E5E7EB</color>
+    <color name="figma_1855ee">#1855EE</color>
+    <color name="figma_ffffff">#FFFFFF</color>
+    <color name="figma_919191">#919191</color>
+    <color name="figma_fdba74">#FDBA74</color>
+    <color name="figma_fde68a">#FDE68A</color>
+    <color name="figma_bef264">#BEF264</color>
+    <color name="figma_86efac">#86EFAC</color>
+    <color name="figma_6ee7b7">#6EE7B7</color>
+    <color name="figma_fca5a5">#FCA5A5</color>
+    <color name="figma_ff0000">#FF0000</color>
+    <color name="figma_5eead4">#5EEAD4</color>
+    <color name="figma_67e8f9">#67E8F9</color>
+    <color name="figma_7dd3fc">#7DD3FC</color>
+    <color name="figma_93c5fd">#93C5FD</color>
+    <color name="figma_a5b4fc">#A5B4FC</color>
+    <color name="figma_c4b5fd">#C4B5FD</color>
+    <color name="figma_d8b4fe">#D8B4FE</color>
+    <color name="figma_e9a8f2">#E9A8F2</color>
+    <color name="figma_f9a8d4">#F9A8D4</color>
+    <color name="figma_fbcfe8">#FBCFE8</color>
+    <color name="figma_cbd5e1">#CBD5E1</color>
+    <color name="figma_c4b5a5">#C4B5A5</color>
+    <color name="figma_f3f6ff">#F3F6FF</color>
+</resources>

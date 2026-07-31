@@ -1,0 +1,14 @@
+{
+  "app_root": "../../app",
+  "package_name": "com.example.nestory",
+  "theme_package": "com.example.nestory.ui.theme",
+  "asset_package": "com.example.nestory.ui.assets",
+  "drawable_dir": "src/main/res/drawable",
+  "values_dir": "src/main/res/values",
+  "theme_dir": "src/main/java/com/example/nestory/ui/theme",
+  "asset_registry_dir": "src/main/java/com/example/nestory/ui/assets",
+  "prefer_bitmap_format": "webp",
+  "icon_prefix": "ic_",
+  "image_prefix": "img_",
+  "background_prefix": "bg_"
+}

@@ -35,4 +35,19 @@ object AppIcons {
     val MaterialSymbolsLightLock = R.drawable.ic_material_symbols_light_lock
     val MaterialSymbolsLightSearch = R.drawable.ic_material_symbols_light_search
     val Vector = R.drawable.ic_vector
+
+    // Navigation Icons
+    val NavDocumentEnable = R.drawable.ic_nav_document_enable
+
+    // Document Specific Icons (Newly converted from SVG)
+    val DocumentConfig = R.drawable.ic_settings
+    val DocumentMainInfo = R.drawable.ic_document_main_information
+    val DocumentDeadline = R.drawable.ic_document_deadline
+    val DocumentStorage = R.drawable.ic_document_storage
+    val DocumentFileScan = R.drawable.ic_document_file_scan
+    val DocumentEdit = R.drawable.ic_document_edit
+    val DocumentStarred = R.drawable.ic_document_starred
+    val DocumentFilterExpired = R.drawable.ic_document_filter_expired
+    val DocumentFilterExpiring = R.drawable.ic_document_filter_expiring
+    val DocumentCamera = R.drawable.ic_camera
 }

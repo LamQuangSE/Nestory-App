@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.dp
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryLogo
 import com.example.nestory.ui.components.SectionHeader
+import com.example.nestory.ui.navigation.NestoryDestination
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestorySpacing
@@ -52,13 +53,39 @@ fun HomeDashboardScreen(
         modifier = Modifier.fillMaxSize(),
         color = GeneratedColor.FigmaFfffff
     ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = NestorySpacing.S24)
-                    .padding(top = NestorySpacing.S40, bottom = 96.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = NestorySpacing.S20) // Updated to S20
+                .padding(top = NestorySpacing.S40, bottom = 24.dp)
+        ) {
+            Header()
+            Spacer(modifier = Modifier.height(NestorySpacing.S30))
+            Text(
+                text = "Chào bạn!",
+                color = GeneratedColor.Figma000000,
+                style = NestoryTextStyles.Body18Semi,
+                fontWeight = FontWeight.W600
+            )
+            Spacer(modifier = Modifier.height(NestorySpacing.S6))
+            Text(
+                text = "Đây là những thông tin quan trọng của bạn.",
+                color = GeneratedColor.Figma919191,
+                style = NestoryTextStyles.Body13Semi
+            )
+            Spacer(modifier = Modifier.height(NestorySpacing.S24))
+            SectionCard {
+                SectionHeader(title = "Cần chú ý", action = "Xem tất cả", onAction = onOpenAll)
+                Spacer(modifier = Modifier.height(NestorySpacing.S16))
+                EmptyStateLine()
+            }
+            Spacer(modifier = Modifier.height(NestorySpacing.S24))
+            SectionHeader(title = "Gần đây", action = "Xem tất cả", onAction = onOpenAll)
+            Spacer(modifier = Modifier.height(NestorySpacing.S14))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
             ) {
                 Header()
                 Spacer(modifier = Modifier.height(NestorySpacing.S30))
@@ -99,11 +126,17 @@ fun HomeDashboardScreen(
                 SectionCard {
                     EmptyStateLine()
                 }
+                EmptyRecentCard(Modifier.weight(1f))
+                EmptyRecentCard(Modifier.weight(1f))
+                EmptyRecentCard(Modifier.weight(1f))
+                EmptyRecentCard(Modifier.weight(1f))
             }
-            BottomBar(
-                modifier = Modifier.align(Alignment.BottomCenter),
-                onAddDocument = onAddDocument
-            )
+            Spacer(modifier = Modifier.height(NestorySpacing.S24))
+            SectionHeader(title = "Container của bạn", action = "Xem tất cả", onAction = onOpenAll)
+            Spacer(modifier = Modifier.height(NestorySpacing.S14))
+            SectionCard {
+                EmptyStateLine()
+            }
         }
     }
 }
@@ -219,72 +252,3 @@ private fun EmptyStateLine() {
     }
 }
 
-@Composable
-private fun BottomBar(
-    modifier: Modifier = Modifier,
-    onAddDocument: () -> Unit
-) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(74.dp)
-            .background(GeneratedColor.FigmaFfffff)
-            .border(1.dp, GeneratedColor.FigmaE5e7eb)
-            .padding(horizontal = NestorySpacing.S16),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        NavItem(AppIcons.FigmaNavHome, "Trang chủ", true)
-        NavItem(AppIcons.FigmaNavDocument, "Giấy tờ", false)
-        Column(
-            modifier = Modifier.clickable(onClick = onAddDocument),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(GeneratedColor.FigmaFfffff),
-                contentAlignment = Alignment.Center
-            ) {
-                Image(
-                    painter = painterResource(AppIcons.FigmaNavAdd),
-                    contentDescription = null,
-                    modifier = Modifier.size(35.dp),
-                    contentScale = ContentScale.Fit
-                )
-            }
-            Text(
-                text = "Scan",
-                color = GeneratedColor.Figma1a60e2,
-                style = NestoryTextStyles.Body12Bold,
-                fontWeight = FontWeight.W600
-            )
-        }
-        NavItem(AppIcons.FigmaNavFolder, "Bộ hồ sơ", false)
-        NavItem(AppIcons.FigmaNavSettings, "Cài đặt", false)
-    }
-}
-
-@Composable
-private fun NavItem(
-    @androidx.annotation.DrawableRes icon: Int,
-    label: String,
-    selected: Boolean
-) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Image(
-            painter = painterResource(icon),
-            contentDescription = null,
-            modifier = Modifier.size(28.dp),
-            contentScale = ContentScale.Fit
-        )
-        Text(
-            text = label,
-            color = if (selected) GeneratedColor.Figma1a60e2 else GeneratedColor.Figma919191,
-            style = NestoryTextStyles.Body12Bold,
-            fontWeight = FontWeight.W600,
-            textAlign = TextAlign.Center
-        )
-    }
-}

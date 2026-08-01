@@ -62,15 +62,15 @@ fun UnlockPinScreen(
             text = "Nhập mã PIN",
             modifier = Modifier.fillMaxWidth(),
             color = GeneratedColor.Figma000000,
-            style = NestoryTextStyles.Display35,
+            style = NestoryTextStyles.Heading25Bold,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(NestorySpacing.S14))
         Text(
             text = "Nhập mã PIN của bạn để mở\nkhoá kho lưu trữ",
             modifier = Modifier.fillMaxWidth(),
-            color = GeneratedColor.Figma717171,
-            style = NestoryTextStyles.Title21Semi,
+            color = GeneratedColor.Figma919191,
+            style = NestoryTextStyles.Body13Semi,
             textAlign = TextAlign.Center
         )
         Spacer(modifier = Modifier.height(NestorySpacing.S30))

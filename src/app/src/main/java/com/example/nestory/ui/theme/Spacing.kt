@@ -7,6 +7,7 @@ object NestorySpacing {
     val S6 = 6.dp
     val S8 = 8.dp
     val S10 = 10.dp
+    val S12 = 12.dp
     val S13 = 13.dp
     val S14 = 14.dp
     val S15 = 15.dp

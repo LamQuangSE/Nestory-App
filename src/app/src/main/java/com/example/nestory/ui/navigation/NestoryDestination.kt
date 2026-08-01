@@ -11,4 +11,8 @@ enum class NestoryDestination {
     Home,
     Category,
     Container
+    DocumentSelection,
+    DocumentDetail,
+    FilterSelection,
+    Scan
 }

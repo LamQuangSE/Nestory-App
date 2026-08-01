@@ -89,14 +89,14 @@ fun UnlockFingerprintScreen(
                 Text(
                     text = "Mở khoá kho lưu trữ",
                     color = GeneratedColor.Figma000000,
-                    style = NestoryTextStyles.Title21Bold,
+                    style = NestoryTextStyles.Heading25Bold,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(NestorySpacing.S14))
                 Text(
                     text = "Sử dụng xác thực thiết bị để truy cập giấy tờ của bạn.",
                     color = GeneratedColor.Figma919191,
-                    style = NestoryTextStyles.Body18Semi,
+                    style = NestoryTextStyles.Body13Semi,
                     textAlign = TextAlign.Center
                 )
             }
@@ -121,7 +121,7 @@ fun UnlockFingerprintScreen(
                 Text(
                     text = "Xác nhận danh tính để mở kho\nlưu trữ của bạn",
                     color = GeneratedColor.Figma919191,
-                    style = NestoryTextStyles.Body18Semi,
+                    style = NestoryTextStyles.Body13Semi,
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(NestorySpacing.S30))
@@ -166,7 +166,7 @@ fun UnlockFingerprintScreen(
                             .weight(1f)
                             .clickable(onClick = onCancel),
                         color = GeneratedColor.Figma1a60e2,
-                        style = NestoryTextStyles.Body17Bold,
+                        style = NestoryTextStyles.Body15Semi,
                         textAlign = TextAlign.Center
                     )
                     Box(
@@ -181,7 +181,7 @@ fun UnlockFingerprintScreen(
                             .weight(1f)
                             .clickable(onClick = onUsePin),
                         color = GeneratedColor.Figma1a60e2,
-                        style = NestoryTextStyles.Body17Bold,
+                        style = NestoryTextStyles.Body15Semi,
                         textAlign = TextAlign.Center
                     )
                 }

@@ -48,6 +48,7 @@ import com.example.nestory.ui.theme.NestoryTextStyles
 fun NestoryScreen(
     modifier: Modifier = Modifier,
     scrollable: Boolean = false,
+    horizontalPadding: Dp = NestorySpacing.S20,
     verticalPadding: Dp = NestorySpacing.S40,
     useStatusBarPadding: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
@@ -69,7 +70,7 @@ fun NestoryScreen(
                     .fillMaxWidth()
                     .then(statusModifier)
                     .then(scrollModifier)
-                    .padding(horizontal = NestorySpacing.S24, vertical = verticalPadding),
+                    .padding(horizontal = horizontalPadding, vertical = verticalPadding),
                 content = content
             )
         }

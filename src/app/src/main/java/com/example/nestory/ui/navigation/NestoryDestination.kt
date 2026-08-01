@@ -10,6 +10,7 @@ enum class NestoryDestination {
     UnlockSuccess,
     Home,
     Category,
+    Container
     DocumentSelection,
     DocumentDetail,
     FilterSelection,

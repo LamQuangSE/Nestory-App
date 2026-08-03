@@ -33,14 +33,17 @@ enum class CreateContainerState {
 @Composable
 fun CreateContainerScreen(
     initialState: CreateContainerState = CreateContainerState.Default,
-    parentContainerName: String = "Ngăn 1",
+    parentContainerName: String = "",
     isParentLocked: Boolean = false,
     onBackClick: () -> Unit,
     onCreate: (String) -> Unit,
+    errorMessage: String? = null,
+    onDismissError: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var containerName by remember { mutableStateOf("") }
     var currentState by remember { mutableStateOf(initialState) }
+    var showNameError by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -98,9 +101,27 @@ fun CreateContainerScreen(
                     containerName = it
                     currentState = if (it.isNotEmpty()) CreateContainerState.Filled
                     else CreateContainerState.Default
+                    showNameError = false
+                    onDismissError()
                 },
                 placeholder = "Nhập tên container"
             )
+
+            // Error message when tapping Create with an empty name
+            if (showNameError) {
+                Text(
+                    text = "Tên container không được để trống",
+                    style = NestoryTextStyles.Body13Medium,
+                    color = GeneratedColor.FigmaFf0000
+                )
+            }
+
+            if (errorMessage != null) {
+                ContainerErrorBanner(
+                    message = errorMessage,
+                    onDismiss = onDismissError
+                )
+            }
 
             // "Container cha" label
             Text(
@@ -168,24 +189,31 @@ fun CreateContainerScreen(
             }
         }
 
-        // Frame 127 — Action button
+        // Frame 128 — Action button (always solid blue, always enabled per Figma)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp)
                 .padding(vertical = 6.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp)
+                    .background(GeneratedColor.Figma1855ee, RoundedCornerShape(10.dp))
+                    .clickable {
+                        if (containerName.isBlank()) {
+                            showNameError = true
+                        } else {
+                            onCreate(containerName)
+                        }
+                    },
+                contentAlignment = Alignment.Center
             ) {
-                ContainerActionButton(
+                Text(
                     text = "Tạo container mới",
-                    onClick = { onCreate(containerName) },
-                    isPrimary = false,
-                    isDashed = true,
-                    textStyle = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
-                    modifier = Modifier.weight(1f)
+                    style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
+                    color = GeneratedColor.FigmaFfffff
                 )
             }
         }

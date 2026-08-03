@@ -20,7 +20,7 @@ fun ContainerRoute(
             context.applicationContext,
             AppDatabase::class.java,
             "nestory_database"
-        ).build()
+        ).addMigrations(AppDatabase.MIGRATION_1_2).build()
     }
     val repository = remember { ContainerRepositoryImpl(db.containerDao()) }
     val factory = remember { ContainerViewModelFactory(repository) }
@@ -49,7 +49,9 @@ fun ContainerRoute(
                     showDeleteDialog = true
                 },
                 onCloseBreadcrumb = { viewModel.clearSelection() },
-                onBackClick = onBack
+                onBackClick = onBack,
+                errorMessage = uiState.errorMessage,
+                onDismissError = { viewModel.clearError() }
             )
         }
 
@@ -60,7 +62,9 @@ fun ContainerRoute(
                 onCreate = { name ->
                     viewModel.createContainer(name, uiState.selectedContainerId)
                     subScreen = ContainerSubScreen.Selection
-                }
+                },
+                errorMessage = uiState.errorMessage,
+                onDismissError = { viewModel.clearError() }
             )
         }
 
@@ -72,7 +76,9 @@ fun ContainerRoute(
                 onSave = { name ->
                     selectedContainer?.let { viewModel.updateContainer(it.copy(name = name)) }
                     subScreen = ContainerSubScreen.Selection
-                }
+                },
+                errorMessage = uiState.errorMessage,
+                onDismissError = { viewModel.clearError() }
             )
         }
     }

@@ -8,7 +8,8 @@ import androidx.room.PrimaryKey
 
 /**
  * Entity representing a container (folder) that can hold documents.
- * A container can nest inside another container via parent_id.
+ * A container can nest inside another container via parent_id (null = top level).
+ * The container name is unique across all containers (all nesting levels).
  */
 @Entity(
     tableName = "containers",
@@ -21,7 +22,10 @@ import androidx.room.PrimaryKey
             onUpdate = ForeignKey.NO_ACTION,
         ),
     ],
-    indices = [Index(value = ["parent_id"])],
+    indices = [
+        Index(value = ["name"], unique = true),
+        Index(value = ["parent_id"]),
+    ],
 )
 data class ContainerEntity(
     @PrimaryKey(autoGenerate = true)

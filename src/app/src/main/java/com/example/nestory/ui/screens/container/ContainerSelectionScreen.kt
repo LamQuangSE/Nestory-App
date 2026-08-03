@@ -40,6 +40,8 @@ fun ContainerSelectionScreen(
     onDeleteClick: (Long) -> Unit,
     onCloseBreadcrumb: () -> Unit,
     onBackClick: () -> Unit,
+    errorMessage: String? = null,
+    onDismissError: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val isEmpty = uiState.rootContainers.isEmpty()
@@ -83,6 +85,13 @@ fun ContainerSelectionScreen(
             ContainerBreadcrumb(
                 pathSegments = uiState.containerPath.map { it.name },
                 onClose = onCloseBreadcrumb
+            )
+        }
+
+        if (errorMessage != null) {
+            ContainerErrorBanner(
+                message = errorMessage,
+                onDismiss = onDismissError
             )
         }
 

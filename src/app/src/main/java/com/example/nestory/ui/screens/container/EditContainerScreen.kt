@@ -37,6 +37,8 @@ fun EditContainerScreen(
     initialName: String = "",
     onBackClick: () -> Unit,
     onSave: (String) -> Unit,
+    errorMessage: String? = null,
+    onDismissError: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var containerName by remember { mutableStateOf(initialName) }
@@ -99,9 +101,17 @@ fun EditContainerScreen(
                     currentState = if (it.isEmpty()) EditContainerState.Default
                     else if (currentState == EditContainerState.ValidationError) EditContainerState.ValidationError
                     else EditContainerState.Modified
+                    onDismissError()
                 },
                 placeholder = if (initialName.isEmpty()) "Nhập tên container" else initialName
             )
+
+            if (errorMessage != null) {
+                ContainerErrorBanner(
+                    message = errorMessage,
+                    onDismiss = onDismissError
+                )
+            }
 
             // Error message (Validation Error state only)
             if (currentState == EditContainerState.ValidationError) {
@@ -148,18 +158,22 @@ fun EditContainerScreen(
                 .padding(horizontal = 24.dp)
                 .padding(vertical = 6.dp)
         ) {
+            val isEnabled = containerName.isNotBlank()
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(54.dp)
-                    .background(GeneratedColor.Figma1855ee, RoundedCornerShape(10.dp))
-                    .clickable { onSave(containerName) },
+                    .background(
+                        if (isEnabled) GeneratedColor.Figma1855ee else GeneratedColor.FigmaE5e7eb,
+                        RoundedCornerShape(10.dp)
+                    )
+                    .clickable(enabled = isEnabled) { onSave(containerName) },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "Lưu",
                     style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
-                    color = GeneratedColor.FigmaFfffff
+                    color = if (isEnabled) GeneratedColor.FigmaFfffff else GeneratedColor.Figma919191
                 )
             }
         }

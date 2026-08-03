@@ -45,8 +45,6 @@ import com.example.nestory.ui.theme.NestoryTextStyles
 @Composable
 fun HomeDashboardScreen(
     onOpenAll: () -> Unit,
-    onOpenCategory: () -> Unit,
-    onOpenContainer: () -> Unit,
     onAddDocument: () -> Unit
 ) {
     Surface(
@@ -87,45 +85,6 @@ fun HomeDashboardScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
             ) {
-                Header()
-                Spacer(modifier = Modifier.height(NestorySpacing.S30))
-                Text(
-                    text = "Chào bạn!",
-                    color = GeneratedColor.Figma000000,
-                    style = NestoryTextStyles.Body18Semi,
-                    fontWeight = FontWeight.W600
-                )
-                Spacer(modifier = Modifier.height(NestorySpacing.S6))
-                Text(
-                    text = "Đây là những thông tin quan trọng của bạn.",
-                    color = GeneratedColor.Figma919191,
-                    style = NestoryTextStyles.Body13Semi
-                )
-                Spacer(modifier = Modifier.height(NestorySpacing.S24))
-                SectionCard {
-                    SectionHeader(title = "Cần chú ý", action = "Xem tất cả", onAction = onOpenAll)
-
-                    Spacer(modifier = Modifier.height(NestorySpacing.S16))
-                    EmptyStateLine()
-                }
-                Spacer(modifier = Modifier.height(NestorySpacing.S24))
-                SectionHeader(title = "Gần đây", action = "Xem tất cả", onAction = onOpenCategory)
-                Spacer(modifier = Modifier.height(NestorySpacing.S14))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
-                ) {
-                    EmptyRecentCard(Modifier.weight(1f))
-                    EmptyRecentCard(Modifier.weight(1f))
-                    EmptyRecentCard(Modifier.weight(1f))
-                    EmptyRecentCard(Modifier.weight(1f))
-                }
-                Spacer(modifier = Modifier.height(NestorySpacing.S24))
-                SectionHeader(title = "Container của bạn", action = "Xem tất cả", onAction = onOpenContainer)
-                Spacer(modifier = Modifier.height(NestorySpacing.S14))
-                SectionCard {
-                    EmptyStateLine()
-                }
                 EmptyRecentCard(Modifier.weight(1f))
                 EmptyRecentCard(Modifier.weight(1f))
                 EmptyRecentCard(Modifier.weight(1f))

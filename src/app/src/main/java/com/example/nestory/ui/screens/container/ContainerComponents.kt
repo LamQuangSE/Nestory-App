@@ -144,17 +144,58 @@ fun ContainerSearchField(
 }
 
 @Composable
+fun ContainerErrorBanner(
+    message: String,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(NestorySpacing.S10))
+            .background(GeneratedColor.FigmaFca5a5.copy(alpha = 0.25f))
+            .padding(horizontal = NestorySpacing.S15, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
+    ) {
+        Text(
+            text = message,
+            style = NestoryTextStyles.Body13Medium,
+            color = GeneratedColor.FigmaCf1111,
+            modifier = Modifier.weight(1f)
+        )
+        Box(
+            modifier = Modifier
+                .clickable { onDismiss() }
+                .padding(4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "✕",
+                style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+                color = GeneratedColor.FigmaCf1111
+            )
+        }
+    }
+}
+
+@Composable
 fun ContainerActionButton(
     text: String,
     onClick: () -> Unit,
     isPrimary: Boolean = true,
     isDashed: Boolean = false,
+    isEnabled: Boolean = true,
+    backgroundColor: Color? = null,
+    contentColor: Color? = null,
     textStyle: TextStyle = NestoryTextStyles.Body15Medium,
     modifier: Modifier = Modifier
 ) {
-    val backgroundColor = if (isPrimary) GeneratedColor.Figma1855ee else Color.Transparent
-    val contentColor = if (isPrimary) GeneratedColor.FigmaFfffff else GeneratedColor.Figma1855ee
-    val borderColor = GeneratedColor.Figma1855ee
+    val effectiveBackground = backgroundColor
+        ?: if (isPrimary) GeneratedColor.Figma1855ee else Color.Transparent
+    val effectiveContent = contentColor
+        ?: if (isPrimary) GeneratedColor.FigmaFfffff else GeneratedColor.Figma1855ee
+    val borderColor = if (isEnabled) GeneratedColor.Figma1855ee else GeneratedColor.FigmaCbd5e1
 
     Box(
         modifier = modifier
@@ -167,15 +208,15 @@ fun ContainerActionButton(
                     Modifier.border(1.dp, if (isPrimary) Color.Transparent else borderColor, RoundedCornerShape(NestorySpacing.S10))
                 }
             )
-            .clickable { onClick() }
-            .background(backgroundColor, RoundedCornerShape(NestorySpacing.S10))
+            .clickable(enabled = isEnabled) { onClick() }
+            .background(effectiveBackground, RoundedCornerShape(NestorySpacing.S10))
             .padding(horizontal = NestorySpacing.S15),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = text,
             style = textStyle,
-            color = contentColor,
+            color = effectiveContent,
             textAlign = TextAlign.Center
         )
     }
@@ -250,10 +291,11 @@ fun ContainerBreadcrumb(
         verticalAlignment = Alignment.CenterVertically
     ) {
         pathSegments.forEachIndexed { index, segment ->
+            val isActive = index == pathSegments.lastIndex
             Text(
                 text = segment,
                 style = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium),
-                color = GeneratedColor.Figma000000
+                color = if (isActive) GeneratedColor.Figma1855ee else GeneratedColor.Figma000000
             )
             if (index < pathSegments.lastIndex) {
                 Icon(

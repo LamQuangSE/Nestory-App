@@ -5,6 +5,8 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.example.nestory.data.dao.AttachmentDao
 import com.example.nestory.data.dao.BackupRecordDao
 import com.example.nestory.data.dao.ContainerDao
@@ -38,7 +40,7 @@ import com.example.nestory.data.entity.CategoryEntity
         // SCRUM-98
         CategoryEntity::class // Đăng ký bảng mới
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -57,13 +59,47 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // categories was added in a commit that kept version = 1, so older
+                // v1 databases have no categories table. Create it if missing.
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS `categories` (
+                        `id` TEXT NOT NULL,
+                        `name` TEXT NOT NULL,
+                        `colorValue` INTEGER NOT NULL,
+                        PRIMARY KEY(`id`)
+                    )
+                    """
+                )
+                // Remove non-unique parent_id index; unique name index added below.
+                db.execSQL("DROP INDEX IF EXISTS index_containers_parent_id")
+                // Resolve any pre-existing duplicate names by appending the row id,
+                // keeping the oldest row unchanged.
+                db.execSQL(
+                    """
+                    UPDATE containers
+                    SET name = name || ' (' || id || ')'
+                    WHERE id NOT IN (
+                        SELECT MIN(id) FROM containers GROUP BY name
+                    )
+                    """
+                )
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_containers_name ON containers(name)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_containers_parent_id ON containers(parent_id)")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     AppDatabase::class.java,
                     "nestory_database"
-                ).build()
+                )
+                    .addMigrations(MIGRATION_1_2)
+                    .build()
                 INSTANCE = instance
                 instance
             }

@@ -43,6 +43,5 @@ object NestoryTextStyles {
     val Body12Medium = interStyle(FontWeight.W500, 12.sp, 14.52.sp)
     val Body11Semi = interStyle(FontWeight.W600, 11.sp, 13.31.sp)
     val Body10Semi = interStyle(FontWeight.W600, 10.sp, 12.1.sp)
-    val Title22Semi = Title22Bold.copy(fontWeight = FontWeight.W600)
     val Body8Medium = interStyle(FontWeight.W500, 8.sp, 9.68.sp)
 }

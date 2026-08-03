@@ -33,7 +33,28 @@ class ContainerViewModel(
                     _uiState.update { it.copy(isLoading = false, errorMessage = getErrorMessage(e)) }
                 }
                 .collect { containers ->
-                    _uiState.update { it.copy(allContainers = containers, isLoading = false) }
+                    _uiState.update { state ->
+                        val selectedId = state.selectedContainerId
+                        if (selectedId == null) {
+                            state.copy(allContainers = containers, isLoading = false)
+                        } else {
+                            val stillExists = containers.any { it.id == selectedId }
+                            if (stillExists) {
+                                state.copy(
+                                    allContainers = containers,
+                                    containerPath = buildContainerPath(selectedId, containers),
+                                    isLoading = false
+                                )
+                            } else {
+                                state.copy(
+                                    allContainers = containers,
+                                    selectedContainerId = null,
+                                    containerPath = emptyList(),
+                                    isLoading = false
+                                )
+                            }
+                        }
+                    }
                 }
         }
     }
@@ -73,6 +94,7 @@ class ContainerViewModel(
 
     fun createContainer(name: String, parentId: Long?) {
         viewModelScope.launch {
+            clearError()
             val container = ContainerEntity(name = name, parentId = parentId)
             containerRepository.createContainer(container).fold(
                 onSuccess = { },
@@ -85,6 +107,7 @@ class ContainerViewModel(
 
     fun updateContainer(container: ContainerEntity) {
         viewModelScope.launch {
+            clearError()
             containerRepository.updateContainer(container).fold(
                 onSuccess = { },
                 onFailure = { error ->
@@ -96,6 +119,7 @@ class ContainerViewModel(
 
     fun deleteContainer(container: ContainerEntity) {
         viewModelScope.launch {
+            clearError()
             containerRepository.deleteContainer(container).fold(
                 onSuccess = { },
                 onFailure = { error ->
@@ -105,10 +129,20 @@ class ContainerViewModel(
         }
     }
 
+    fun clearError() {
+        _uiState.update { it.copy(errorMessage = null) }
+    }
+
     private fun getErrorMessage(e: Throwable): String {
-        return when (e) {
-            is android.database.sqlite.SQLiteConstraintException -> "Folder name already exists"
-            else -> e.localizedMessage ?: "An unexpected error occurred"
+        val message = e.message?.lowercase() ?: ""
+        return when {
+            e is android.database.sqlite.SQLiteConstraintException ->
+                if (message.contains("foreign key")) {
+                    "Không thể xóa container đang chứa dữ liệu"
+                } else {
+                    "Tên container đã tồn tại"
+                }
+            else -> e.localizedMessage ?: "Đã xảy ra lỗi không mong muốn"
         }
     }
 }

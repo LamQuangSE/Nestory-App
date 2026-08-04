@@ -21,30 +21,38 @@ fun ScannerScreen(
                     onCropClick = { onEvent(ScannerEvent.OnCropClick) },
                     onDeleteClick = { onEvent(ScannerEvent.OnDeleteClick) },
                     onAddImageClick = { onEvent(ScannerEvent.OnAddImageClick) },
+                    onPageSelected = { index -> onEvent(ScannerEvent.OnPageSelected(index)) },
+                    onPreviewImageClick = { onEvent(ScannerEvent.OnPreviewImageClick) },
                     onCancelClick = { onEvent(ScannerEvent.OnCancelClick) },
                     onContinueClick = { onEvent(ScannerEvent.OnContinueClick) }
                 )
             }
             ScannerMode.Crop -> {
                 DocumentCropScreen(
+                    bitmap = uiState.currentPage?.bitmap,
                     currentCropRatio = uiState.currentCropRatio,
-                    cropRect = uiState.cropRect,
+                    cropRect = uiState.currentPage?.cropRect,
                     onCloseClick = { onEvent(ScannerEvent.OnCloseCropClick) },
                     onDoneClick = { onEvent(ScannerEvent.OnDoneCropClick) },
                     onResetClick = { onEvent(ScannerEvent.OnResetCropClick) },
+                    onCropRectChange = { cropRect -> onEvent(ScannerEvent.OnCropRectChanged(cropRect)) },
                     onRatioSelected = { ratio -> onEvent(ScannerEvent.OnRatioSelected(ratio)) }
                 )
             }
             ScannerMode.FullscreenView -> {
                 DocumentFullscreenViewScreen(
+                    bitmap = uiState.currentPage?.bitmap,
                     pageIndicator = uiState.pageIndicator,
                     zoomText = uiState.zoomText,
-                    rotationDegrees = uiState.rotationDegrees,
+                    canGoToPreviousPage = uiState.canGoToPreviousPage,
+                    canGoToNextPage = uiState.canGoToNextPage,
                     onBackClick = { onEvent(ScannerEvent.OnBackClick) },
                     onShareClick = { onEvent(ScannerEvent.OnShareClick) },
                     onMenuClick = { onEvent(ScannerEvent.OnMenuClick) },
                     onZoomInClick = { onEvent(ScannerEvent.OnZoomInClick) },
-                    onZoomOutClick = { onEvent(ScannerEvent.OnZoomOutClick) }
+                    onZoomOutClick = { onEvent(ScannerEvent.OnZoomOutClick) },
+                    onPreviousPageClick = { onEvent(ScannerEvent.OnPreviousPageClick) },
+                    onNextPageClick = { onEvent(ScannerEvent.OnNextPageClick) }
                 )
             }
         }

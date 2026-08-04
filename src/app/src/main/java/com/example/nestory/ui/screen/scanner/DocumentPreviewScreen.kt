@@ -18,13 +18,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nestory.ui.assets.AppIcons
-import com.example.nestory.ui.assets.AppImages
 
 @Composable
 fun DocumentPreviewScreen(
@@ -35,10 +35,14 @@ fun DocumentPreviewScreen(
     onCropClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onAddImageClick: () -> Unit,
+    onPageSelected: (Int) -> Unit,
+    onPreviewImageClick: () -> Unit,
     onCancelClick: () -> Unit,
     onContinueClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val currentPage = uiState.currentPage
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -77,27 +81,56 @@ fun DocumentPreviewScreen(
                 .clip(RoundedCornerShape(10.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(id = AppImages.ImgCccd),
-                contentDescription = "Document",
-                modifier = Modifier
-                    .fillMaxWidth(0.9f)
-                    .aspectRatio(417f / 324f)
-                    .clip(RoundedCornerShape(10.dp))
-                    .graphicsLayer { rotationZ = uiState.rotationDegrees },
-                contentScale = ContentScale.Crop
-            )
+            if (currentPage != null) {
+                Image(
+                    bitmap = currentPage.bitmap.asImageBitmap(),
+                    contentDescription = "Document",
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .aspectRatio(currentPage.bitmap.width.toFloat() / currentPage.bitmap.height.toFloat())
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable { onPreviewImageClick() }
+                        .graphicsLayer { rotationZ = 0f },
+                    contentScale = ContentScale.Fit
+                )
+            } else {
+                Text(
+                    text = "Chưa có ảnh scan",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFF717171)
+                )
+            }
         }
 
         Row(
             modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ActionToolItem(iconRes = AppIcons.IcRotateLeft, text = "Xoay trái", onClick = onRotateLeftClick)
-            ActionToolItem(iconRes = AppIcons.IcRotateRight, text = "Xoay phải", onClick = onRotateRightClick)
-            ActionToolItem(iconRes = AppIcons.IcCrop, text = "Cắt", onClick = onCropClick)
-            ActionToolItem(iconRes = AppIcons.IcBlackBin, text = "Xoá", onClick = onDeleteClick)
+            ActionToolItem(
+                iconRes = AppIcons.IcRotateLeft,
+                text = "Xoay trái",
+                onClick = onRotateLeftClick,
+                modifier = Modifier.weight(1f),
+            )
+            ActionToolItem(
+                iconRes = AppIcons.IcRotateRight,
+                text = "Xoay phải",
+                onClick = onRotateRightClick,
+                modifier = Modifier.weight(1f),
+            )
+            ActionToolItem(
+                iconRes = AppIcons.IcCrop,
+                text = "Cắt",
+                onClick = onCropClick,
+                modifier = Modifier.weight(1f),
+            )
+            ActionToolItem(
+                iconRes = AppIcons.IcBlackBin,
+                text = "Xoá",
+                onClick = onDeleteClick,
+                modifier = Modifier.weight(1f),
+            )
         }
 
         Row(
@@ -105,8 +138,13 @@ fun DocumentPreviewScreen(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ImageThumbnailItem(imageRes = AppImages.ImgCccd, isSelected = true, onClick = {})
-            ImageThumbnailItem(imageRes = AppImages.ImgCccd, isSelected = false, onClick = {})
+            uiState.pages.forEachIndexed { index, page ->
+                ImageThumbnailItem(
+                    bitmap = page.bitmap,
+                    isSelected = index == uiState.selectedPageIndex,
+                    onClick = { onPageSelected(index) }
+                )
+            }
             
             Box(
                 modifier = Modifier

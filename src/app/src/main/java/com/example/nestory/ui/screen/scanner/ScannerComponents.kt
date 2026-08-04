@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.scanner
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -20,11 +22,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Composable
-fun ActionToolItem(iconRes: Int, text: String, onClick: () -> Unit) {
+fun ActionToolItem(
+    iconRes: Int,
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier.clickable { onClick() }
+        modifier = modifier.clickable { onClick() }
     ) {
         Icon(
             painter = painterResource(id = iconRes),
@@ -44,12 +51,12 @@ fun ActionToolItem(iconRes: Int, text: String, onClick: () -> Unit) {
 }
 
 @Composable
-fun ImageThumbnailItem(imageRes: Int, isSelected: Boolean, onClick: () -> Unit) {
+fun ImageThumbnailItem(bitmap: Bitmap, isSelected: Boolean, onClick: () -> Unit) {
     val borderColor = if (isSelected) Color(0xFF1855EE) else Color(0xFFE5E7EB)
     val borderWidth = if (isSelected) 2.dp else 1.dp
 
     Image(
-        painter = painterResource(id = imageRes),
+        bitmap = bitmap.asImageBitmap(),
         contentDescription = "Thumbnail",
         modifier = Modifier
             .size(71.dp, 56.dp)

@@ -1,7 +1,8 @@
 package com.example.nestory.data.repository
 
-import com.example.nestory.data.dao.BackupRecordDao
-import com.example.nestory.data.entity.BackupRecordEntity
+import com.example.nestory.data.local.dao.BackupRecordDao
+import com.example.nestory.data.local.entity.BackupRecordEntity
+import com.example.nestory.domain.repository.BackupRecordRepository
 import kotlinx.coroutines.flow.Flow
 
 class BackupRecordRepositoryImpl(

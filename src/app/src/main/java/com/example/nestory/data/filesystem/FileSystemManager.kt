@@ -2,7 +2,7 @@ package com.example.nestory.data.filesystem
 
 import android.content.Context
 import androidx.room.Room
-import com.example.nestory.data.database.AppDatabase
+import com.example.nestory.data.local.database.AppDatabase
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -67,7 +67,7 @@ class FileSystemManager(private val context: Context) {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "nestory_database",
-            ).build()
+            ).addMigrations(AppDatabase.MIGRATION_1_2).build()
 
             try {
                 db.openHelper.writableDatabase

@@ -1,6 +1,7 @@
 package com.example.nestory.data.repository
 
 import android.graphics.Bitmap
+import com.example.nestory.domain.repository.OcrRepository
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.TextRecognizer

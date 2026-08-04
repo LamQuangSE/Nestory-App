@@ -23,23 +23,23 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.nestory.data.filesystem.FileSystemManager
 import com.example.nestory.ui.components.NestoryBottomBar
-import com.example.nestory.ui.screens.category.CategoryRoute
-import com.example.nestory.ui.screens.container.ContainerRoute
-import com.example.nestory.ui.screens.document.DocumentDetailScreen
-import com.example.nestory.ui.screens.document.DocumentSelectionScreen
-import com.example.nestory.ui.screens.document.DocumentStatus
-import com.example.nestory.ui.screens.document.DocumentUiModel
-import com.example.nestory.ui.screens.document.DocumentUiState
-import com.example.nestory.ui.screens.document.FilterSelectionScreen
-import com.example.nestory.ui.screens.home.HomeDashboardScreen
-import com.example.nestory.ui.screens.start.StartVaultScreen
-import com.example.nestory.ui.screens.unlock.UnlockChoiceScreen
-import com.example.nestory.ui.screens.unlock.UnlockFingerprintScreen
-import com.example.nestory.ui.screens.unlock.UnlockPinScreen
-import com.example.nestory.ui.screens.unlock.UnlockSuccessScreen
-import com.example.nestory.ui.screens.vault.CreateVaultScreen
-import com.example.nestory.ui.screens.vault.WaitingScreen
-import com.example.nestory.ui.screens.ocr.OcrRoute
+import com.example.nestory.ui.screen.category.CategoryRoute
+import com.example.nestory.ui.screen.container.ContainerRoute
+import com.example.nestory.ui.screen.document.DocumentDetailScreen
+import com.example.nestory.ui.screen.document.DocumentSelectionScreen
+import com.example.nestory.ui.screen.document.DocumentStatus
+import com.example.nestory.ui.screen.document.DocumentUiModel
+import com.example.nestory.ui.screen.document.DocumentUiState
+import com.example.nestory.ui.screen.document.FilterSelectionScreen
+import com.example.nestory.ui.screen.home.HomeDashboardScreen
+import com.example.nestory.ui.screen.start.StartVaultScreen
+import com.example.nestory.ui.screen.unlock.UnlockChoiceScreen
+import com.example.nestory.ui.screen.unlock.UnlockFingerprintScreen
+import com.example.nestory.ui.screen.unlock.UnlockPinScreen
+import com.example.nestory.ui.screen.unlock.UnlockSuccessScreen
+import com.example.nestory.ui.screen.vault.CreateVaultScreen
+import com.example.nestory.ui.screen.vault.WaitingScreen
+import com.example.nestory.ui.screen.ocr.OcrRoute
 
 @Composable
 fun NestoryApp() {
@@ -52,6 +52,7 @@ fun NestoryApp() {
         }
     }
     var destination by remember { mutableStateOf(initialDestination) }
+    var ocrReturnDestination by remember { mutableStateOf(NestoryDestination.Home) }
     var vaultCreationSession by remember { mutableIntStateOf(0) }
     var isEditingMode by remember { mutableStateOf(false) }
 
@@ -74,6 +75,7 @@ fun NestoryApp() {
     // Gom lại logic "mở màn hình Scan" đang bị lặp ở 3 nơi (bottom bar, Home, DocumentSelection)
     val goToScan: () -> Unit = {
         isEditingMode = false
+        ocrReturnDestination = destination
         destination = NestoryDestination.Scan
     }
 
@@ -211,7 +213,7 @@ fun NestoryApp() {
                             )
                     NestoryDestination.Scan ->
                             OcrRoute(
-                                    onBack = { destination = NestoryDestination.DocumentSelection },
+                                    onBack = { destination = ocrReturnDestination },
                                     onSaved = { destination = NestoryDestination.DocumentSelection },
                             )
                 }

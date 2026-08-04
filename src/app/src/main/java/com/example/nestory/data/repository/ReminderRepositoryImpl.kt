@@ -1,7 +1,8 @@
 package com.example.nestory.data.repository
 
-import com.example.nestory.data.dao.ReminderDao
-import com.example.nestory.data.entity.ReminderEntity
+import com.example.nestory.data.local.dao.ReminderDao
+import com.example.nestory.data.local.entity.ReminderEntity
+import com.example.nestory.domain.repository.ReminderRepository
 import kotlinx.coroutines.flow.Flow
 
 class ReminderRepositoryImpl(

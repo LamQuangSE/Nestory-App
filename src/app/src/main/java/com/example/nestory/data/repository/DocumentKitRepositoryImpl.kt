@@ -1,8 +1,9 @@
 package com.example.nestory.data.repository
 
-import com.example.nestory.data.dao.DocumentKitDao
-import com.example.nestory.data.entity.DocumentKitEntity
-import com.example.nestory.data.entity.KitItemEntity
+import com.example.nestory.data.local.dao.DocumentKitDao
+import com.example.nestory.data.local.entity.DocumentKitEntity
+import com.example.nestory.data.local.entity.KitItemEntity
+import com.example.nestory.domain.repository.DocumentKitRepository
 import com.example.nestory.relation.KitWithItems
 import kotlinx.coroutines.flow.Flow
 import kotlin.runCatching

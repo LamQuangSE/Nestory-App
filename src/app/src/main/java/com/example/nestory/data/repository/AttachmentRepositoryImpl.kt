@@ -1,7 +1,8 @@
 package com.example.nestory.data.repository
 
-import com.example.nestory.data.dao.AttachmentDao
-import com.example.nestory.data.entity.AttachmentEntity
+import com.example.nestory.data.local.dao.AttachmentDao
+import com.example.nestory.data.local.entity.AttachmentEntity
+import com.example.nestory.domain.repository.AttachmentRepository
 import kotlinx.coroutines.flow.Flow
 
 class AttachmentRepositoryImpl(

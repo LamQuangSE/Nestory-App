@@ -1,7 +1,8 @@
 package com.example.nestory.data.repository
 
-import com.example.nestory.data.dao.ContainerDao
-import com.example.nestory.data.entity.ContainerEntity
+import com.example.nestory.data.local.dao.ContainerDao
+import com.example.nestory.data.local.entity.ContainerEntity
+import com.example.nestory.domain.repository.ContainerRepository
 import kotlinx.coroutines.flow.Flow
 
 class ContainerRepositoryImpl(

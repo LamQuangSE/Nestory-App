@@ -1,7 +1,9 @@
 package com.example.nestory.data.repository
 
-import com.example.nestory.data.dao.DocumentDao
-import com.example.nestory.data.entity.DocumentEntity
+import com.example.nestory.data.local.dao.DocumentDao
+import com.example.nestory.data.local.entity.DocumentEntity
+import com.example.nestory.domain.model.DocumentFilter
+import com.example.nestory.domain.repository.DocumentRepository
 import kotlinx.coroutines.flow.Flow
 
 class DocumentRepositoryImpl(

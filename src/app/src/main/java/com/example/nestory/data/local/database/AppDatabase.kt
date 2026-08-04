@@ -13,6 +13,7 @@ import com.example.nestory.data.local.dao.ContainerDao
 import com.example.nestory.data.local.database.converter.Converters
 import com.example.nestory.data.local.dao.DocumentDao
 import com.example.nestory.data.local.dao.DocumentKitDao
+import com.example.nestory.data.local.dao.KitItemDao
 import com.example.nestory.data.local.dao.ReminderDao
 import com.example.nestory.data.local.dao.CategoryDao 
 import com.example.nestory.data.local.entity.AttachmentEntity
@@ -50,6 +51,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun attachmentDao(): AttachmentDao
     abstract fun reminderDao(): ReminderDao
     abstract fun documentKitDao(): DocumentKitDao
+    abstract fun kitItemDao(): KitItemDao
     abstract fun backupRecordDao(): BackupRecordDao
     
     // Đăng ký Dao mới

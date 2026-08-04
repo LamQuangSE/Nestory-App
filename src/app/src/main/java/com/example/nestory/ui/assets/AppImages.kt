@@ -15,4 +15,6 @@ object AppImages {
     val VaultError = R.drawable.img_vault_error
     val VaultSuccess = R.drawable.img_figma_vault_complete
     val ContainerEmptyState = R.drawable.img_container
+
+    val ImgCccd = R.drawable.img_cccd
 }

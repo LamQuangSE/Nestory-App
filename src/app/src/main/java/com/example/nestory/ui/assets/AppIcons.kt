@@ -50,4 +50,7 @@ object AppIcons {
     val DocumentFilterExpired = R.drawable.ic_document_filter_expired
     val DocumentFilterExpiring = R.drawable.ic_document_filter_expiring
     val DocumentCamera = R.drawable.ic_camera
+    val MdiExport = R.drawable.ic_mdi_export
+    val MdiImport = R.drawable.ic_mdi_import
+    val WeuiFolderOutlined = R.drawable.ic_weui_folder_outlined
 }

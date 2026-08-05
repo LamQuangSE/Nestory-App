@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.ocr
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -22,9 +23,17 @@ import com.example.nestory.domain.model.DocumentDraft
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryScreen
 import com.example.nestory.ui.components.PrimaryActionButton
+import com.example.nestory.ui.screen.category.CategoryRoute
+import com.example.nestory.ui.screen.container.ContainerRoute
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestoryTextStyles
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+enum class OcrReviewSubScreen { Review, CategorySelection, ContainerSelection }
+enum class DatePickerTarget { IssueDate, ExpiryDate }
 
 /**
  * Auto-fill review form. Displays the OCR-derived [DocumentDraft], lets the
@@ -39,9 +48,69 @@ fun OcrReviewScreen(
     onBack: () -> Unit,
     onSave: () -> Unit,
 ) {
-    var categoryMenuOpen by remember { mutableStateOf(false) }
-    var containerMenuOpen by remember { mutableStateOf(false) }
+    var subScreen by remember { mutableStateOf(OcrReviewSubScreen.Review) }
+    var datePickerTarget by remember { mutableStateOf<DatePickerTarget?>(null) }
+    
+    val datePickerState = rememberDatePickerState()
     val selectedContainer = containers.firstOrNull { it.id == draft.containerId }
+
+    BackHandler(enabled = subScreen != OcrReviewSubScreen.Review) {
+        subScreen = OcrReviewSubScreen.Review
+    }
+
+    if (subScreen == OcrReviewSubScreen.CategorySelection) {
+        CategoryRoute(
+            onBack = { subScreen = OcrReviewSubScreen.Review },
+            onConfirmSelection = { category ->
+                val matchedEnum = DocumentCategory.entries.find { categoryLabel(it) == category.name }
+                    ?: DocumentCategory.OTHER
+                onDraftChange(draft.copy(category = matchedEnum))
+                subScreen = OcrReviewSubScreen.Review
+            }
+        )
+        return
+    }
+
+    if (subScreen == OcrReviewSubScreen.ContainerSelection) {
+        ContainerRoute(
+            onBack = { subScreen = OcrReviewSubScreen.Review },
+            onConfirmSelection = { container ->
+                onDraftChange(draft.copy(containerId = container.id))
+                subScreen = OcrReviewSubScreen.Review
+            }
+        )
+        return
+    }
+
+    if (datePickerTarget != null) {
+        DatePickerDialog(
+            onDismissRequest = { datePickerTarget = null },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        val date = Date(millis)
+                        val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        val dateString = formatter.format(date)
+                        if (datePickerTarget == DatePickerTarget.IssueDate) {
+                            onDraftChange(draft.copy(issueDate = dateString))
+                        } else {
+                            onDraftChange(draft.copy(expiryDate = dateString))
+                        }
+                    }
+                    datePickerTarget = null
+                }) {
+                    Text("Xác nhận", color = GeneratedColor.Figma1a60e2)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { datePickerTarget = null }) {
+                    Text("Hủy", color = GeneratedColor.Figma919191)
+                }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
 
     NestoryScreen(
         scrollable = true,
@@ -86,46 +155,12 @@ fun OcrReviewScreen(
                     onValueChange = { onDraftChange(draft.copy(title = it)) }
                 )
 
-                // Danh mục field
-                Column(modifier = Modifier.padding(bottom = 12.dp)) {
-                    Text(
-                        text = "Danh mục",
-                        style = NestoryTextStyles.Body12Semi,
-                        color = GeneratedColor.Figma000000
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { categoryMenuOpen = true },
-                    ) {
-                        ReviewReadOnlyField(
-                            value = draft.category?.let { categoryLabel(it) } ?: "Chưa xác định",
-                            hint = "Chọn hoặc nhập danh mục"
-                        )
-                        DropdownMenu(
-                            expanded = categoryMenuOpen,
-                            onDismissRequest = { categoryMenuOpen = false },
-                        ) {
-                            DocumentCategory.entries.forEach { category ->
-                                DropdownMenuItem(
-                                    text = { Text(text = categoryLabel(category)) },
-                                    onClick = {
-                                        onDraftChange(draft.copy(category = category))
-                                        categoryMenuOpen = false
-                                    },
-                                )
-                            }
-                            DropdownMenuItem(
-                                text = { Text(text = "Chưa xác định") },
-                                onClick = {
-                                    onDraftChange(draft.copy(category = null))
-                                    categoryMenuOpen = false
-                                },
-                            )
-                        }
-                    }
-                }
+                ReviewField(
+                    label = "Danh mục",
+                    value = draft.category?.let { categoryLabel(it) } ?: "",
+                    hint = "Chọn danh mục",
+                    onClick = { subScreen = OcrReviewSubScreen.CategorySelection }
+                )
             }
 
             // Section 2: Thời hạn
@@ -136,14 +171,14 @@ fun OcrReviewScreen(
                 ReviewField(
                     label = "Ngày phát hành",
                     value = draft.issueDate.orEmpty(),
-                    hint = "DD/MM/YYYY",
-                    onValueChange = { onDraftChange(draft.copy(issueDate = it)) }
+                    hint = "Chọn ngày phát hành",
+                    onClick = { datePickerTarget = DatePickerTarget.IssueDate }
                 )
                 ReviewField(
                     label = "Ngày hết hạn",
                     value = draft.expiryDate.orEmpty(),
-                    hint = "DD/MM/YYYY",
-                    onValueChange = { onDraftChange(draft.copy(expiryDate = it)) }
+                    hint = "Chọn ngày hết hạn",
+                    onClick = { datePickerTarget = DatePickerTarget.ExpiryDate }
                 )
             }
 
@@ -152,41 +187,15 @@ fun OcrReviewScreen(
                 title = "Vị trí lưu trữ",
                 icon = AppIcons.DocumentStorage
             ) {
-                Column(modifier = Modifier.padding(bottom = 12.dp)) {
-                    Text(
-                        text = "Nơi lưu trữ hiện tại",
-                        style = NestoryTextStyles.Body12Semi,
-                        color = GeneratedColor.Figma000000
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { containerMenuOpen = true },
-                    ) {
-                        ReviewReadOnlyField(
-                            value = selectedContainer?.name.orEmpty(),
-                            hint = "Chọn container"
-                        )
-                        DropdownMenu(
-                            expanded = containerMenuOpen,
-                            onDismissRequest = { containerMenuOpen = false },
-                        ) {
-                            containers.forEach { container ->
-                                DropdownMenuItem(
-                                    text = { Text(text = container.name) },
-                                    onClick = {
-                                        onDraftChange(draft.copy(containerId = container.id))
-                                        containerMenuOpen = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                }
+                ReviewField(
+                    label = "Nơi lưu trữ hiện tại",
+                    value = selectedContainer?.name.orEmpty(),
+                    hint = "Chọn container",
+                    onClick = { subScreen = OcrReviewSubScreen.ContainerSelection }
+                )
             }
             
-            // Other fields (Holder Name, etc.) could be in another section or main info
+            // Section 4: Thông tin bổ sung
             ReviewSection(
                 title = "Thông tin bổ sung",
                 icon = AppIcons.NestoryNote
@@ -264,7 +273,8 @@ private fun ReviewField(
     label: String,
     value: String,
     hint: String,
-    onValueChange: (String) -> Unit
+    onValueChange: ((String) -> Unit)? = null,
+    onClick: (() -> Unit)? = null
 ) {
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
         Text(
@@ -280,50 +290,39 @@ private fun ReviewField(
                 .clip(NestoryRadius.R10)
                 .background(GeneratedColor.FigmaF3f6ff)
                 .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
+                .then(
+                    if (onClick != null) Modifier.clickable { onClick() }
+                    else Modifier
+                )
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = NestoryTextStyles.Body14Medium,
-                singleLine = true,
-                decorationBox = { innerTextField ->
-                    if (value.isEmpty()) {
-                        Text(
-                            text = hint,
-                            style = NestoryTextStyles.Body14Medium,
-                            color = GeneratedColor.Figma919191
-                        )
+            if (onValueChange != null && onClick == null) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = NestoryTextStyles.Body14Medium,
+                    singleLine = true,
+                    decorationBox = { innerTextField ->
+                        if (value.isEmpty()) {
+                            Text(
+                                text = hint,
+                                style = NestoryTextStyles.Body14Medium,
+                                color = GeneratedColor.Figma919191
+                            )
+                        }
+                        innerTextField()
                     }
-                    innerTextField()
-                }
-            )
+                )
+            } else {
+                Text(
+                    text = value.ifEmpty { hint },
+                    style = NestoryTextStyles.Body14Medium,
+                    color = if (value.isEmpty()) GeneratedColor.Figma919191 else GeneratedColor.Figma000000
+                )
+            }
         }
-    }
-}
-
-@Composable
-private fun ReviewReadOnlyField(
-    value: String,
-    hint: String
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(45.dp)
-            .clip(NestoryRadius.R10)
-            .background(GeneratedColor.FigmaF3f6ff)
-            .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text(
-            text = value.ifEmpty { hint },
-            style = NestoryTextStyles.Body14Medium,
-            color = if (value.isEmpty()) GeneratedColor.Figma919191 else GeneratedColor.Figma000000
-        )
     }
 }
 
@@ -336,4 +335,3 @@ internal fun categoryLabel(category: DocumentCategory): String = when (category)
     DocumentCategory.HEALTH -> "Sức khỏe"
     DocumentCategory.OTHER -> "Khác"
 }
-

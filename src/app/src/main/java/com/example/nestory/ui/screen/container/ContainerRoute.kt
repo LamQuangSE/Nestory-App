@@ -12,15 +12,13 @@ enum class ContainerSubScreen { Selection, Create, Edit }
 
 @Composable
 fun ContainerRoute(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onConfirmSelection: ((ContainerEntity) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val db = remember {
-        Room.databaseBuilder(
-            context.applicationContext,
-            AppDatabase::class.java,
-            "nestory_database"
-        ).addMigrations(AppDatabase.MIGRATION_1_2).build()
+        val database = AppDatabase.getDatabase(context)
+        database
     }
     val repository = remember { ContainerRepositoryImpl(db.containerDao()) }
     val factory = remember { ContainerViewModelFactory(repository) }
@@ -42,7 +40,16 @@ fun ContainerRoute(
                 onToggleContainer = { viewModel.toggleContainer(it) },
                 onCreateClick = { subScreen = ContainerSubScreen.Create },
                 onEditClick = { subScreen = ContainerSubScreen.Edit },
-                onConfirmClick = onBack,
+                onConfirmClick = {
+                    if (onConfirmSelection != null) {
+                        val selected = uiState.allContainers.find { it.id == uiState.selectedContainerId }
+                        if (selected != null) {
+                            onConfirmSelection(selected)
+                        }
+                    } else {
+                        onBack()
+                    }
+                },
                 onDeleteClick = { id ->
                     val container = uiState.allContainers.find { it.id == id }
                     deleteTarget = container

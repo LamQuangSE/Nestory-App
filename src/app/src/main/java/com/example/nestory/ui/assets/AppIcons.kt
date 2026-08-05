@@ -66,4 +66,7 @@ object AppIcons {
     val IcMoreInfor = R.drawable.ic_more_infor
     val IcMinus = R.drawable.ic_minus
     val IcPlus = R.drawable.ic_plus
+    val MdiExport = R.drawable.ic_mdi_export
+    val MdiImport = R.drawable.ic_mdi_import
+    val WeuiFolderOutlined = R.drawable.ic_weui_folder_outlined
 }

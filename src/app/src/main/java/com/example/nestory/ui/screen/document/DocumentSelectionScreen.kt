@@ -26,7 +26,8 @@ fun DocumentSelectionScreen(
     uiState: DocumentUiState,
     onAddDocument: () -> Unit,
     onDocumentClick: (String) -> Unit,
-    onFilterClick: () -> Unit
+    onFilterClick: () -> Unit,
+    onSearchQueryChange: (String) -> Unit = {},
 ) {
     NestoryScreen(
         verticalPadding = 0.dp,
@@ -37,7 +38,7 @@ fun DocumentSelectionScreen(
             
             DocumentSearchBar(
                 query = uiState.searchQuery,
-                onQueryChange = { /* Handle search */ },
+                onQueryChange = onSearchQueryChange,
                 onFilterClick = onFilterClick,
                 // No horizontal padding needed here as NestoryScreen handles it
             )

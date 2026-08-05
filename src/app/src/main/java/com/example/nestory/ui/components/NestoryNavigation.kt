@@ -88,8 +88,8 @@ fun NestoryBottomBar(
         BottomNavItem(
             icon = AppIcons.FigmaNavSettings,
             label = "Cài đặt",
-            selected = false, // Not implemented
-            onClick = { }
+            selected = currentDestination == NestoryDestination.Settings,
+            onClick = { onNavigate(NestoryDestination.Settings) }
         )
     }
 }

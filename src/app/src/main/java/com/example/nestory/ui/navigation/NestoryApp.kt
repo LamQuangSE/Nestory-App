@@ -12,41 +12,57 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.nestory.data.filesystem.FileSystemManager
+import com.example.nestory.data.settings.ExpiryReminderSettingsRepository
+import com.example.nestory.security.VaultUnlockSessionProvider
 import com.example.nestory.ui.components.NestoryBottomBar
 import com.example.nestory.ui.screen.category.CategoryRoute
 import com.example.nestory.ui.screen.container.ContainerRoute
-import com.example.nestory.ui.screen.document.DocumentDetailScreen
-import com.example.nestory.ui.screen.document.DocumentSelectionScreen
-import com.example.nestory.ui.screen.document.DocumentStatus
-import com.example.nestory.ui.screen.document.DocumentUiModel
-import com.example.nestory.ui.screen.document.DocumentUiState
-import com.example.nestory.ui.screen.document.FilterSelectionScreen
+import com.example.nestory.ui.screen.document.DocumentRoute
 import com.example.nestory.ui.screen.home.HomeDashboardScreen
 import com.example.nestory.ui.screen.start.StartVaultScreen
-import com.example.nestory.ui.screen.unlock.UnlockChoiceScreen
-import com.example.nestory.ui.screen.unlock.UnlockFingerprintScreen
-import com.example.nestory.ui.screen.unlock.UnlockPinScreen
+import com.example.nestory.ui.screen.unlock.UnlockRoute
 import com.example.nestory.ui.screen.unlock.UnlockSuccessScreen
 import com.example.nestory.ui.screen.vault.CreateVaultScreen
 import com.example.nestory.ui.screen.vault.WaitingScreen
 import com.example.nestory.ui.screen.ocr.OcrRoute
+import com.example.nestory.ui.screen.setting.ExpiryReminderSettingScreen
+import com.example.nestory.ui.screen.setting.SettingScreen
+import com.example.nestory.ui.screen.setting.toSettings
+import com.example.nestory.ui.screen.setting.toUiState
+import kotlinx.coroutines.launch
 
 @Composable
 fun NestoryApp() {
     val context = LocalContext.current.applicationContext
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val unlockSessionManager = remember { VaultUnlockSessionProvider.manager }
+    val settingsRepository = remember { ExpiryReminderSettingsRepository(context) }
+    val expiryReminderSettings by settingsRepository.settings.collectAsState(
+        initial = com.example.nestory.domain.model.ExpiryReminderSettings(),
+    )
+    val coroutineScope = rememberCoroutineScope()
     val initialDestination = remember {
         if (FileSystemManager(context).isVaultInitialized()) {
-            NestoryDestination.UnlockChoice
+            if (unlockSessionManager.isSessionValid()) {
+                NestoryDestination.Home
+            } else {
+                NestoryDestination.Unlock
+            }
         } else {
             NestoryDestination.StartVault
         }
@@ -56,22 +72,6 @@ fun NestoryApp() {
     var vaultCreationSession by remember { mutableIntStateOf(0) }
     var isEditingMode by remember { mutableStateOf(false) }
 
-    // TODO: thay bằng dữ liệu thật từ ViewModel/Repository khi có nguồn dữ liệu.
-    // Gom về một chỗ duy nhất thay vì hardcode lặp lại ở 2 màn hình (Selection + Detail).
-    val sampleDocuments = remember {
-        listOf(
-            DocumentUiModel(
-                id = "1",
-                name = "Hợp đồng thuê nhà 2026",
-                category = "Hợp đồng, Pháp lý",
-                containerPath = "Tủ tài liệu > Ngăn 4",
-                status = DocumentStatus.Active,
-                expiryDate = "20/08/2026",
-                categoryColor = Color(0xFF1855EE)
-            )
-        )
-    }
-
     // Gom lại logic "mở màn hình Scan" đang bị lặp ở 3 nơi (bottom bar, Home, DocumentSelection)
     val goToScan: () -> Unit = {
         isEditingMode = false
@@ -79,11 +79,34 @@ fun NestoryApp() {
         destination = NestoryDestination.Scan
     }
 
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> unlockSessionManager.onAppBackgrounded()
+                Lifecycle.Event.ON_START -> {
+                    val isVaultInitialized = FileSystemManager(context).isVaultInitialized()
+                    val isSessionValid = unlockSessionManager.onAppForegrounded()
+                    if (isVaultInitialized && !isSessionValid) {
+                        destination = NestoryDestination.Unlock
+                    }
+                }
+
+                else -> Unit
+            }
+        }
+
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     val showBottomBar =
             when (destination) {
                 NestoryDestination.Home,
                 NestoryDestination.DocumentSelection,
-                NestoryDestination.Category -> true
+                NestoryDestination.Category,
+                NestoryDestination.Settings -> true
                 else -> false
             }
 
@@ -150,26 +173,14 @@ fun NestoryApp() {
                             WaitingScreen(
                                     sessionKey = vaultCreationSession,
                                     onBack = { destination = NestoryDestination.CreateVault },
-                                    onComplete = { destination = NestoryDestination.UnlockChoice },
+                                    onComplete = { destination = NestoryDestination.Unlock },
                             )
-                    NestoryDestination.UnlockChoice ->
-                            UnlockChoiceScreen(
-                                    onFingerprint = {
-                                        destination = NestoryDestination.Fingerprint
+                    NestoryDestination.Unlock ->
+                            UnlockRoute(
+                                    onUnlocked = {
+                                        unlockSessionManager.markUnlocked()
+                                        destination = NestoryDestination.UnlockSuccess
                                     },
-                                    onPin = { destination = NestoryDestination.Pin },
-                            )
-                    NestoryDestination.Fingerprint ->
-                            UnlockFingerprintScreen(
-                                    onCancel = { destination = NestoryDestination.UnlockChoice },
-                                    onUsePin = { destination = NestoryDestination.Pin },
-                                    onUnlocked = { destination = NestoryDestination.UnlockSuccess },
-                            )
-                    NestoryDestination.Pin ->
-                            UnlockPinScreen(
-                                    onBack = { destination = NestoryDestination.UnlockChoice },
-                                    onForgotPin = { destination = NestoryDestination.UnlockChoice },
-                                    onUnlocked = { destination = NestoryDestination.UnlockSuccess },
                             )
                     NestoryDestination.UnlockSuccess ->
                             UnlockSuccessScreen(
@@ -184,33 +195,31 @@ fun NestoryApp() {
                             CategoryRoute(onBack = { destination = NestoryDestination.Home })
                     NestoryDestination.Container ->
                             ContainerRoute(onBack = { destination = NestoryDestination.Home })
+                    NestoryDestination.Settings ->
+                            SettingScreen(
+                                    onBack = { destination = NestoryDestination.Home },
+                                    onExpiryReminderClick = {
+                                        destination = NestoryDestination.ExpiryReminderSettings
+                                    },
+                                    onCategoryClick = { destination = NestoryDestination.Category },
+                                    onContainerClick = { destination = NestoryDestination.Container },
+                            )
+                    NestoryDestination.ExpiryReminderSettings ->
+                            ExpiryReminderSettingScreen(
+                                    state = expiryReminderSettings.toUiState(),
+                                    onStateChange = { uiState ->
+                                        coroutineScope.launch {
+                                            settingsRepository.updateSettings(uiState.toSettings())
+                                        }
+                                    },
+                                    onBack = { destination = NestoryDestination.Settings },
+                            )
                     NestoryDestination.DocumentSelection ->
-                            DocumentSelectionScreen(
-                                    uiState = DocumentUiState(documents = sampleDocuments),
-                                    onAddDocument = goToScan,
-                                    onDocumentClick = {
-                                        destination = NestoryDestination.DocumentDetail
-                                    },
-                                    onFilterClick = {
-                                        destination = NestoryDestination.FilterSelection
-                                    }
-                            )
+                            DocumentRoute(onAddDocument = goToScan)
                     NestoryDestination.DocumentDetail ->
-                            DocumentDetailScreen(
-                                    document = sampleDocuments.first(),
-                                    onBack = { destination = NestoryDestination.DocumentSelection },
-                                    onDelete = {
-                                        destination = NestoryDestination.DocumentSelection
-                                    }
-                            )
+                            DocumentRoute(onAddDocument = goToScan)
                     NestoryDestination.FilterSelection ->
-                            FilterSelectionScreen(
-                                    onBack = { destination = NestoryDestination.DocumentSelection },
-                                    onApply = {
-                                        destination = NestoryDestination.DocumentSelection
-                                    },
-                                    onReset = {}
-                            )
+                            DocumentRoute(onAddDocument = goToScan)
                     NestoryDestination.Scan ->
                             OcrRoute(
                                     onBack = { destination = ocrReturnDestination },

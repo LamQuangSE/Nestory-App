@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -49,15 +50,25 @@ fun DocumentSearchBar(
         )
         Spacer(modifier = Modifier.width(NestorySpacing.S8))
         Box(modifier = Modifier.weight(1f)) {
-            if (query.isEmpty()) {
-                Text(
-                    text = "Tìm theo tên, danh mục hoặc ghi chú",
-                    style = NestoryTextStyles.Body11Semi,
-                    color = GeneratedColor.Figma919191
-                )
-            }
-            // Basic text input logic would go here, using BasicTextField for full control
-            // For now, keeping it consistent with the "vibe"
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                textStyle = NestoryTextStyles.Body11Semi.copy(
+                    color = GeneratedColor.Figma000000,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+                decorationBox = { innerTextField ->
+                    if (query.isEmpty()) {
+                        Text(
+                            text = "Tìm theo tên, danh mục hoặc ghi chú",
+                            style = NestoryTextStyles.Body11Semi,
+                            color = GeneratedColor.Figma919191
+                        )
+                    }
+                    innerTextField()
+                },
+            )
         }
         Spacer(modifier = Modifier.width(NestorySpacing.S8))
         Image(

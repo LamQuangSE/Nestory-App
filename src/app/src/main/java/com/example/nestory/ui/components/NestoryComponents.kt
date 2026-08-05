@@ -251,11 +251,11 @@ fun PrimaryActionButton(
 ) {
     Button(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier
             .fillMaxWidth()
             .height(54.dp),
         shape = NestoryRadius.R16,
-        enabled = enabled,
         colors = ButtonDefaults.buttonColors(
             containerColor = GeneratedColor.Figma1a60e2,
             contentColor = Color.White,

@@ -23,20 +23,26 @@ class DocumentViewModel(
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
+    private val _selectedDocumentId = MutableStateFlow<String?>(null)
+
     val uiState: StateFlow<DocumentUiState> = combine(
         documentRepository.observeAllDocuments(),
         _searchQuery,
+        _selectedDocumentId,
         containerRepository.observeAllContainers(),
         categoryRepository.getAllCategories()
-    ) { documents, query, containers, categories ->
+    ) { documents, query, selectedId, containers, categories ->
         val filtered = if (query.isBlank()) documents else {
             documents.filter { it.title.contains(query, ignoreCase = true) }
         }
 
+        val mappedDocuments = filtered.map { entity ->
+            mapToUiModel(entity, containers, categories)
+        }
+
         DocumentUiState(
-            documents = filtered.map { entity ->
-                mapToUiModel(entity, containers, categories)
-            },
+            documents = mappedDocuments,
+            selectedDocument = mappedDocuments.find { it.id == selectedId },
             searchQuery = query
         )
     }.stateIn(
@@ -49,12 +55,33 @@ class DocumentViewModel(
         _searchQuery.value = query
     }
 
+    fun selectDocument(documentId: String) {
+        _selectedDocumentId.value = documentId
+    }
+
+    fun clearSelection() {
+        _selectedDocumentId.value = null
+    }
+
     fun deleteDocument(documentId: String) {
         viewModelScope.launch {
             val idLong = documentId.toLongOrNull() ?: return@launch
             val entity = documentRepository.getDocumentById(idLong).getOrNull()
             if (entity != null) {
                 documentRepository.deleteDocument(entity)
+            }
+        }
+    }
+
+    fun deleteSelectedDocument(onDeleted: () -> Unit) {
+        val selectedId = _selectedDocumentId.value ?: return
+        viewModelScope.launch {
+            val idLong = selectedId.toLongOrNull() ?: return@launch
+            val entity = documentRepository.getDocumentById(idLong).getOrNull()
+            if (entity != null) {
+                documentRepository.deleteDocument(entity)
+                _selectedDocumentId.value = null
+                onDeleted()
             }
         }
     }
@@ -84,13 +111,17 @@ class DocumentViewModel(
         }
     }
 
+    fun clearError() {
+        // Implement if DocumentUiState has error field
+    }
+
     private fun mapToUiModel(
         entity: DocumentEntity,
         allContainers: List<com.example.nestory.data.local.entity.ContainerEntity>,
         allCategories: List<com.example.nestory.data.local.entity.CategoryEntity>
     ): DocumentUiModel {
-        val path = entity.containerId?.let { buildContainerPath(it, allContainers) } ?: emptyList()
-        val pathString = if (path.isEmpty()) "Chưa phân loại" else path.joinToString(" > ") { it.name }
+        val path = buildContainerPath(entity.containerId, allContainers)
+        val pathString = path.joinToString(" > ") { it.name }
         
         val categoryLabel = categoryLabel(entity.category)
         val categoryColor = allCategories.find { it.name == categoryLabel }?.let {

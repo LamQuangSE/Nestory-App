@@ -27,7 +27,7 @@ fun DocumentSelectionScreen(
     onAddDocument: () -> Unit,
     onDocumentClick: (String) -> Unit,
     onFilterClick: () -> Unit,
-    onSearchQueryChange: (String) -> Unit = {}
+    onSearchQueryChange: (String) -> Unit = {},
 ) {
     NestoryScreen(
         verticalPadding = 0.dp,

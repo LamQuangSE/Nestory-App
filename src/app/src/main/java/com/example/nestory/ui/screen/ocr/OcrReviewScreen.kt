@@ -33,7 +33,7 @@ import java.util.Date
 import java.util.Locale
 
 enum class OcrReviewSubScreen { Review, CategorySelection, ContainerSelection }
-enum class DatePickerTarget { IssueDate, ExpiryDate }
+enum class DatePickerTarget { ExpiryDate }
 
 /**
  * Auto-fill review form. Displays the OCR-derived [DocumentDraft], lets the
@@ -50,6 +50,9 @@ fun OcrReviewScreen(
 ) {
     var subScreen by remember { mutableStateOf(OcrReviewSubScreen.Review) }
     var datePickerTarget by remember { mutableStateOf<DatePickerTarget?>(null) }
+    
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var containerError by remember { mutableStateOf<String?>(null) }
     
     val datePickerState = rememberDatePickerState()
     val selectedContainer = containers.firstOrNull { it.id == draft.containerId }
@@ -76,6 +79,7 @@ fun OcrReviewScreen(
             onBack = { subScreen = OcrReviewSubScreen.Review },
             onConfirmSelection = { container ->
                 onDraftChange(draft.copy(containerId = container.id))
+                containerError = null
                 subScreen = OcrReviewSubScreen.Review
             }
         )
@@ -91,11 +95,7 @@ fun OcrReviewScreen(
                         val date = Date(millis)
                         val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
                         val dateString = formatter.format(date)
-                        if (datePickerTarget == DatePickerTarget.IssueDate) {
-                            onDraftChange(draft.copy(issueDate = dateString))
-                        } else {
-                            onDraftChange(draft.copy(expiryDate = dateString))
-                        }
+                        onDraftChange(draft.copy(expiryDate = dateString))
                     }
                     datePickerTarget = null
                 }) {
@@ -152,7 +152,11 @@ fun OcrReviewScreen(
                     label = "Tên giấy tờ",
                     value = draft.title,
                     hint = "Nhập tên giấy tờ",
-                    onValueChange = { onDraftChange(draft.copy(title = it)) }
+                    onValueChange = { 
+                        onDraftChange(draft.copy(title = it))
+                        if (it.isNotBlank()) nameError = null
+                    },
+                    error = nameError
                 )
 
                 ReviewField(
@@ -168,12 +172,6 @@ fun OcrReviewScreen(
                 title = "Thời hạn",
                 icon = AppIcons.DocumentDeadline
             ) {
-                ReviewField(
-                    label = "Ngày phát hành",
-                    value = draft.issueDate.orEmpty(),
-                    hint = "Chọn ngày phát hành",
-                    onClick = { datePickerTarget = DatePickerTarget.IssueDate }
-                )
                 ReviewField(
                     label = "Ngày hết hạn",
                     value = draft.expiryDate.orEmpty(),
@@ -191,7 +189,8 @@ fun OcrReviewScreen(
                     label = "Nơi lưu trữ hiện tại",
                     value = selectedContainer?.name.orEmpty(),
                     hint = "Chọn container",
-                    onClick = { subScreen = OcrReviewSubScreen.ContainerSelection }
+                    onClick = { subScreen = OcrReviewSubScreen.ContainerSelection },
+                    error = containerError
                 )
             }
             
@@ -216,7 +215,21 @@ fun OcrReviewScreen(
 
             PrimaryActionButton(
                 text = "Lưu giấy tờ",
-                onClick = onSave,
+                onClick = {
+                    var hasError = false
+                    if (draft.title.isBlank()) {
+                        nameError = "Vui lòng nhập tên giấy tờ"
+                        hasError = true
+                    }
+                    if (draft.containerId == null) {
+                        containerError = "Vui lòng chọn vị trí lưu trữ"
+                        hasError = true
+                    }
+                    
+                    if (!hasError) {
+                        onSave()
+                    }
+                },
             )
             
             Spacer(modifier = Modifier.height(20.dp))
@@ -274,7 +287,8 @@ private fun ReviewField(
     value: String,
     hint: String,
     onValueChange: ((String) -> Unit)? = null,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    error: String? = null
 ) {
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
         Text(
@@ -289,7 +303,11 @@ private fun ReviewField(
                 .height(45.dp)
                 .clip(NestoryRadius.R10)
                 .background(GeneratedColor.FigmaF3f6ff)
-                .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
+                .border(
+                    width = 1.dp, 
+                    color = if (error != null) Color.Red else GeneratedColor.FigmaE5e7eb, 
+                    shape = NestoryRadius.R10
+                )
                 .then(
                     if (onClick != null) Modifier.clickable { onClick() }
                     else Modifier
@@ -322,6 +340,15 @@ private fun ReviewField(
                     color = if (value.isEmpty()) GeneratedColor.Figma919191 else GeneratedColor.Figma000000
                 )
             }
+        }
+        if (error != null) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = error,
+                style = NestoryTextStyles.Body10Semi,
+                color = Color.Red,
+                modifier = Modifier.padding(start = 4.dp)
+            )
         }
     }
 }

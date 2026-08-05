@@ -74,13 +74,7 @@ fun OcrRoute(
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
     val coroutineScope = rememberCoroutineScope()
-    val db = remember {
-        Room.databaseBuilder(
-            context.applicationContext,
-            AppDatabase::class.java,
-            "nestory_database",
-        ).addMigrations(AppDatabase.MIGRATION_1_2).build()
-    }
+    val db = remember { AppDatabase.getDatabase(context) }
 
     val ocrRepository = remember { MlKitOcrRepository() }
     val categoryDetector = remember { CategoryDetector() }

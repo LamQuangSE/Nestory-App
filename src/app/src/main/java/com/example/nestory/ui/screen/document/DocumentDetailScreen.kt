@@ -43,7 +43,8 @@ enum class DocumentDetailSubScreen { Detail, CategorySelection, ContainerSelecti
 fun DocumentDetailScreen(
     document: DocumentUiModel,
     onBack: () -> Unit,
-    onDelete: () -> Unit = {}
+    onSave: (name: String, category: String, expiryDate: String, containerId: Long?) -> Unit = { _, _, _, _ -> },
+    onDelete: (String) -> Unit = {}
 ) {
     var isEditMode by remember { mutableStateOf(false) }
     var subScreen by remember { mutableStateOf(DocumentDetailSubScreen.Detail) }
@@ -53,6 +54,10 @@ fun DocumentDetailScreen(
     var editedCategory by remember(document.category) { mutableStateOf(document.category) }
     var editedExpiryDate by remember(document.expiryDate) { mutableStateOf(document.expiryDate) }
     var editedContainerPath by remember(document.containerPath) { mutableStateOf(document.containerPath) }
+    var selectedContainerId by remember { mutableStateOf<Long?>(null) }
+    
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var containerError by remember { mutableStateOf<String?>(null) }
     
     var showDatePicker by remember { mutableStateOf(false) }
     val datePickerState = rememberDatePickerState()
@@ -76,8 +81,9 @@ fun DocumentDetailScreen(
         ContainerRoute(
             onBack = { subScreen = DocumentDetailSubScreen.Detail },
             onConfirmSelection = { container ->
-                // Simulate updating container path
                 editedContainerPath = container.name
+                selectedContainerId = container.id
+                containerError = null
                 subScreen = DocumentDetailSubScreen.Detail
             }
         )
@@ -126,6 +132,9 @@ fun DocumentDetailScreen(
                         editedCategory = document.category
                         editedExpiryDate = document.expiryDate
                         editedContainerPath = document.containerPath
+                        selectedContainerId = null
+                        nameError = null
+                        containerError = null
                     } else {
                         onBack()
                     }
@@ -149,7 +158,11 @@ fun DocumentDetailScreen(
                         value = if (isEditMode) editedName else document.name,
                         isEditMode = isEditMode,
                         hint = "Nhập tên giấy tờ ",
-                        onValueChange = { editedName = it }
+                        onValueChange = { 
+                            editedName = it
+                            if (it.isNotBlank()) nameError = null
+                        },
+                        error = nameError
                     )
                     DetailField(
                         label = "Danh mục", 
@@ -187,7 +200,8 @@ fun DocumentDetailScreen(
                         value = if (isEditMode) editedContainerPath else "Ngăn 4", 
                         isEditMode = isEditMode,
                         hint = "Chọn container",
-                        onClick = { subScreen = DocumentDetailSubScreen.ContainerSelection }
+                        onClick = { subScreen = DocumentDetailSubScreen.ContainerSelection },
+                        error = containerError
                     )
                     if (!isEditMode) {
                         DetailField(label = "Đường dẫn nơi lưu trữ", value = document.containerPath)
@@ -222,14 +236,29 @@ fun DocumentDetailScreen(
                             editedCategory = document.category
                             editedExpiryDate = document.expiryDate
                             editedContainerPath = document.containerPath
+                            selectedContainerId = null
+                            nameError = null
+                            containerError = null
                         },
                         onSave = { 
-                            // In a real app, we would update the document here via ViewModel
-                            isEditMode = false 
+                            var hasError = false
+                            if (editedName.isBlank()) {
+                                nameError = "Vui lòng nhập tên giấy tờ"
+                                hasError = true
+                            }
+                            if (selectedContainerId == null && editedContainerPath.isBlank()) {
+                                containerError = "Vui lòng chọn vị trí lưu trữ"
+                                hasError = true
+                            }
+
+                            if (!hasError) {
+                                onSave(editedName, editedCategory, editedExpiryDate, selectedContainerId)
+                                isEditMode = false 
+                            }
                         },
                         onDelete = {
                             isEditMode = false
-                            onDelete()
+                            onDelete(document.id)
                         }
                     )
                 } else {
@@ -370,7 +399,8 @@ private fun DetailField(
     isEditMode: Boolean = false,
     hint: String = "",
     onValueChange: ((String) -> Unit)? = null,
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    error: String? = null
 ) {
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
         Text(
@@ -385,7 +415,11 @@ private fun DetailField(
                 .height(45.dp)
                 .clip(NestoryRadius.R10)
                 .background(GeneratedColor.FigmaF3f6ff)
-                .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
+                .border(
+                    width = 1.dp, 
+                    color = if (error != null) Color.Red else GeneratedColor.FigmaE5e7eb, 
+                    shape = NestoryRadius.R10
+                )
                 .then(
                     if (isEditMode && onClick != null) Modifier.clickable { onClick() }
                     else Modifier
@@ -417,6 +451,15 @@ private fun DetailField(
                     color = if (isEditMode && value.isEmpty()) GeneratedColor.Figma919191 else GeneratedColor.Figma000000
                 )
             }
+        }
+        if (error != null) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = error,
+                style = NestoryTextStyles.Body10Semi,
+                color = Color.Red,
+                modifier = Modifier.padding(start = 4.dp)
+            )
         }
     }
 }

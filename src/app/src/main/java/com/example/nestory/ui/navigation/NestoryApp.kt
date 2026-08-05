@@ -12,25 +12,25 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nestory.data.filesystem.FileSystemManager
+import com.example.nestory.data.local.database.AppDatabase
+import com.example.nestory.data.repository.CategoryRepositoryImpl
+import com.example.nestory.data.repository.ContainerRepositoryImpl
+import com.example.nestory.data.repository.DocumentRepositoryImpl
 import com.example.nestory.ui.components.NestoryBottomBar
 import com.example.nestory.ui.screen.category.CategoryRoute
 import com.example.nestory.ui.screen.container.ContainerRoute
-import com.example.nestory.ui.screen.document.DocumentDetailScreen
-import com.example.nestory.ui.screen.document.DocumentSelectionScreen
-import com.example.nestory.ui.screen.document.DocumentStatus
-import com.example.nestory.ui.screen.document.DocumentUiModel
-import com.example.nestory.ui.screen.document.DocumentUiState
-import com.example.nestory.ui.screen.document.FilterSelectionScreen
+import com.example.nestory.ui.screen.document.*
 import com.example.nestory.ui.screen.home.HomeDashboardScreen
 import com.example.nestory.ui.screen.start.StartVaultScreen
 import com.example.nestory.ui.screen.unlock.UnlockChoiceScreen
@@ -55,22 +55,22 @@ fun NestoryApp() {
     var ocrReturnDestination by remember { mutableStateOf(NestoryDestination.Home) }
     var vaultCreationSession by remember { mutableIntStateOf(0) }
     var isEditingMode by remember { mutableStateOf(false) }
+    var selectedDocumentId by remember { mutableStateOf<String?>(null) }
 
-    // TODO: thay bằng dữ liệu thật từ ViewModel/Repository khi có nguồn dữ liệu.
-    // Gom về một chỗ duy nhất thay vì hardcode lặp lại ở 2 màn hình (Selection + Detail).
-    val sampleDocuments = remember {
-        listOf(
-            DocumentUiModel(
-                id = "1",
-                name = "Hợp đồng thuê nhà 2026",
-                category = "Hợp đồng, Pháp lý",
-                containerPath = "Tủ tài liệu > Ngăn 4",
-                status = DocumentStatus.Active,
-                expiryDate = "20/08/2026",
-                categoryColor = Color(0xFF1855EE)
-            )
+    // Database and Repositories Setup
+    val db = remember { AppDatabase.getDatabase(context) }
+    val documentRepository = remember { DocumentRepositoryImpl(db.documentDao()) }
+    val containerRepository = remember { ContainerRepositoryImpl(db.containerDao()) }
+    val categoryRepository = remember { CategoryRepositoryImpl(db.categoryDao()) }
+    
+    val documentViewModel: DocumentViewModel = viewModel(
+        factory = DocumentViewModelFactory(
+            documentRepository,
+            containerRepository,
+            categoryRepository
         )
-    }
+    )
+    val documentUiState by documentViewModel.uiState.collectAsState()
 
     // Gom lại logic "mở màn hình Scan" đang bị lặp ở 3 nơi (bottom bar, Home, DocumentSelection)
     val goToScan: () -> Unit = {
@@ -186,23 +186,35 @@ fun NestoryApp() {
                             ContainerRoute(onBack = { destination = NestoryDestination.Home })
                     NestoryDestination.DocumentSelection ->
                             DocumentSelectionScreen(
-                                    uiState = DocumentUiState(documents = sampleDocuments),
+                                    uiState = documentUiState,
                                     onAddDocument = goToScan,
-                                    onDocumentClick = {
+                                    onDocumentClick = { id ->
+                                        selectedDocumentId = id
                                         destination = NestoryDestination.DocumentDetail
                                     },
                                     onFilterClick = {
                                         destination = NestoryDestination.FilterSelection
+                                    },
+                                    onSearchQueryChange = { query ->
+                                        documentViewModel.onSearchQueryChange(query)
                                     }
                             )
-                    NestoryDestination.DocumentDetail ->
+                    NestoryDestination.DocumentDetail -> {
+                        val document = documentUiState.documents.find { it.id == selectedDocumentId }
+                        if (document != null) {
                             DocumentDetailScreen(
-                                    document = sampleDocuments.first(),
-                                    onBack = { destination = NestoryDestination.DocumentSelection },
-                                    onDelete = {
-                                        destination = NestoryDestination.DocumentSelection
-                                    }
+                                document = document,
+                                onBack = { destination = NestoryDestination.DocumentSelection },
+                                onSave = { name, category, expiryDate, containerId ->
+                                    documentViewModel.updateDocument(document.id, name, category, expiryDate, containerId)
+                                },
+                                onDelete = { id ->
+                                    documentViewModel.deleteDocument(id)
+                                    destination = NestoryDestination.DocumentSelection
+                                }
                             )
+                        }
+                    }
                     NestoryDestination.FilterSelection ->
                             FilterSelectionScreen(
                                     onBack = { destination = NestoryDestination.DocumentSelection },

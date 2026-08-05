@@ -45,7 +45,7 @@ class OcrViewModel(
     private val _containers = MutableStateFlow<List<ContainerEntity>>(emptyList())
     val containers: StateFlow<List<ContainerEntity>> = _containers.asStateFlow()
 
-    private var capturedBitmap: Bitmap? = null
+    private var capturedBitmaps: List<Bitmap> = emptyList()
 
     init {
         observeContainers()
@@ -60,11 +60,16 @@ class OcrViewModel(
     }
 
     fun processImage(bitmap: Bitmap) {
-        capturedBitmap = bitmap
+        processImages(listOf(bitmap))
+    }
+
+    fun processImages(bitmaps: List<Bitmap>) {
+        val firstBitmap = bitmaps.firstOrNull() ?: return
+        capturedBitmaps = bitmaps
         _uiState.value = OcrUiState.Processing
 
         viewModelScope.launch {
-            ocrRepository.recognizeText(bitmap)
+            ocrRepository.recognizeText(firstBitmap)
                 .map { rawText -> parser.parse(rawText) }
                 .onSuccess { result ->
                     val withCategory = result.copy(category = categoryDetector.detect(result))
@@ -85,7 +90,8 @@ class OcrViewModel(
 
     fun saveDocument(onSaved: (Long) -> Unit) {
         val draft = (_uiState.value as? OcrUiState.Success)?.draft ?: return
-        val bitmap = capturedBitmap ?: return
+        val bitmaps = capturedBitmaps
+        if (bitmaps.isEmpty()) return
         val containerId = draft.containerId
 
         if (containerId == null) {
@@ -104,23 +110,31 @@ class OcrViewModel(
 
             documentRepository.createDocument(document).fold(
                 onSuccess = { documentId ->
-                    imageStorageManager.saveBitmap(bitmap).fold(
-                        onSuccess = { filePath ->
-                            attachmentRepository.addAttachmentMetadata(
-                                AttachmentEntity(
-                                    fileUri = filePath,
-                                    documentId = documentId,
-                                    displayOrder = 0,
-                                ),
-                            )
-                            onSaved(documentId)
-                        },
-                        onFailure = { error ->
+                    var saveError: Throwable? = null
+                    bitmaps.forEachIndexed { index, bitmap ->
+                        imageStorageManager.saveBitmap(bitmap).fold(
+                            onSuccess = { filePath ->
+                                attachmentRepository.addAttachmentMetadata(
+                                    AttachmentEntity(
+                                        fileUri = filePath,
+                                        documentId = documentId,
+                                        displayOrder = index,
+                                    ),
+                                ).onFailure { error -> saveError = error }
+                            },
+                            onFailure = { error -> saveError = error },
+                        )
+                    }
+
+                    if (saveError == null) {
+                        onSaved(documentId)
+                    } else {
+                        saveError?.let { error ->
                             _uiState.value = OcrUiState.Error(
                                 error.message ?: "Không thể lưu ảnh đính kèm",
                             )
-                        },
-                    )
+                        }
+                    }
                 },
                 onFailure = { error ->
                     _uiState.value = OcrUiState.Error(
@@ -138,7 +152,7 @@ class OcrViewModel(
 
     fun cancelOcr() {
         _uiState.value = OcrUiState.Idle
-        capturedBitmap = null
+        capturedBitmaps = emptyList()
     }
 }
 
@@ -169,4 +183,3 @@ class OcrViewModelFactory(
         throw IllegalArgumentException("Unknown ViewModel class")
     }
 }
-

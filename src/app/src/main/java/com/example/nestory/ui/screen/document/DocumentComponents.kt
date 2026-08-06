@@ -6,6 +6,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -17,6 +18,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
@@ -49,15 +51,25 @@ fun DocumentSearchBar(
         )
         Spacer(modifier = Modifier.width(NestorySpacing.S8))
         Box(modifier = Modifier.weight(1f)) {
-            if (query.isEmpty()) {
-                Text(
-                    text = "Tìm theo tên, danh mục hoặc ghi chú",
-                    style = NestoryTextStyles.Body11Semi,
-                    color = GeneratedColor.Figma919191
-                )
-            }
-            // Basic text input logic would go here, using BasicTextField for full control
-            // For now, keeping it consistent with the "vibe"
+            BasicTextField(
+                value = query,
+                onValueChange = onQueryChange,
+                singleLine = true,
+                textStyle = NestoryTextStyles.Body11Semi.copy(
+                    color = GeneratedColor.Figma000000,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+                decorationBox = { innerTextField ->
+                    if (query.isEmpty()) {
+                        Text(
+                            text = "Tìm theo tên, danh mục hoặc ghi chú",
+                            style = NestoryTextStyles.Body11Semi,
+                            color = GeneratedColor.Figma919191
+                        )
+                    }
+                    innerTextField()
+                },
+            )
         }
         Spacer(modifier = Modifier.width(NestorySpacing.S8))
         Image(
@@ -88,7 +100,7 @@ fun DocumentListItem(
             .padding(NestorySpacing.S12),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon box (Node 220:292)
+        // Icon or Thumbnail box
         Box(
             modifier = Modifier
                 .size(60.dp)
@@ -96,12 +108,21 @@ fun DocumentListItem(
                 .background(document.categoryColor.copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(AppIcons.FigmaDocument),
-                contentDescription = null,
-                modifier = Modifier.size(30.dp),
-                contentScale = ContentScale.Fit
-            )
+            if (document.attachmentUris.isNotEmpty()) {
+                AsyncImage(
+                    model = document.attachmentUris.first(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Image(
+                    painter = painterResource(AppIcons.FigmaDocument),
+                    contentDescription = null,
+                    modifier = Modifier.size(30.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
         }
         Spacer(modifier = Modifier.width(NestorySpacing.S16))
         Column(modifier = Modifier.weight(1f)) {

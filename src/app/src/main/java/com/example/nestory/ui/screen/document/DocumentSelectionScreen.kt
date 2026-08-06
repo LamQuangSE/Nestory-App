@@ -26,7 +26,8 @@ fun DocumentSelectionScreen(
     uiState: DocumentUiState,
     onAddDocument: () -> Unit,
     onDocumentClick: (String) -> Unit,
-    onFilterClick: () -> Unit
+    onFilterClick: () -> Unit,
+    onSearchQueryChange: (String) -> Unit = {},
 ) {
     NestoryScreen(
         verticalPadding = 0.dp,
@@ -37,7 +38,7 @@ fun DocumentSelectionScreen(
             
             DocumentSearchBar(
                 query = uiState.searchQuery,
-                onQueryChange = { /* Handle search */ },
+                onQueryChange = onSearchQueryChange,
                 onFilterClick = onFilterClick,
                 // No horizontal padding needed here as NestoryScreen handles it
             )
@@ -79,6 +80,7 @@ fun DocumentSelectionPreview() {
                     name = "Hợp đồng thuê nhà 2026",
                     category = "Hợp đồng, Pháp lý",
                     containerPath = "Tủ tài liệu > Ngăn 4",
+                    containerId = 1L,
                     status = DocumentStatus.Active,
                     expiryDate = "20/08/2026",
                     categoryColor = Color(0xFF1855EE)
@@ -88,6 +90,7 @@ fun DocumentSelectionPreview() {
                     name = "Giấy xác nhận sinh viên",
                     category = "Chứng từ",
                     containerPath = "Tủ tài liệu > Ngăn 2",
+                    containerId = 2L,
                     status = DocumentStatus.ExpiringSoon,
                     expiryDate = "18/07/2026",
                     categoryColor = Color(0xFFEB6E00)

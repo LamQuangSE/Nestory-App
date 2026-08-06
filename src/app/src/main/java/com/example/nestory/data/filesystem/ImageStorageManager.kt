@@ -24,4 +24,14 @@ class ImageStorageManager(private val context: Context) {
             file.absolutePath
         }
     }
+
+    suspend fun deleteFile(path: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            val file = File(path)
+            if (file.exists()) {
+                file.delete()
+            }
+            Unit
+        }
+    }
 }

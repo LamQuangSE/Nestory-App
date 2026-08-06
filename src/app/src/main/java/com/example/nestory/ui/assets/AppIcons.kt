@@ -47,6 +47,8 @@ object AppIcons {
     val DocumentFileScan = R.drawable.ic_document_file_scan
     val DocumentEdit = R.drawable.ic_document_edit
     val DocumentStarred = R.drawable.ic_document_starred
+    val KitStarred = R.drawable.ic_starred
+    val KitUnstarred = R.drawable.ic_unstarred
     val DocumentFilterExpired = R.drawable.ic_document_filter_expired
     val DocumentFilterExpiring = R.drawable.ic_document_filter_expiring
     val DocumentCamera = R.drawable.ic_camera
@@ -69,4 +71,20 @@ object AppIcons {
     val MdiExport = R.drawable.ic_mdi_export
     val MdiImport = R.drawable.ic_mdi_import
     val WeuiFolderOutlined = R.drawable.ic_weui_folder_outlined
+
+    // SCRUM-112 Document Kit Icons (vector, tinted at render)
+    val KitCalendar = R.drawable.ic_kit_calendar
+    val KitGlobe = R.drawable.ic_kit_globe
+    val KitHome = R.drawable.ic_kit_home
+    val KitGraduate = R.drawable.ic_kit_graduate
+    val KitBus = R.drawable.ic_kit_bus
+    val KitMotorbike = R.drawable.ic_kit_motorbike
+    val KitAlert = R.drawable.ic_kit_alert
+    val KitClose = R.drawable.ic_kit_close
+    val KitCategory = R.drawable.ic_kit_category
+    val KitFile = R.drawable.ic_kit_file
+    val KitTarget = R.drawable.ic_kit_target
+    val KitAlignLeft = R.drawable.ic_kit_align_left
+    val KitCheckCircle = R.drawable.ic_kit_check_circle
+    val KitCameraOutline = R.drawable.ic_kit_camera_outline
 }

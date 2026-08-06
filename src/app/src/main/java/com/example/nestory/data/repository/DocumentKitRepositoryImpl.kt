@@ -31,4 +31,7 @@ class DocumentKitRepositoryImpl(
 
     override suspend fun deleteKit(kit: DocumentKitEntity): Result<Unit> =
         runCatching { dao.deleteKit(kit) }
+
+    override suspend fun updateFavoriteStatus(kitId: Long, isFavorite: Boolean): Result<Unit> =
+        runCatching { dao.updateFavoriteStatus(kitId, isFavorite) }
 }

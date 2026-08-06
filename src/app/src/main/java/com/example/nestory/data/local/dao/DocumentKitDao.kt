@@ -41,4 +41,7 @@ interface DocumentKitDao {
 
     @Query("SELECT * FROM document_kits WHERE id = :kitId")
     suspend fun getKitById(kitId: Long): DocumentKitEntity?
+
+    @Query("UPDATE document_kits SET is_favorite = :isFavorite WHERE id = :kitId")
+    suspend fun updateFavoriteStatus(kitId: Long, isFavorite: Boolean)
 }

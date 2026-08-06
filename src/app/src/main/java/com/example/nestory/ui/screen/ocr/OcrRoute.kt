@@ -39,6 +39,7 @@ import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.repository.AttachmentRepositoryImpl
 import com.example.nestory.data.repository.ContainerRepositoryImpl
 import com.example.nestory.data.repository.DocumentRepositoryImpl
+import com.example.nestory.data.repository.KitItemRepositoryImpl
 import com.example.nestory.data.repository.MlKitOcrRepository
 import com.example.nestory.ui.components.NestoryScreen
 import com.example.nestory.ui.screen.scanner.ScannerEvent
@@ -70,6 +71,7 @@ import kotlin.math.min
 fun OcrRoute(
     onBack: () -> Unit,
     onSaved: () -> Unit,
+    linkToItemId: Long? = null,
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
@@ -79,7 +81,12 @@ fun OcrRoute(
             context.applicationContext,
             AppDatabase::class.java,
             "nestory_database",
-        ).addMigrations(AppDatabase.MIGRATION_1_2).build()
+        ).addMigrations(
+            AppDatabase.MIGRATION_1_2,
+            AppDatabase.MIGRATION_2_3,
+            AppDatabase.MIGRATION_3_4,
+            AppDatabase.MIGRATION_4_5,
+        ).build()
     }
 
     val ocrRepository = remember { MlKitOcrRepository() }
@@ -87,6 +94,7 @@ fun OcrRoute(
     val documentRepository = remember { DocumentRepositoryImpl(db.documentDao()) }
     val attachmentRepository = remember { AttachmentRepositoryImpl(db.attachmentDao()) }
     val containerRepository = remember { ContainerRepositoryImpl(db.containerDao()) }
+    val kitItemRepository = remember { KitItemRepositoryImpl(db.kitItemDao()) }
     val imageStorageManager = remember { ImageStorageManager(context.applicationContext) }
 
     val factory = remember {
@@ -99,12 +107,17 @@ fun OcrRoute(
             attachmentRepository = attachmentRepository,
             containerRepository = containerRepository,
             imageStorageManager = imageStorageManager,
+            kitItemRepository = kitItemRepository,
         )
     }
 
     val viewModel: OcrViewModel = viewModel(factory = factory)
     val uiState by viewModel.uiState.collectAsState()
     val containers by viewModel.containers.collectAsState()
+
+    LaunchedEffect(linkToItemId) {
+        viewModel.setPendingKitLinkItemId(linkToItemId)
+    }
 
     var scannerUiState by remember { mutableStateOf(ScannerUiState()) }
     var hasRequestedInitialScan by remember { mutableStateOf(false) }
@@ -405,9 +418,11 @@ fun OcrRoute(
         }
 
         is OcrUiState.Success -> {
+            val fieldErrors by viewModel.fieldErrors.collectAsState()
             OcrReviewScreen(
                 draft = state.draft,
                 containers = containers,
+                fieldErrors = fieldErrors,
                 onDraftChange = viewModel::updateDraft,
                 onBack = {
                     viewModel.cancelOcr()

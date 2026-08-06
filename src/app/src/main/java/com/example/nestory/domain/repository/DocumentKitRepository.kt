@@ -12,4 +12,5 @@ interface DocumentKitRepository {
     suspend fun createKit(kit: DocumentKitEntity): Result<Long>
     suspend fun updateKit(kit: DocumentKitEntity): Result<Unit>
     suspend fun deleteKit(kit: DocumentKitEntity): Result<Unit>
+    suspend fun updateFavoriteStatus(kitId: Long, isFavorite: Boolean): Result<Unit>
 }

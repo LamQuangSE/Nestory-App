@@ -26,7 +26,8 @@ import com.example.nestory.ui.theme.NestoryTextStyles
 fun DocumentDetailScreen(
     document: DocumentUiModel,
     onBack: () -> Unit,
-    onDelete: () -> Unit = {}
+    onDelete: () -> Unit = {},
+    readOnly: Boolean = false,
 ) {
     var isEditMode by remember { mutableStateOf(false) }
     
@@ -39,6 +40,7 @@ fun DocumentDetailScreen(
             DetailHeader(
                 title = if (isEditMode) "Chỉnh sửa giấy tờ" else "Thông tin chính",
                 isEditMode = isEditMode,
+                readOnly = readOnly,
                 onBack = {
                     if (isEditMode) isEditMode = false else onBack()
                 },
@@ -165,6 +167,7 @@ fun DocumentDetailScreen(
 private fun DetailHeader(
     title: String,
     isEditMode: Boolean,
+    readOnly: Boolean,
     onBack: () -> Unit,
     onEditToggle: () -> Unit
 ) {
@@ -193,6 +196,13 @@ private fun DetailHeader(
             Text(
                 text = title,
                 style = NestoryTextStyles.Heading25Bold,
+                color = GeneratedColor.Figma000000
+            )
+        } else if (readOnly) {
+            Spacer(modifier = Modifier.width(10.dp))
+            Text(
+                text = title,
+                style = NestoryTextStyles.Body20Bold,
                 color = GeneratedColor.Figma000000
             )
         } else {

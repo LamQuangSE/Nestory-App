@@ -153,7 +153,7 @@ private fun DocumentEntity.toUiModel(
         categoryColor = categoryColor(category),
     )
 
-private fun buildContainerPath(
+fun buildContainerPath(
     containerId: Long,
     containers: List<ContainerEntity>,
 ): String {
@@ -167,7 +167,7 @@ private fun buildContainerPath(
     return path.takeIf { it.isNotEmpty() }?.joinToString(" > ") ?: "Chưa chọn container"
 }
 
-private fun categoryLabel(category: DocumentCategory): String =
+fun categoryLabel(category: DocumentCategory): String =
     when (category) {
         DocumentCategory.IDENTITY -> "Nhân thân"
         DocumentCategory.EDUCATION -> "Học vấn"
@@ -178,7 +178,7 @@ private fun categoryLabel(category: DocumentCategory): String =
         DocumentCategory.OTHER -> "Khác"
     }
 
-private fun categoryColor(category: DocumentCategory): Color =
+fun categoryColor(category: DocumentCategory): Color =
     when (category) {
         DocumentCategory.IDENTITY -> Color(0xFF1855EE)
         DocumentCategory.EDUCATION -> Color(0xFF6D28D9)

@@ -9,4 +9,5 @@ data class DocumentKitUiState(
     val kitItems: List<KitItemEntity> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
+    val successMessage: String? = null,
 )

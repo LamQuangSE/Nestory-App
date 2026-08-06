@@ -41,7 +41,7 @@ import com.example.nestory.data.local.entity.CategoryEntity
         // SCRUM-98
         CategoryEntity::class // Đăng ký bảng mới
     ],
-    version = 2,
+    version = 5,
     exportSchema = true
 )
 @TypeConverters(Converters::class)
@@ -93,6 +93,31 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // SCRUM-112: add Loại hồ sơ (category) and Ghi chú (note) to kits.
+                db.execSQL("ALTER TABLE document_kits ADD COLUMN category TEXT")
+                db.execSQL("ALTER TABLE document_kits ADD COLUMN note TEXT")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // SCRUM-112 phase 2: add Tên Item, Mô tả, Ghi chú, Số giấy tờ cần liên kết.
+                db.execSQL("ALTER TABLE kit_items ADD COLUMN name TEXT")
+                db.execSQL("ALTER TABLE kit_items ADD COLUMN description TEXT")
+                db.execSQL("ALTER TABLE kit_items ADD COLUMN note TEXT")
+                db.execSQL("ALTER TABLE kit_items ADD COLUMN required_documents INTEGER")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // SCRUM-112 phase 3: add Đánh dấu yêu thích (favourite) for kits.
+                db.execSQL("ALTER TABLE document_kits ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -100,7 +125,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "nestory_database"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .build()
                 INSTANCE = instance
                 instance

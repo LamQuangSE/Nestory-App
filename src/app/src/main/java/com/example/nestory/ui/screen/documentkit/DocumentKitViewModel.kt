@@ -23,6 +23,7 @@ class DocumentKitViewModel(
     private val _selectedKitId = MutableStateFlow<Long?>(null)
     private val _isLoading = MutableStateFlow(false)
     private val _error = MutableStateFlow<String?>(null)
+    private val _successMessage = MutableStateFlow<String?>(null)
 
     val uiState: StateFlow<DocumentKitUiState> = combine(
         documentKitRepository.observeAllKits()
@@ -33,7 +34,8 @@ class DocumentKitViewModel(
         _selectedKitId,
         _isLoading,
         _error,
-    ) { kits, selectedId, isLoading, error ->
+        _successMessage,
+    ) { kits, selectedId, isLoading, error, successMessage ->
         val selectedKit = if (selectedId == null) null else kits.find { it.kit.id == selectedId }
         DocumentKitUiState(
             kits = kits,
@@ -41,6 +43,7 @@ class DocumentKitViewModel(
             kitItems = selectedKit?.items ?: emptyList(),
             isLoading = isLoading,
             error = error,
+            successMessage = successMessage,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -56,155 +59,189 @@ class DocumentKitViewModel(
         _error.value = null
     }
 
-    fun createKit(name: String, description: String?, targetCompletionDate: String) {
-        _isLoading.value = true
+    fun consumeSuccess() {
+        _successMessage.value = null
+    }
+
+    fun createKit(
+        name: String,
+        description: String? = null,
+        targetCompletionDate: String,
+        category: String? = null,
+        note: String? = null,
+    ) {
+        beginOperation()
         viewModelScope.launch {
             documentKitRepository.createKit(
                 DocumentKitEntity(
                     name = name,
+                    category = category,
                     description = description,
+                    note = note,
                     targetCompletionDate = targetCompletionDate,
                 ),
             ).fold(
-                onSuccess = { _isLoading.value = false },
-                onFailure = { error ->
-                    _isLoading.value = false
-                    _error.value = error.message ?: "Không thể tạo bộ hồ sơ"
-                },
+                onSuccess = { endOperation(successMessage = "Đã tạo bộ hồ sơ") },
+                onFailure = { endOperation(error = it, fallback = "Không thể tạo bộ hồ sơ") },
             )
         }
     }
 
     fun updateKit(kit: DocumentKitEntity) {
-        _isLoading.value = true
+        beginOperation()
         viewModelScope.launch {
             documentKitRepository.updateKit(kit).fold(
-                onSuccess = { _isLoading.value = false },
-                onFailure = { error ->
-                    _isLoading.value = false
-                    _error.value = error.message ?: "Không thể cập nhật bộ hồ sơ"
-                },
+                onSuccess = { endOperation(successMessage = "Đã cập nhật bộ hồ sơ") },
+                onFailure = { endOperation(error = it, fallback = "Không thể cập nhật bộ hồ sơ") },
             )
         }
     }
 
     fun deleteKit(kit: DocumentKitEntity) {
-        _isLoading.value = true
+        beginOperation()
         viewModelScope.launch {
             documentKitRepository.deleteKit(kit).fold(
                 onSuccess = {
-                    _isLoading.value = false
                     if (_selectedKitId.value == kit.id) {
                         _selectedKitId.value = null
                     }
+                    endOperation(successMessage = "Đã xoá bộ hồ sơ")
                 },
-                onFailure = { error ->
-                    _isLoading.value = false
-                    _error.value = error.message ?: "Không thể xoá bộ hồ sơ"
-                },
+                onFailure = { endOperation(error = it, fallback = "Không thể xoá bộ hồ sơ") },
             )
         }
     }
 
-    fun addItem(kitId: Long, status: String = DEFAULT_ITEM_STATUS) {
-        _isLoading.value = true
+    fun toggleFavorite(kitId: Long) {
+        val kit = uiState.value.kits.find { it.kit.id == kitId }?.kit ?: return
+        viewModelScope.launch {
+            documentKitRepository.updateFavoriteStatus(kitId, !kit.isFavorite)
+        }
+    }
+
+    fun addItem(
+        kitId: Long,
+        status: String = DEFAULT_ITEM_STATUS,
+        name: String? = null,
+        description: String? = null,
+        note: String? = null,
+        requiredDocuments: Int? = null,
+    ) {
+        beginOperation()
         viewModelScope.launch {
             kitItemRepository.addItem(
                 KitItemEntity(
                     status = status,
                     documentKitId = kitId,
                     linkedDocumentId = null,
+                    name = name,
+                    description = description,
+                    note = note,
+                    requiredDocuments = requiredDocuments,
                 ),
             ).fold(
-                onSuccess = { _isLoading.value = false },
-                onFailure = { error ->
-                    _isLoading.value = false
-                    _error.value = error.message ?: "Không thể thêm mục vào bộ hồ sơ"
-                },
+                onSuccess = { endOperation(successMessage = "Đã thêm mục vào bộ hồ sơ") },
+                onFailure = { endOperation(error = it, fallback = "Không thể thêm mục vào bộ hồ sơ") },
             )
         }
     }
 
     fun updateItem(item: KitItemEntity) {
-        _isLoading.value = true
+        beginOperation()
         viewModelScope.launch {
             kitItemRepository.updateItem(item).fold(
-                onSuccess = { _isLoading.value = false },
-                onFailure = { error ->
-                    _isLoading.value = false
-                    _error.value = error.message ?: "Không thể cập nhật mục"
-                },
+                onSuccess = { endOperation(successMessage = "Đã cập nhật mục") },
+                onFailure = { endOperation(error = it, fallback = "Không thể cập nhật mục") },
             )
         }
     }
 
     fun removeItem(item: KitItemEntity) {
-        _isLoading.value = true
+        beginOperation()
         viewModelScope.launch {
             kitItemRepository.deleteItem(item).fold(
-                onSuccess = { _isLoading.value = false },
-                onFailure = { error ->
-                    _isLoading.value = false
-                    _error.value = error.message ?: "Không thể xoá mục"
-                },
+                onSuccess = { endOperation(successMessage = "Đã xoá mục") },
+                onFailure = { endOperation(error = it, fallback = "Không thể xoá mục") },
             )
         }
     }
 
     fun linkDocument(itemId: Long, documentId: Long) {
-        _isLoading.value = true
+        beginOperation()
         viewModelScope.launch {
             kitItemRepository.getItemById(itemId).fold(
                 onSuccess = { item ->
                     if (item == null) {
-                        _isLoading.value = false
-                        _error.value = "Không tìm thấy mục cần liên kết"
+                        endOperation(errorMessage = "Không tìm thấy mục cần liên kết")
                         return@fold
                     }
-                    kitItemRepository.updateItem(item.copy(linkedDocumentId = documentId)).fold(
-                        onSuccess = { _isLoading.value = false },
-                        onFailure = { error ->
-                            _isLoading.value = false
-                            _error.value = error.message ?: "Không thể liên kết giấy tờ"
-                        },
+                    kitItemRepository.updateItem(
+                        item.copy(
+                            linkedDocumentId = documentId,
+                            status = completionStatus(item, linkedCount = 1),
+                        ),
+                    ).fold(
+                        onSuccess = { endOperation(successMessage = "Đã liên kết giấy tờ") },
+                        onFailure = { endOperation(error = it, fallback = "Không thể liên kết giấy tờ") },
                     )
                 },
-                onFailure = { error ->
-                    _isLoading.value = false
-                    _error.value = error.message ?: "Không thể liên kết giấy tờ"
-                },
+                onFailure = { endOperation(error = it, fallback = "Không thể liên kết giấy tờ") },
             )
         }
     }
 
     fun unlinkDocument(itemId: Long) {
-        _isLoading.value = true
+        beginOperation()
         viewModelScope.launch {
             kitItemRepository.getItemById(itemId).fold(
                 onSuccess = { item ->
                     if (item == null) {
-                        _isLoading.value = false
-                        _error.value = "Không tìm thấy mục cần huỷ liên kết"
+                        endOperation(errorMessage = "Không tìm thấy mục cần huỷ liên kết")
                         return@fold
                     }
-                    kitItemRepository.updateItem(item.copy(linkedDocumentId = null)).fold(
-                        onSuccess = { _isLoading.value = false },
-                        onFailure = { error ->
-                            _isLoading.value = false
-                            _error.value = error.message ?: "Không thể huỷ liên kết giấy tờ"
-                        },
+                    kitItemRepository.updateItem(
+                        item.copy(
+                            linkedDocumentId = null,
+                            status = completionStatus(item, linkedCount = 0),
+                        ),
+                    ).fold(
+                        onSuccess = { endOperation(successMessage = "Đã huỷ liên kết giấy tờ") },
+                        onFailure = { endOperation(error = it, fallback = "Không thể huỷ liên kết giấy tờ") },
                     )
                 },
-                onFailure = { error ->
-                    _isLoading.value = false
-                    _error.value = error.message ?: "Không thể huỷ liên kết giấy tờ"
-                },
+                onFailure = { endOperation(error = it, fallback = "Không thể huỷ liên kết giấy tờ") },
             )
+        }
+    }
+
+    private fun completionStatus(item: KitItemEntity, linkedCount: Int): String {
+        val required = item.requiredDocuments
+        return when {
+            required != null && required > 0 && linkedCount >= required -> KitItemStatus.READY
+            required != null && required > 0 -> KitItemStatus.PENDING
+            else -> item.status
         }
     }
 
     fun createPlaceholder(kitId: Long, status: String = DEFAULT_ITEM_STATUS) {
         addItem(kitId = kitId, status = status)
+    }
+
+    private fun beginOperation() {
+        _isLoading.value = true
+        _error.value = null
+        _successMessage.value = null
+    }
+
+    private fun endOperation(successMessage: String? = null, error: Throwable? = null, fallback: String = "", errorMessage: String? = null) {
+        _isLoading.value = false
+        if (successMessage != null) {
+            _successMessage.value = successMessage
+        } else if (errorMessage != null) {
+            _error.value = errorMessage
+        } else if (error != null) {
+            _error.value = error.message ?: fallback
+        }
     }
 
     companion object {

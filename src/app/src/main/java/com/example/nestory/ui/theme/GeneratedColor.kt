@@ -1,0 +1,41 @@
+package com.example.nestory.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+object GeneratedColor {
+    val Figma000000 = Color(0xFF000000)
+    val FigmaE5e7eb = Color(0xFFE5E7EB)
+    val Figma1855ee = Color(0xFF1855EE)
+    val FigmaFfffff = Color(0xFFFFFFFF)
+    val Figma919191 = Color(0xFF919191)
+    val FigmaFdba74 = Color(0xFFFDBA74)
+    val FigmaFde68a = Color(0xFFFDE68A)
+    val FigmaBef264 = Color(0xFFBEF264)
+    val Figma86efac = Color(0xFF86EFAC)
+    val Figma6ee7b7 = Color(0xFF6EE7B7)
+    val FigmaFca5a5 = Color(0xFFFCA5A5)
+    val FigmaFf0000 = Color(0xFFFF0000)
+    val Figma5eead4 = Color(0xFF5EEAD4)
+    val Figma67e8f9 = Color(0xFF67E8F9)
+    val Figma7dd3fc = Color(0xFF7DD3FC)
+    val Figma93c5fd = Color(0xFF93C5FD)
+    val FigmaA5b4fc = Color(0xFFA5B4FC)
+    val FigmaC4b5fd = Color(0xFFC4B5FD)
+    val FigmaD8b4fe = Color(0xFFD8B4FE)
+    val FigmaE9a8f2 = Color(0xFFE9A8F2)
+    val FigmaF9a8d4 = Color(0xFFF9A8D4)
+    val FigmaFbcfe8 = Color(0xFFFBCFE8)
+    val FigmaCbd5e1 = Color(0xFFCBD5E1)
+    val FigmaC4b5a5 = Color(0xFFC4B5A5)
+    val FigmaF3f6ff = Color(0xFFF3F6FF)
+
+    val Figma1a60e2 = Color(0xFF1A60E2)
+    val FigmaEdebff = Color(0xFFEDEBFF)
+    val Figma6d28d9 = Color(0xFF6D28D9)
+    val Figma717171 = Color(0xFF717171)
+    val Figma07bc67 = Color(0xFF07BC67)
+    val FigmaDbeafe = Color(0xFFDBEAFE)
+    val FigmaEde9fe = Color(0xFFEDE9FE)
+    val Figma37393b = Color(0xFF37393B)
+    val FigmaCf1111 = Color(0xFFCF1111)
+}

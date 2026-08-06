@@ -32,3 +32,8 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Local generated caches
+.kotlin/
+__pycache__/
+*.pyc

@@ -80,7 +80,7 @@ interface DocumentDao {
         """
     )
     fun filterDocuments(
-        category: DocumentCategory?,
+        category: String?,
         isFavorite: Boolean?,
         containerId: Long?,
     ): Flow<List<DocumentEntity>>

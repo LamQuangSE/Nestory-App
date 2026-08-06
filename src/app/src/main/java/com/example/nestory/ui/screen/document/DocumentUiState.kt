@@ -16,9 +16,11 @@ data class DocumentUiModel(
     val name: String,
     val category: String,
     val containerPath: String,
+    val containerId: Long,
     val status: DocumentStatus,
     val expiryDate: String,
-    val categoryColor: Color
+    val categoryColor: Color,
+    val attachmentUris: List<String> = emptyList()
 )
 
 enum class DocumentStatus {

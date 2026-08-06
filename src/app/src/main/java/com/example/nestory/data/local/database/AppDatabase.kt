@@ -43,7 +43,6 @@ import com.example.nestory.data.local.entity.CategoryEntity
     version = 2,
     exportSchema = true
 )
-@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun containerDao(): ContainerDao
     abstract fun documentDao(): DocumentDao

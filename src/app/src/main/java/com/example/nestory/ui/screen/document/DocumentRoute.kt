@@ -31,6 +31,12 @@ fun DocumentRoute(
     val db = remember { AppDatabase.getDatabase(context) }
     val documentRepository = remember { DocumentRepositoryImpl(db.documentDao()) }
     val containerRepository = remember { ContainerRepositoryImpl(db.containerDao()) }
+    val attachmentRepository = remember {
+        com.example.nestory.data.repository.AttachmentRepositoryImpl(db.attachmentDao())
+    }
+    val imageStorageManager = remember {
+        com.example.nestory.data.filesystem.ImageStorageManager(context)
+    }
     val categoryRepository = remember {
         val database = AppDatabase.getDatabase(context)
         com.example.nestory.data.repository.CategoryRepositoryImpl(database.categoryDao())
@@ -40,6 +46,8 @@ fun DocumentRoute(
             documentRepository = documentRepository,
             containerRepository = containerRepository,
             categoryRepository = categoryRepository,
+            attachmentRepository = attachmentRepository,
+            imageStorageManager = imageStorageManager
         )
     }
     val viewModel: DocumentViewModel = viewModel(factory = factory)

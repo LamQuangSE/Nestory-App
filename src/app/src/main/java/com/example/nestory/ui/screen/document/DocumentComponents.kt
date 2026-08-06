@@ -18,6 +18,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
@@ -99,7 +100,7 @@ fun DocumentListItem(
             .padding(NestorySpacing.S12),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon box (Node 220:292)
+        // Icon or Thumbnail box
         Box(
             modifier = Modifier
                 .size(60.dp)
@@ -107,12 +108,21 @@ fun DocumentListItem(
                 .background(document.categoryColor.copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(AppIcons.FigmaDocument),
-                contentDescription = null,
-                modifier = Modifier.size(30.dp),
-                contentScale = ContentScale.Fit
-            )
+            if (document.attachmentUris.isNotEmpty()) {
+                AsyncImage(
+                    model = document.attachmentUris.first(),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Image(
+                    painter = painterResource(AppIcons.FigmaDocument),
+                    contentDescription = null,
+                    modifier = Modifier.size(30.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
         }
         Spacer(modifier = Modifier.width(NestorySpacing.S16))
         Column(modifier = Modifier.weight(1f)) {

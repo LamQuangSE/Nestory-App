@@ -102,7 +102,7 @@ class OcrViewModel(
         viewModelScope.launch {
             val document = DocumentEntity(
                 title = draft.title,
-                category = draft.category ?: DocumentCategory.OTHER,
+                category = draft.category ?: "Khác",
                 expirationDate = draft.expiryDate,
                 notes = draft.notes,
                 containerId = containerId,

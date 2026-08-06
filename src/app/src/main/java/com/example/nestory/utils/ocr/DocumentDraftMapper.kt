@@ -13,9 +13,10 @@ class DocumentDraftMapper(
 
     fun toDraft(result: OcrResult): DocumentDraft {
         val title = buildTitle(result)
+        val categoryEnum = result.category ?: categoryDetector.detect(result)
         return DocumentDraft(
             title = title,
-            category = result.category ?: categoryDetector.detect(result),
+            category = categoryEnum?.toVietnameseLabel(),
             issueDate = result.issueDate,
             expiryDate = result.expiryDate,
             documentNumber = result.documentNumber,

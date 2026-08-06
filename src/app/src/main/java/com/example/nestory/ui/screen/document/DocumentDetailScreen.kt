@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -17,11 +21,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryScreen
 import com.example.nestory.data.local.entity.ContainerEntity
@@ -55,6 +64,7 @@ fun DocumentDetailScreen(
     var editedExpiryDate by remember(document.expiryDate) { mutableStateOf(document.expiryDate) }
     var editedContainerPath by remember(document.containerPath) { mutableStateOf(document.containerPath) }
     var selectedContainerId by remember { mutableStateOf<Long?>(null) }
+    var selectedImageUri by remember { mutableStateOf<String?>(null) }
     
     var nameError by remember { mutableStateOf<String?>(null) }
     var containerError by remember { mutableStateOf<String?>(null) }
@@ -197,16 +207,17 @@ fun DocumentDetailScreen(
                 ) {
                     DetailField(
                         label = "Nơi lưu trữ hiện tại", 
-                        value = if (isEditMode) editedContainerPath else "Ngăn 4", 
+                        value = if (isEditMode) editedContainerPath else document.containerPath.ifEmpty { "Chưa phân loại" }, 
                         isEditMode = isEditMode,
                         hint = "Chọn container",
                         onClick = { subScreen = DocumentDetailSubScreen.ContainerSelection },
                         error = containerError
                     )
                     if (!isEditMode) {
-                        DetailField(label = "Đường dẫn nơi lưu trữ", value = document.containerPath)
+                        DetailField(label = "Đường dẫn nơi lưu trữ", value = document.containerPath.ifEmpty { "Chưa phân loại" })
                     }
                 }
+
 
                 if (isEditMode) {
                     // Section 4: Tùy chọn (Only in Edit Mode)
@@ -267,25 +278,114 @@ fun DocumentDetailScreen(
                         title = "Tệp scan",
                         icon = AppIcons.DocumentFileScan
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(64.dp)
-                                .clip(NestoryRadius.R10)
-                                .background(GeneratedColor.FigmaF3f6ff)
-                                .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Chưa có file scan",
-                                style = NestoryTextStyles.Body12Semi,
-                                color = GeneratedColor.Figma919191
-                            )
+                        if (document.attachmentUris.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(64.dp)
+                                    .clip(NestoryRadius.R10)
+                                    .background(GeneratedColor.FigmaF3f6ff)
+                                    .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Chưa có file scan",
+                                    style = NestoryTextStyles.Body12Semi,
+                                    color = GeneratedColor.Figma919191
+                                )
+                            }
+                        } else {
+                            LazyRow(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                items(document.attachmentUris) { uri ->
+                                    Box(
+                                        modifier = Modifier
+                                            .size(width = 120.dp, height = 160.dp)
+                                            .clip(NestoryRadius.R10)
+                                            .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
+                                            .clickable { selectedImageUri = uri }
+                                    ) {
+                                        AsyncImage(
+                                            model = uri,
+                                            contentDescription = null,
+                                            modifier = Modifier.fillMaxSize(),
+                                            contentScale = ContentScale.Crop
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
                 
                 Spacer(modifier = Modifier.height(20.dp))
+            }
+        }
+    }
+
+    if (selectedImageUri != null) {
+        FullscreenImageViewer(
+            uri = selectedImageUri!!,
+            onDismiss = { selectedImageUri = null }
+        )
+    }
+}
+
+@Composable
+fun FullscreenImageViewer(
+    uri: String,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        var scale by remember { mutableFloatStateOf(1f) }
+        var offset by remember { mutableStateOf(Offset.Zero) }
+        val state = rememberTransformableState { zoomChange, offsetChange, _ ->
+            scale = (scale * zoomChange).coerceIn(1f, 5f)
+            offset += offsetChange
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clickable { onDismiss() },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = uri,
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer(
+                        scaleX = scale,
+                        scaleY = scale,
+                        translationX = offset.x,
+                        translationY = offset.y
+                    )
+                    .transformable(state = state),
+                contentScale = ContentScale.Fit
+            )
+            
+            // Close button overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                contentAlignment = Alignment.TopEnd
+            ) {
+                Image(
+                    painter = painterResource(AppIcons.GridiconsCross),
+                    contentDescription = "Close",
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clickable { onDismiss() },
+                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(Color.White)
+                )
             }
         }
     }
@@ -578,9 +678,11 @@ fun DocumentDetailViewPreview() {
             name = "Hợp đồng thuê nhà 2026",
             category = "Hợp đồng, Pháp lý",
             containerPath = "Tủ tài liệu > Ngăn 4",
+            containerId = 1L,
             status = DocumentStatus.Active,
             expiryDate = "20/08/2026",
-            categoryColor = Color(0xFF1855EE)
+            categoryColor = Color(0xFF1855EE),
+            attachmentUris = emptyList()
         ),
         onBack = {}
     )

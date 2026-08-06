@@ -18,7 +18,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import com.example.nestory.R
 import com.example.nestory.data.local.entity.ContainerEntity
-import com.example.nestory.domain.model.DocumentCategory
 import com.example.nestory.domain.model.DocumentDraft
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryScreen
@@ -65,9 +64,7 @@ fun OcrReviewScreen(
         CategoryRoute(
             onBack = { subScreen = OcrReviewSubScreen.Review },
             onConfirmSelection = { category ->
-                val matchedEnum = DocumentCategory.entries.find { categoryLabel(it) == category.name }
-                    ?: DocumentCategory.OTHER
-                onDraftChange(draft.copy(category = matchedEnum))
+                onDraftChange(draft.copy(category = category.name))
                 subScreen = OcrReviewSubScreen.Review
             }
         )
@@ -161,7 +158,7 @@ fun OcrReviewScreen(
 
                 ReviewField(
                     label = "Danh mục",
-                    value = draft.category?.let { categoryLabel(it) } ?: "",
+                    value = draft.category ?: "",
                     hint = "Chọn danh mục",
                     onClick = { subScreen = OcrReviewSubScreen.CategorySelection }
                 )
@@ -351,14 +348,4 @@ private fun ReviewField(
             )
         }
     }
-}
-
-internal fun categoryLabel(category: DocumentCategory): String = when (category) {
-    DocumentCategory.IDENTITY -> "Nhân thân"
-    DocumentCategory.EDUCATION -> "Học vấn"
-    DocumentCategory.FINANCE -> "Tài chính"
-    DocumentCategory.PROPERTY -> "Bất động sản"
-    DocumentCategory.VEHICLE -> "Phương tiện"
-    DocumentCategory.HEALTH -> "Sức khỏe"
-    DocumentCategory.OTHER -> "Khác"
 }

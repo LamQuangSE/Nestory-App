@@ -4,20 +4,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.nestory.data.filesystem.ImageStorageManager
 import com.example.nestory.data.local.entity.DocumentEntity
-import com.example.nestory.domain.model.DocumentCategory
+import com.example.nestory.data.local.entity.AttachmentEntity
+import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DocumentViewModel(
     private val documentRepository: DocumentRepository,
     private val containerRepository: ContainerRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val attachmentRepository: AttachmentRepository,
+    private val imageStorageManager: ImageStorageManager
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
@@ -37,7 +43,7 @@ class DocumentViewModel(
         }
 
         val mappedDocuments = filtered.map { entity ->
-            mapToUiModel(entity, containers, categories)
+            mapToUiModel(entity, containers, categories, emptyList())
         }
 
         DocumentUiState(
@@ -45,6 +51,20 @@ class DocumentViewModel(
             selectedDocument = mappedDocuments.find { it.id == selectedId },
             searchQuery = query
         )
+    }.flatMapLatest { state ->
+        if (state.documents.isEmpty()) flowOf(state)
+        else {
+            flow {
+                val enhancedDocs = state.documents.map { doc ->
+                    val attachments = attachmentRepository.getAttachmentsByDocumentId(doc.id.toLong()).getOrDefault(emptyList())
+                    doc.copy(attachmentUris = attachments.map { it.fileUri })
+                }
+                emit(state.copy(
+                    documents = enhancedDocs,
+                    selectedDocument = enhancedDocs.find { it.id == state.selectedDocument?.id }
+                ))
+            }
+        }
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
@@ -68,6 +88,11 @@ class DocumentViewModel(
             val idLong = documentId.toLongOrNull() ?: return@launch
             val entity = documentRepository.getDocumentById(idLong).getOrNull()
             if (entity != null) {
+                // Delete physical files first
+                val attachments = attachmentRepository.getAttachmentsByDocumentId(idLong).getOrDefault(emptyList())
+                attachments.forEach { attachment ->
+                    imageStorageManager.deleteFile(attachment.fileUri)
+                }
                 documentRepository.deleteDocument(entity)
             }
         }
@@ -79,6 +104,11 @@ class DocumentViewModel(
             val idLong = selectedId.toLongOrNull() ?: return@launch
             val entity = documentRepository.getDocumentById(idLong).getOrNull()
             if (entity != null) {
+                // Delete physical files first
+                val attachments = attachmentRepository.getAttachmentsByDocumentId(idLong).getOrDefault(emptyList())
+                attachments.forEach { attachment ->
+                    imageStorageManager.deleteFile(attachment.fileUri)
+                }
                 documentRepository.deleteDocument(entity)
                 _selectedDocumentId.value = null
                 onDeleted()
@@ -97,13 +127,9 @@ class DocumentViewModel(
             val idLong = id.toLongOrNull() ?: return@launch
             val existing = documentRepository.getDocumentById(idLong).getOrNull() ?: return@launch
             
-            val category = DocumentCategory.entries.find { 
-                categoryLabel(it) == categoryName 
-            } ?: DocumentCategory.OTHER
-
             val updated = existing.copy(
                 title = title,
-                category = category,
+                category = categoryName,
                 expirationDate = expiryDate,
                 containerId = containerId ?: existing.containerId
             )
@@ -112,30 +138,32 @@ class DocumentViewModel(
     }
 
     fun clearError() {
-        // Implement if DocumentUiState has error field
+        // Implement if needed
     }
 
     private fun mapToUiModel(
         entity: DocumentEntity,
         allContainers: List<com.example.nestory.data.local.entity.ContainerEntity>,
-        allCategories: List<com.example.nestory.data.local.entity.CategoryEntity>
+        allCategories: List<com.example.nestory.data.local.entity.CategoryEntity>,
+        attachments: List<AttachmentEntity>
     ): DocumentUiModel {
         val path = buildContainerPath(entity.containerId, allContainers)
         val pathString = path.joinToString(" > ") { it.name }
         
-        val categoryLabel = categoryLabel(entity.category)
-        val categoryColor = allCategories.find { it.name == categoryLabel }?.let {
+        val categoryColor = allCategories.find { it.name == entity.category }?.let {
             Color(it.colorValue.toULong())
         } ?: Color(0xFF919191)
 
         return DocumentUiModel(
             id = entity.id.toString(),
             name = entity.title,
-            category = categoryLabel,
+            category = entity.category,
             containerPath = pathString,
+            containerId = entity.containerId,
             status = calculateStatus(entity.expirationDate),
             expiryDate = entity.expirationDate ?: "",
-            categoryColor = categoryColor
+            categoryColor = categoryColor,
+            attachmentUris = attachments.map { it.fileUri }
         )
     }
 
@@ -171,25 +199,17 @@ class DocumentViewModel(
             DocumentStatus.Active
         }
     }
-
-    private fun categoryLabel(category: DocumentCategory): String = when (category) {
-        DocumentCategory.IDENTITY -> "Nhân thân"
-        DocumentCategory.EDUCATION -> "Học vấn"
-        DocumentCategory.FINANCE -> "Tài chính"
-        DocumentCategory.PROPERTY -> "Bất động sản"
-        DocumentCategory.VEHICLE -> "Phương tiện"
-        DocumentCategory.HEALTH -> "Sức khỏe"
-        DocumentCategory.OTHER -> "Khác"
-    }
 }
 
 class DocumentViewModelFactory(
     private val documentRepository: DocumentRepository,
     private val containerRepository: ContainerRepository,
-    private val categoryRepository: CategoryRepository
+    private val categoryRepository: CategoryRepository,
+    private val attachmentRepository: AttachmentRepository,
+    private val imageStorageManager: ImageStorageManager
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return DocumentViewModel(documentRepository, containerRepository, categoryRepository) as T
+        return DocumentViewModel(documentRepository, containerRepository, categoryRepository, attachmentRepository, imageStorageManager) as T
     }
 }

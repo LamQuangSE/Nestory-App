@@ -12,7 +12,7 @@ import java.util.UUID
  * Persists scanned bitmaps into app-internal storage so they can be
  * referenced as attachment file URIs.
  */
-class ImageStorageManager(private val context: Context) {
+class ImageStorageManager(val context: Context) {
 
     suspend fun saveBitmap(bitmap: Bitmap): Result<String> = withContext(Dispatchers.IO) {
         runCatching {

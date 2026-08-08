@@ -46,4 +46,7 @@ data class DocumentEntity(
 
     @ColumnInfo(name = "container_id")
     val containerId: Long,
+
+    @ColumnInfo(name = "last_notified_status")
+    val lastNotifiedStatus: String? = null,
 )

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -44,7 +45,15 @@ import com.example.nestory.ui.screen.setting.ExpiryReminderSettingScreen
 import com.example.nestory.ui.screen.setting.SettingScreen
 import com.example.nestory.ui.screen.setting.toSettings
 import com.example.nestory.ui.screen.setting.toUiState
+import com.example.nestory.worker.ExpiryReminderWorker
 import kotlinx.coroutines.launch
+import java.util.Calendar
+import java.util.concurrent.TimeUnit
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+
+import com.example.nestory.utils.notification.WorkManagerHelper
 
 @Composable
 fun NestoryApp() {
@@ -56,6 +65,11 @@ fun NestoryApp() {
         initial = com.example.nestory.domain.model.ExpiryReminderSettings(),
     )
     val coroutineScope = rememberCoroutineScope()
+
+    // Theo dõi thay đổi settings để cập nhật lịch nhắc
+    LaunchedEffect(expiryReminderSettings) {
+        WorkManagerHelper.schedulePeriodicReminder(context, expiryReminderSettings)
+    }
     val initialDestination = remember {
         if (FileSystemManager(context).isVaultInitialized()) {
             if (unlockSessionManager.isSessionValid()) {

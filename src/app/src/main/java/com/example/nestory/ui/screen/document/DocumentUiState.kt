@@ -20,7 +20,15 @@ data class DocumentUiModel(
     val status: DocumentStatus,
     val expiryDate: String,
     val categoryColor: Color,
-    val attachmentUris: List<String> = emptyList()
+    val attachmentUris: List<String> = emptyList(),
+    val customReminder: CustomReminderUiModel? = null
+)
+
+data class CustomReminderUiModel(
+    val id: Long = 0,
+    val date: String,
+    val time: String,
+    val isEnabled: Boolean = true
 )
 
 enum class DocumentStatus {

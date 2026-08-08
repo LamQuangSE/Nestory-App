@@ -17,12 +17,18 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
+import com.example.nestory.utils.notification.WorkManagerHelper
+
+import com.example.nestory.domain.repository.ReminderRepository
+import com.example.nestory.data.local.entity.ReminderEntity
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class DocumentViewModel(
     private val documentRepository: DocumentRepository,
     private val containerRepository: ContainerRepository,
     private val categoryRepository: CategoryRepository,
     private val attachmentRepository: AttachmentRepository,
+    private val reminderRepository: ReminderRepository,
     private val imageStorageManager: ImageStorageManager
 ) : ViewModel() {
 
@@ -36,14 +42,16 @@ class DocumentViewModel(
         _searchQuery,
         _selectedDocumentId,
         containerRepository.observeAllContainers(),
-        categoryRepository.getAllCategories()
-    ) { documents, query, selectedId, containers, categories ->
+        categoryRepository.getAllCategories(),
+        reminderRepository.observeAllReminders()
+    ) { documents, query, selectedId, containers, categories, reminders ->
         val filtered = if (query.isBlank()) documents else {
             documents.filter { it.title.contains(query, ignoreCase = true) }
         }
 
         val mappedDocuments = filtered.map { entity ->
-            mapToUiModel(entity, containers, categories, emptyList())
+            val reminder = reminders.find { it.documentId == entity.id }
+            mapToUiModel(entity, containers, categories, emptyList(), reminder)
         }
 
         DocumentUiState(
@@ -123,17 +131,26 @@ class DocumentViewModel(
         expiryDate: String,
         containerId: Long?
     ) {
+        val context = imageStorageManager.context // Assuming context is available via one of dependencies or passing it
         viewModelScope.launch {
             val idLong = id.toLongOrNull() ?: return@launch
             val existing = documentRepository.getDocumentById(idLong).getOrNull() ?: return@launch
             
+            val shouldResetNotification = existing.expirationDate != expiryDate
+
             val updated = existing.copy(
                 title = title,
                 category = categoryName,
                 expirationDate = expiryDate,
-                containerId = containerId ?: existing.containerId
+                containerId = containerId ?: existing.containerId,
+                lastNotifiedStatus = if (shouldResetNotification) null else existing.lastNotifiedStatus
             )
             documentRepository.updateDocument(updated)
+            
+            // Chạy kiểm tra ngay lập tức khi có cập nhật ngày tháng
+            if (shouldResetNotification) {
+                WorkManagerHelper.runImmediateCheck(context)
+            }
         }
     }
 
@@ -141,11 +158,40 @@ class DocumentViewModel(
         // Implement if needed
     }
 
+    fun saveCustomReminder(documentId: String, date: String, time: String, isEnabled: Boolean) {
+        viewModelScope.launch {
+            val docIdLong = documentId.toLongOrNull() ?: return@launch
+            val existing = reminderRepository.getReminderByDocumentId(docIdLong).getOrNull()
+            
+            val reminder = if (existing != null) {
+                existing.copy(
+                    reminderDate = date,
+                    reminderTime = time,
+                    isEnabled = isEnabled
+                )
+            } else {
+                ReminderEntity(
+                    documentId = docIdLong,
+                    reminderDate = date,
+                    reminderTime = time,
+                    isEnabled = isEnabled
+                )
+            }
+            
+            if (existing != null) {
+                reminderRepository.updateReminder(reminder)
+            } else {
+                reminderRepository.createReminder(reminder)
+            }
+        }
+    }
+
     private fun mapToUiModel(
         entity: DocumentEntity,
         allContainers: List<com.example.nestory.data.local.entity.ContainerEntity>,
         allCategories: List<com.example.nestory.data.local.entity.CategoryEntity>,
-        attachments: List<AttachmentEntity>
+        attachments: List<AttachmentEntity>,
+        reminderEntity: ReminderEntity? = null
     ): DocumentUiModel {
         val path = buildContainerPath(entity.containerId, allContainers)
         val pathString = path.joinToString(" > ") { it.name }
@@ -153,6 +199,15 @@ class DocumentViewModel(
         val categoryColor = allCategories.find { it.name == entity.category }?.let {
             Color(it.colorValue.toULong())
         } ?: Color(0xFF919191)
+
+        val customReminder = reminderEntity?.let {
+            CustomReminderUiModel(
+                id = it.id,
+                date = it.reminderDate ?: "",
+                time = it.reminderTime ?: "",
+                isEnabled = it.isEnabled
+            )
+        }
 
         return DocumentUiModel(
             id = entity.id.toString(),
@@ -163,7 +218,8 @@ class DocumentViewModel(
             status = calculateStatus(entity.expirationDate),
             expiryDate = entity.expirationDate ?: "",
             categoryColor = categoryColor,
-            attachmentUris = attachments.map { it.fileUri }
+            attachmentUris = attachments.map { it.fileUri },
+            customReminder = customReminder
         )
     }
 
@@ -206,10 +262,18 @@ class DocumentViewModelFactory(
     private val containerRepository: ContainerRepository,
     private val categoryRepository: CategoryRepository,
     private val attachmentRepository: AttachmentRepository,
+    private val reminderRepository: ReminderRepository,
     private val imageStorageManager: ImageStorageManager
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return DocumentViewModel(documentRepository, containerRepository, categoryRepository, attachmentRepository, imageStorageManager) as T
+        return DocumentViewModel(
+            documentRepository, 
+            containerRepository, 
+            categoryRepository, 
+            attachmentRepository, 
+            reminderRepository,
+            imageStorageManager
+        ) as T
     }
 }

@@ -56,7 +56,7 @@ import androidx.work.WorkManager
 import com.example.nestory.utils.notification.WorkManagerHelper
 
 @Composable
-fun NestoryApp() {
+fun NestoryApp(initialDocumentId: String? = null) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
     val unlockSessionManager = remember { VaultUnlockSessionProvider.manager }
@@ -73,7 +73,7 @@ fun NestoryApp() {
     val initialDestination = remember {
         if (FileSystemManager(context).isVaultInitialized()) {
             if (unlockSessionManager.isSessionValid()) {
-                NestoryDestination.Home
+                if (initialDocumentId != null) NestoryDestination.DocumentDetail else NestoryDestination.Home
             } else {
                 NestoryDestination.Unlock
             }
@@ -82,6 +82,7 @@ fun NestoryApp() {
         }
     }
     var destination by remember { mutableStateOf(initialDestination) }
+    var pendingDocumentId by remember { mutableStateOf(initialDocumentId) }
     var ocrReturnDestination by remember { mutableStateOf(NestoryDestination.Home) }
     var vaultCreationSession by remember { mutableIntStateOf(0) }
     var isEditingMode by remember { mutableStateOf(false) }
@@ -198,7 +199,13 @@ fun NestoryApp() {
                             )
                     NestoryDestination.UnlockSuccess ->
                             UnlockSuccessScreen(
-                                    onLoaded = { destination = NestoryDestination.Home },
+                                    onLoaded = {
+                                        destination = if (pendingDocumentId != null) {
+                                            NestoryDestination.DocumentDetail
+                                        } else {
+                                            NestoryDestination.Home
+                                        }
+                                    },
                             )
                     NestoryDestination.Home ->
                             HomeDashboardScreen(
@@ -231,7 +238,11 @@ fun NestoryApp() {
                     NestoryDestination.DocumentSelection,
                     NestoryDestination.DocumentDetail,
                     NestoryDestination.FilterSelection ->
-                            DocumentRoute(onAddDocument = goToScan)
+                            DocumentRoute(
+                                onAddDocument = goToScan,
+                                initialDocumentId = pendingDocumentId,
+                                onClearInitialId = { pendingDocumentId = null }
+                            )
                     NestoryDestination.Scan ->
                             OcrRoute(
                                     onBack = { destination = ocrReturnDestination },

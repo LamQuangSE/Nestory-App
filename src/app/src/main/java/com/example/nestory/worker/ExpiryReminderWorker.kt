@@ -47,35 +47,44 @@ class ExpiryReminderWorker(
         }.time
 
         for (doc in documents) {
+            val expiryDate = parseDate(doc.expirationDate)
+            val daysDiff = if (expiryDate != null) {
+                ((expiryDate.time - today.time) / (1000 * 60 * 60 * 24)).toInt()
+            } else null
+
             val status = calculateStatus(doc.expirationDate, settings.leadTimeDays, today)
             
-            // 1. Dạng 1: Mỗi trạng thái thông báo 1 lần
+            // 1. Dạng 1: Thông báo CHUYỂN TRẠNG THÁI (Báo 1 lần khi đổi sang sắp hết hạn/hết hạn)
             if (status != DocumentStatus.Active) {
                 val statusString = status.name
-                // Nếu trạng thái hiện tại khác với trạng thái đã thông báo lần cuối
-                // (VD: Đang là null -> báo ExpiringSoon; Đang là ExpiringSoon -> báo Expired)
                 if (doc.lastNotifiedStatus != statusString) {
                     val label = if (status == DocumentStatus.Expired) "đã hết hạn" else "sắp hết hạn"
                     notificationHelper.showExpiryNotification(
                         doc.id.toInt(),
-                        "Cập nhật trạng thái giấy tờ",
-                        "Giấy tờ \"${doc.title}\" $label"
+                        "Cập nhật trạng thái",
+                        "Giấy tờ \"${doc.title}\" $label",
+                        doc.id
                     )
-                    // Cập nhật trạng thái hiện tại vào DB để không báo lại cho trạng thái NÀY nữa
                     documentDao.update(doc.copy(lastNotifiedStatus = statusString))
                 }
             } else if (doc.lastNotifiedStatus != null) {
-                // Nếu quay lại trạng thái Active (gia hạn), xóa flag để sau này nếu sắp hết hạn lại thì vẫn báo
                 documentDao.update(doc.copy(lastNotifiedStatus = null))
             }
 
-            // 2. Dạng 2: Thông báo nhắc lại mỗi ngày (Daily Reminder)
-            // Nếu người dùng bật repeatDaily, thì thông báo mỗi ngày cho các giấy tờ không phải Active
+            // 2. Dạng 2: Thông báo NHẮC NHỞ HÀNG NGÀY (Nội dung chi tiết số ngày)
             if (status != DocumentStatus.Active && settings.repeatDaily) {
+                val message = when {
+                    status == DocumentStatus.Expired -> "Giấy tờ \"${doc.title}\" đã hết hạn"
+                    daysDiff != null && daysDiff > 0 -> "Giấy tờ \"${doc.title}\" còn $daysDiff ngày nữa là hết hạn"
+                    daysDiff == 0 -> "Giấy tờ \"${doc.title}\" sẽ hết hạn vào hôm nay"
+                    else -> "Giấy tờ \"${doc.title}\" sắp hết hạn"
+                }
+
                 notificationHelper.showExpiryNotification(
-                    doc.id.toInt() + 1000000, // Offset ID
+                    doc.id.toInt() + 1000000,
                     "Nhắc nhở hạn giấy tờ",
-                    "Giấy tờ \"${doc.title}\" đang trong trạng thái ${if (status == DocumentStatus.Expired) "hết hạn" else "sắp hết hạn"}"
+                    message,
+                    doc.id
                 )
             }
         }
@@ -88,13 +97,23 @@ class ExpiryReminderWorker(
                     notificationHelper.showExpiryNotification(
                         reminder.id.toInt() + 2000000, // Offset ID khác
                         "Nhắc nhở tùy chỉnh",
-                        "Nhắc nhở cho giấy tờ \"${doc.title}\""
+                        "Nhắc nhở cho giấy tờ \"${doc.title}\"",
+                        doc.id
                     )
                 }
             }
         }
 
         return Result.success()
+    }
+
+    private fun parseDate(dateStr: String?): Date? {
+        if (dateStr == null) return null
+        return try {
+            SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).parse(dateStr)
+        } catch (e: Exception) {
+            null
+        }
     }
 
     private fun calculateStatus(expiryDateStr: String?, leadTimeDays: Int, today: Date): DocumentStatus {

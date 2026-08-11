@@ -35,13 +35,16 @@ class NotificationHelper(private val context: Context) {
         }
     }
 
-    fun showExpiryNotification(id: Int, title: String, message: String) {
+    fun showExpiryNotification(id: Int, title: String, message: String, documentId: Long? = null) {
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            if (documentId != null) {
+                putExtra("document_id", documentId.toString())
+            }
         }
         val pendingIntent: PendingIntent = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_IMMUTABLE
+            context, id, intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)

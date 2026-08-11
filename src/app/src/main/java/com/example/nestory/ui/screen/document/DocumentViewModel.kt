@@ -7,20 +7,20 @@ import androidx.lifecycle.viewModelScope
 import com.example.nestory.data.filesystem.ImageStorageManager
 import com.example.nestory.data.local.entity.DocumentEntity
 import com.example.nestory.data.local.entity.AttachmentEntity
+import com.example.nestory.data.local.entity.ContainerEntity
+import com.example.nestory.data.local.entity.CategoryEntity
+import com.example.nestory.data.local.entity.ReminderEntity
 import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentRepository
+import com.example.nestory.domain.repository.ReminderRepository
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
-
 import com.example.nestory.utils.notification.WorkManagerHelper
-
-import com.example.nestory.domain.repository.ReminderRepository
-import com.example.nestory.data.local.entity.ReminderEntity
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class DocumentViewModel(
@@ -44,7 +44,14 @@ class DocumentViewModel(
         containerRepository.observeAllContainers(),
         categoryRepository.getAllCategories(),
         reminderRepository.observeAllReminders()
-    ) { documents, query, selectedId, containers, categories, reminders ->
+    ) { array ->
+        val documents = array[0] as List<DocumentEntity>
+        val query = array[1] as String
+        val selectedId = array[2] as String?
+        val containers = array[3] as List<ContainerEntity>
+        val categories = array[4] as List<CategoryEntity>
+        val reminders = array[5] as List<ReminderEntity>
+
         val filtered = if (query.isBlank()) documents else {
             documents.filter { it.title.contains(query, ignoreCase = true) }
         }
@@ -188,8 +195,8 @@ class DocumentViewModel(
 
     private fun mapToUiModel(
         entity: DocumentEntity,
-        allContainers: List<com.example.nestory.data.local.entity.ContainerEntity>,
-        allCategories: List<com.example.nestory.data.local.entity.CategoryEntity>,
+        allContainers: List<ContainerEntity>,
+        allCategories: List<CategoryEntity>,
         attachments: List<AttachmentEntity>,
         reminderEntity: ReminderEntity? = null
     ): DocumentUiModel {
@@ -225,9 +232,9 @@ class DocumentViewModel(
 
     private fun buildContainerPath(
         containerId: Long,
-        allContainers: List<com.example.nestory.data.local.entity.ContainerEntity>
-    ): List<com.example.nestory.data.local.entity.ContainerEntity> {
-        val path = mutableListOf<com.example.nestory.data.local.entity.ContainerEntity>()
+        allContainers: List<ContainerEntity>
+    ): List<ContainerEntity> {
+        val path = mutableListOf<ContainerEntity>()
         var currentId: Long? = containerId
         while (currentId != null) {
             val container = allContainers.find { it.id == currentId } ?: break

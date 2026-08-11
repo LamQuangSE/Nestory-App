@@ -293,6 +293,8 @@ private fun ReminderEnabledPanel(
     state: ExpiryReminderUiState,
     onStateChange: (ExpiryReminderUiState) -> Unit,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -321,6 +323,28 @@ private fun ReminderEnabledPanel(
             state = state,
             onStateChange = onStateChange,
         )
+        
+        // Nút Test Thông báo
+        Spacer(modifier = Modifier.height(10.dp))
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .fillMaxWidth()
+                .height(45.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(GeneratedColor.FigmaFfffff)
+                .border(1.dp, GeneratedColor.Figma1855ee, RoundedCornerShape(8.dp))
+                .clickable {
+                    com.example.nestory.utils.notification.WorkManagerHelper.runImmediateCheck(context)
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Gửi thông báo thử nghiệm ngay",
+                style = NestoryTextStyles.Body13Semi,
+                color = GeneratedColor.Figma1855ee
+            )
+        }
     }
 }
 
@@ -514,6 +538,11 @@ private fun ReminderTimeOfDaySection(
     minute: Int,
     onTimeChange: (Int, Int) -> Unit,
 ) {
+    var tempHour by remember(hour) { mutableIntStateOf(hour) }
+    var tempMinute by remember(minute) { mutableIntStateOf(minute) }
+
+    val hasChanged = tempHour != hour || tempMinute != minute
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -527,36 +556,63 @@ private fun ReminderTimeOfDaySection(
         
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(70.dp) // Giảm từ 100.dp xuống 70.dp
-                .clip(RoundedCornerShape(10.dp))
-                .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(10.dp))
-                .background(GeneratedColor.FigmaFfffff),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Hour Wheel
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                TimeWheelPicker(
-                    range = 0..23,
-                    initialValue = hour,
-                    onValueChange = { onTimeChange(it, minute) }
+            Row(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(70.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(10.dp))
+                    .background(GeneratedColor.FigmaFfffff),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                // Hour Wheel
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    TimeWheelPicker(
+                        range = 0..23,
+                        initialValue = hour,
+                        onValueChange = { tempHour = it }
+                    )
+                }
+                
+                Text(
+                    text = ":",
+                    style = NestoryTextStyles.Body18Semi,
+                    color = GeneratedColor.Figma000000,
                 )
+                
+                // Minute Wheel
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    TimeWheelPicker(
+                        range = 0..59,
+                        initialValue = minute,
+                        onValueChange = { tempMinute = it },
+                        format = { it.toString().padStart(2, '0') }
+                    )
+                }
             }
-            
-            Text(
-                text = ":",
-                style = NestoryTextStyles.Body18Semi, // Nhỏ lại một chút để cân đối
-                color = GeneratedColor.Figma000000,
-            )
-            
-            // Minute Wheel
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                TimeWheelPicker(
-                    range = 0..59,
-                    initialValue = minute,
-                    onValueChange = { onTimeChange(hour, it) },
-                    format = { it.toString().padStart(2, '0') }
+
+            Spacer(modifier = Modifier.width(10.dp))
+
+            // Nút Xác nhận
+            Box(
+                modifier = Modifier
+                    .height(70.dp)
+                    .width(70.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(if (hasChanged) GeneratedColor.Figma1855ee else GeneratedColor.FigmaE5e7eb)
+                    .clickable(enabled = hasChanged) {
+                        onTimeChange(tempHour, tempMinute)
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "Lưu",
+                    style = NestoryTextStyles.Body13Bold,
+                    color = if (hasChanged) Color.White else GeneratedColor.Figma919191
                 )
             }
         }

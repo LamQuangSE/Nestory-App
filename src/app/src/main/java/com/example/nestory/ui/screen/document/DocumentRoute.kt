@@ -11,10 +11,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.room.Room
 import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.repository.ContainerRepositoryImpl
 import com.example.nestory.data.repository.DocumentRepositoryImpl
+import com.example.nestory.data.repository.ReminderRepositoryImpl
 import com.example.nestory.data.settings.ExpiryReminderSettingsRepository
 
 private enum class DocumentSubScreen {
@@ -26,6 +26,8 @@ private enum class DocumentSubScreen {
 @Composable
 fun DocumentRoute(
     onAddDocument: () -> Unit,
+    initialDocumentId: String? = null,
+    onClearInitialId: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getDatabase(context) }
@@ -37,6 +39,7 @@ fun DocumentRoute(
     val imageStorageManager = remember {
         com.example.nestory.data.filesystem.ImageStorageManager(context)
     }
+    val reminderRepository = remember { ReminderRepositoryImpl(db.reminderDao(), context) }
     val categoryRepository = remember {
         val database = AppDatabase.getDatabase(context)
         com.example.nestory.data.repository.CategoryRepositoryImpl(database.categoryDao())
@@ -47,6 +50,7 @@ fun DocumentRoute(
             containerRepository = containerRepository,
             categoryRepository = categoryRepository,
             attachmentRepository = attachmentRepository,
+            reminderRepository = reminderRepository,
             imageStorageManager = imageStorageManager
         )
     }
@@ -54,6 +58,14 @@ fun DocumentRoute(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var subScreen by remember { mutableStateOf(DocumentSubScreen.Selection) }
+
+    LaunchedEffect(initialDocumentId) {
+        if (initialDocumentId != null) {
+            viewModel.selectDocument(initialDocumentId)
+            subScreen = DocumentSubScreen.Detail
+            onClearInitialId()
+        }
+    }
 
     LaunchedEffect(uiState.errorMessage) {
         val message = uiState.errorMessage ?: return@LaunchedEffect

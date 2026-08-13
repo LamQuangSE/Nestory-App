@@ -39,6 +39,7 @@ import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.repository.AttachmentRepositoryImpl
 import com.example.nestory.data.repository.ContainerRepositoryImpl
 import com.example.nestory.data.repository.DocumentRepositoryImpl
+import com.example.nestory.data.repository.KitItemRepositoryImpl
 import com.example.nestory.data.repository.MlKitOcrRepository
 import com.example.nestory.ui.components.NestoryScreen
 import com.example.nestory.ui.screen.scanner.ScannerEvent
@@ -70,6 +71,7 @@ import kotlin.math.min
 fun OcrRoute(
     onBack: () -> Unit,
     onSaved: () -> Unit,
+    linkToItemId: Long? = null,
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
@@ -87,6 +89,7 @@ fun OcrRoute(
     val documentRepository = remember { DocumentRepositoryImpl(db.documentDao()) }
     val attachmentRepository = remember { AttachmentRepositoryImpl(db.attachmentDao()) }
     val containerRepository = remember { ContainerRepositoryImpl(db.containerDao()) }
+    val kitItemRepository = remember { KitItemRepositoryImpl(db.kitItemDao()) }
     val imageStorageManager = remember { ImageStorageManager(context.applicationContext) }
 
     val factory = remember {
@@ -99,10 +102,16 @@ fun OcrRoute(
             attachmentRepository = attachmentRepository,
             containerRepository = containerRepository,
             imageStorageManager = imageStorageManager,
+            kitItemRepository = kitItemRepository,
         )
     }
 
     val viewModel: OcrViewModel = viewModel(factory = factory)
+    
+    // Set pending link item if provided
+    LaunchedEffect(linkToItemId) {
+        viewModel.setPendingKitLinkItemId(linkToItemId)
+    }
     val uiState by viewModel.uiState.collectAsState()
     val containers by viewModel.containers.collectAsState()
 

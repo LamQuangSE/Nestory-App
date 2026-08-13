@@ -33,7 +33,7 @@ data class DocumentEntity(
     val title: String,
 
     @ColumnInfo(name = "category")
-    val category: String,
+    val category: DocumentCategory,
 
     @ColumnInfo(name = "expiration_date")
     val expirationDate: String? = null,

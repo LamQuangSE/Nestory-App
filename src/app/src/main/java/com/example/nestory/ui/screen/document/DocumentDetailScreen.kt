@@ -26,7 +26,8 @@ import com.example.nestory.ui.theme.NestoryTextStyles
 fun DocumentDetailScreen(
     document: DocumentUiModel,
     onBack: () -> Unit,
-    onDelete: () -> Unit = {}
+    onDelete: () -> Unit = {},
+    readOnly: Boolean = false,
 ) {
     var isEditMode by remember { mutableStateOf(false) }
     
@@ -42,7 +43,8 @@ fun DocumentDetailScreen(
                 onBack = {
                     if (isEditMode) isEditMode = false else onBack()
                 },
-                onEditToggle = { isEditMode = true }
+                onEditToggle = { if (!readOnly) isEditMode = true },
+                showEditButton = !readOnly
             )
             
             Column(
@@ -166,7 +168,8 @@ private fun DetailHeader(
     title: String,
     isEditMode: Boolean,
     onBack: () -> Unit,
-    onEditToggle: () -> Unit
+    onEditToggle: () -> Unit,
+    showEditButton: Boolean = true
 ) {
     Row(
         modifier = Modifier
@@ -197,15 +200,17 @@ private fun DetailHeader(
             )
         } else {
             Spacer(modifier = Modifier.weight(1f))
-            // Edit Button (Node 272:165)
-            Image(
-                painter = painterResource(AppIcons.DocumentEdit),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { onEditToggle() },
-                contentScale = ContentScale.Fit
-            )
+            if (showEditButton) {
+                // Edit Button (Node 272:165)
+                Image(
+                    painter = painterResource(AppIcons.DocumentEdit),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { onEditToggle() },
+                    contentScale = ContentScale.Fit
+                )
+            }
             Spacer(modifier = Modifier.width(10.dp))
             // Star Button
             Image(
@@ -409,6 +414,7 @@ fun DocumentDetailViewPreview() {
             name = "Hợp đồng thuê nhà 2026",
             category = "Hợp đồng, Pháp lý",
             containerPath = "Tủ tài liệu > Ngăn 4",
+            containerId = 1L,
             status = DocumentStatus.Active,
             expiryDate = "20/08/2026",
             categoryColor = Color(0xFF1855EE)

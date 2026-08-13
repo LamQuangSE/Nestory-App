@@ -26,6 +26,8 @@ private enum class DocumentSubScreen {
 @Composable
 fun DocumentRoute(
     onAddDocument: () -> Unit,
+    initialDocumentId: String? = null,
+    onClearInitialId: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val db = remember {
@@ -51,6 +53,15 @@ fun DocumentRoute(
     val uiState by viewModel.uiState.collectAsState()
     val snackbarHostState = remember { SnackbarHostState() }
     var subScreen by remember { mutableStateOf(DocumentSubScreen.Selection) }
+
+    // Handle initial document navigation (e.g. from notification)
+    LaunchedEffect(initialDocumentId) {
+        if (initialDocumentId != null) {
+            viewModel.selectDocument(initialDocumentId)
+            subScreen = DocumentSubScreen.Detail
+            onClearInitialId()
+        }
+    }
 
     LaunchedEffect(uiState.errorMessage) {
         val message = uiState.errorMessage ?: return@LaunchedEffect

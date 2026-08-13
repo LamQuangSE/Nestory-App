@@ -16,7 +16,7 @@ class DocumentDraftMapper(
         val categoryEnum = result.category ?: categoryDetector.detect(result)
         return DocumentDraft(
             title = title,
-            category = categoryEnum?.toVietnameseLabel(),
+            category = categoryEnum,
             issueDate = result.issueDate,
             expiryDate = result.expiryDate,
             documentNumber = result.documentNumber,

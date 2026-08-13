@@ -13,6 +13,7 @@ import com.example.nestory.data.local.dao.ContainerDao
 import com.example.nestory.data.local.database.converter.Converters
 import com.example.nestory.data.local.dao.DocumentDao
 import com.example.nestory.data.local.dao.DocumentKitDao
+import com.example.nestory.data.local.dao.KitItemDao
 import com.example.nestory.data.local.dao.ReminderDao
 import com.example.nestory.data.local.dao.CategoryDao 
 import com.example.nestory.data.local.entity.AttachmentEntity
@@ -50,6 +51,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun attachmentDao(): AttachmentDao
     abstract fun reminderDao(): ReminderDao
     abstract fun documentKitDao(): DocumentKitDao
+    abstract fun kitItemDao(): KitItemDao
     abstract fun backupRecordDao(): BackupRecordDao
     
     // Đăng ký Dao mới
@@ -90,6 +92,10 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE INDEX IF NOT EXISTS index_containers_parent_id ON containers(parent_id)")
             }
         }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) { override fun migrate(db: SupportSQLiteDatabase) {} }
+        val MIGRATION_3_4 = object : Migration(3, 4) { override fun migrate(db: SupportSQLiteDatabase) {} }
+        val MIGRATION_4_5 = object : Migration(4, 5) { override fun migrate(db: SupportSQLiteDatabase) {} }
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {

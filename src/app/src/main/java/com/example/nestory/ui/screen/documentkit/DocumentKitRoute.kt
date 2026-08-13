@@ -113,6 +113,7 @@ fun DocumentKitRoute(
             name = doc.title,
             category = categoryLabel(doc.category),
             containerPath = buildContainerPath(doc.containerId, containers),
+            containerId = doc.containerId,
             status = calculateDocumentStatus(doc.expirationDate, ExpiryReminderSettings()),
             expiryDate = doc.expirationDate ?: "Chưa có hạn",
             categoryColor = categoryColor(doc.category),

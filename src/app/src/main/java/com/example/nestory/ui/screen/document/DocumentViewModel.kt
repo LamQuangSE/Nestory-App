@@ -148,12 +148,13 @@ private fun DocumentEntity.toUiModel(
         name = title,
         category = categoryLabel(category),
         containerPath = buildContainerPath(containerId, containers),
+        containerId = containerId,
         status = calculateDocumentStatus(expirationDate, settings, today),
         expiryDate = expirationDate ?: "Chưa có hạn",
         categoryColor = categoryColor(category),
     )
 
-private fun buildContainerPath(
+internal fun buildContainerPath(
     containerId: Long,
     containers: List<ContainerEntity>,
 ): String {
@@ -167,7 +168,7 @@ private fun buildContainerPath(
     return path.takeIf { it.isNotEmpty() }?.joinToString(" > ") ?: "Chưa chọn container"
 }
 
-private fun categoryLabel(category: DocumentCategory): String =
+internal fun categoryLabel(category: DocumentCategory): String =
     when (category) {
         DocumentCategory.IDENTITY -> "Nhân thân"
         DocumentCategory.EDUCATION -> "Học vấn"
@@ -178,7 +179,7 @@ private fun categoryLabel(category: DocumentCategory): String =
         DocumentCategory.OTHER -> "Khác"
     }
 
-private fun categoryColor(category: DocumentCategory): Color =
+internal fun categoryColor(category: DocumentCategory): Color =
     when (category) {
         DocumentCategory.IDENTITY -> Color(0xFF1855EE)
         DocumentCategory.EDUCATION -> Color(0xFF6D28D9)

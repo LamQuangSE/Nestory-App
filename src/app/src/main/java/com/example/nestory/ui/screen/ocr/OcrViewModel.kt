@@ -115,7 +115,7 @@ class OcrViewModel(
             val containerId = draft.containerId ?: return@launch
             val document = DocumentEntity(
                 title = draft.title,
-                category = draft.category ?: "Khác",
+                category = draft.category ?: DocumentCategory.OTHER,
                 expirationDate = draft.expiryDate,
                 notes = draft.notes,
                 containerId = containerId,

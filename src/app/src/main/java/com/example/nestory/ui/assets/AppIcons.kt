@@ -51,7 +51,6 @@ object AppIcons {
     val DocumentFilterExpiring = R.drawable.ic_document_filter_expiring
     val DocumentCamera = R.drawable.ic_camera
 
-
     val IcRotateLeft = R.drawable.ic_rotate_left
     val IcRotateRight = R.drawable.ic_rotate_right
     val IcCrop = R.drawable.ic_crop
@@ -66,4 +65,27 @@ object AppIcons {
     val IcMoreInfor = R.drawable.ic_more_infor
     val IcMinus = R.drawable.ic_minus
     val IcPlus = R.drawable.ic_plus
+
+    // Kit Icons
+    val KitCheckCircle = R.drawable.ic_kit_check_circle
+    val KitAlert = R.drawable.ic_kit_alert
+    val KitClose = R.drawable.ic_kit_close
+    val KitHome = R.drawable.ic_kit_home
+    val KitMotorbike = R.drawable.ic_kit_motorbike
+    val KitGraduate = R.drawable.ic_kit_graduate
+    val KitBus = R.drawable.ic_kit_bus
+    val KitGlobe = R.drawable.ic_kit_globe
+    val KitCalendar = R.drawable.ic_kit_calendar
+    val KitAlignLeft = R.drawable.ic_kit_align_left
+    val KitCategory = R.drawable.ic_kit_category
+    val KitFile = R.drawable.ic_kit_file
+    val KitTarget = R.drawable.ic_kit_target
+    val KitCameraOutline = R.drawable.ic_kit_camera_outline
+    val KitStarred = R.drawable.ic_starred
+    val KitUnstarred = R.drawable.ic_unstarred
+
+    // Setting Icons
+    val WeuiFolderOutlined = R.drawable.ic_weui_folder_outlined
+    val MdiExport = R.drawable.ic_mdi_export
+    val MdiImport = R.drawable.ic_mdi_import
 }

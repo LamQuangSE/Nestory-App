@@ -100,7 +100,7 @@ fun OcrReviewScreen(
                             .clickable { categoryMenuOpen = true },
                     ) {
                         ReviewReadOnlyField(
-                            value = draft.category?.let { categoryLabel(it) } ?: "Chưa xác định",
+                            value = draft.category?.toVietnameseLabel() ?: "Chưa xác định",
                             hint = "Chọn hoặc nhập danh mục"
                         )
                         DropdownMenu(
@@ -109,7 +109,7 @@ fun OcrReviewScreen(
                         ) {
                             DocumentCategory.entries.forEach { category ->
                                 DropdownMenuItem(
-                                    text = { Text(text = categoryLabel(category)) },
+                                    text = { Text(text = category.toVietnameseLabel()) },
                                     onClick = {
                                         onDraftChange(draft.copy(category = category))
                                         categoryMenuOpen = false

@@ -33,6 +33,7 @@ import com.example.nestory.ui.components.NestoryBottomBar
 import com.example.nestory.ui.screen.category.CategoryRoute
 import com.example.nestory.ui.screen.container.ContainerRoute
 import com.example.nestory.ui.screen.document.DocumentRoute
+import com.example.nestory.ui.screen.documentkit.DocumentKitRoute
 import com.example.nestory.ui.screen.home.HomeDashboardScreen
 import com.example.nestory.ui.screen.start.StartVaultScreen
 import com.example.nestory.ui.screen.unlock.UnlockRoute
@@ -44,10 +45,12 @@ import com.example.nestory.ui.screen.setting.ExpiryReminderSettingScreen
 import com.example.nestory.ui.screen.setting.SettingScreen
 import com.example.nestory.ui.screen.setting.toSettings
 import com.example.nestory.ui.screen.setting.toUiState
+import com.example.nestory.utils.notification.WorkManagerHelper
 import kotlinx.coroutines.launch
+import androidx.compose.runtime.LaunchedEffect
 
 @Composable
-fun NestoryApp() {
+fun NestoryApp(initialDocumentId: String? = null) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
     val unlockSessionManager = remember { VaultUnlockSessionProvider.manager }
@@ -56,10 +59,16 @@ fun NestoryApp() {
         initial = com.example.nestory.domain.model.ExpiryReminderSettings(),
     )
     val coroutineScope = rememberCoroutineScope()
+
+    // Theo dõi thay đổi settings để cập nhật lịch nhắc
+    LaunchedEffect(expiryReminderSettings) {
+        WorkManagerHelper.schedulePeriodicReminder(context, expiryReminderSettings)
+    }
+
     val initialDestination = remember {
         if (FileSystemManager(context).isVaultInitialized()) {
             if (unlockSessionManager.isSessionValid()) {
-                NestoryDestination.Home
+                if (initialDocumentId != null) NestoryDestination.DocumentDetail else NestoryDestination.Home
             } else {
                 NestoryDestination.Unlock
             }
@@ -68,7 +77,9 @@ fun NestoryApp() {
         }
     }
     var destination by remember { mutableStateOf(initialDestination) }
+    var pendingDocumentId by remember { mutableStateOf(initialDocumentId) }
     var ocrReturnDestination by remember { mutableStateOf(NestoryDestination.Home) }
+    var pendingKitLinkItemId by remember { mutableStateOf<Long?>(null) }
     var vaultCreationSession by remember { mutableIntStateOf(0) }
     var isEditingMode by remember { mutableStateOf(false) }
 
@@ -76,6 +87,14 @@ fun NestoryApp() {
     val goToScan: () -> Unit = {
         isEditingMode = false
         ocrReturnDestination = destination
+        pendingKitLinkItemId = null
+        destination = NestoryDestination.Scan
+    }
+
+    val goToScanForKitLink: (Long?) -> Unit = { itemId ->
+        isEditingMode = false
+        ocrReturnDestination = destination
+        pendingKitLinkItemId = itemId
         destination = NestoryDestination.Scan
     }
 
@@ -105,6 +124,7 @@ fun NestoryApp() {
             when (destination) {
                 NestoryDestination.Home,
                 NestoryDestination.DocumentSelection,
+                NestoryDestination.DocumentKit,
                 NestoryDestination.Category,
                 NestoryDestination.Settings -> true
                 else -> false
@@ -184,7 +204,13 @@ fun NestoryApp() {
                             )
                     NestoryDestination.UnlockSuccess ->
                             UnlockSuccessScreen(
-                                    onLoaded = { destination = NestoryDestination.Home },
+                                    onLoaded = {
+                                        destination = if (pendingDocumentId != null) {
+                                            NestoryDestination.DocumentDetail
+                                        } else {
+                                            NestoryDestination.Home
+                                        }
+                                    },
                             )
                     NestoryDestination.Home ->
                             HomeDashboardScreen(
@@ -215,15 +241,40 @@ fun NestoryApp() {
                                     onBack = { destination = NestoryDestination.Settings },
                             )
                     NestoryDestination.DocumentSelection ->
-                            DocumentRoute(onAddDocument = goToScan)
+                            DocumentRoute(
+                                onAddDocument = goToScan,
+                                initialDocumentId = pendingDocumentId,
+                                onClearInitialId = { pendingDocumentId = null }
+                            )
+                    NestoryDestination.DocumentKit ->
+                            DocumentKitRoute(
+                                onBack = { destination = NestoryDestination.Home },
+                                onScanDocument = goToScanForKitLink
+                            )
                     NestoryDestination.DocumentDetail ->
-                            DocumentRoute(onAddDocument = goToScan)
+                            DocumentRoute(
+                                onAddDocument = goToScan,
+                                initialDocumentId = pendingDocumentId,
+                                onClearInitialId = { pendingDocumentId = null }
+                            )
                     NestoryDestination.FilterSelection ->
-                            DocumentRoute(onAddDocument = goToScan)
+                            DocumentRoute(
+                                onAddDocument = goToScan,
+                                initialDocumentId = pendingDocumentId,
+                                onClearInitialId = { pendingDocumentId = null }
+                            )
                     NestoryDestination.Scan ->
                             OcrRoute(
                                     onBack = { destination = ocrReturnDestination },
-                                    onSaved = { destination = NestoryDestination.DocumentSelection },
+                                    onSaved = {
+                                        if (pendingKitLinkItemId != null) {
+                                            pendingKitLinkItemId = null
+                                            destination = ocrReturnDestination
+                                        } else {
+                                            destination = NestoryDestination.DocumentSelection
+                                        }
+                                    },
+                                    linkToItemId = pendingKitLinkItemId,
                             )
                 }
             }

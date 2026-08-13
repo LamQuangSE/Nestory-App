@@ -4,283 +4,205 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.nestory.data.filesystem.ImageStorageManager
-import com.example.nestory.data.local.entity.DocumentEntity
-import com.example.nestory.data.local.entity.AttachmentEntity
 import com.example.nestory.data.local.entity.ContainerEntity
-import com.example.nestory.data.local.entity.CategoryEntity
-import com.example.nestory.data.local.entity.ReminderEntity
-import com.example.nestory.domain.repository.AttachmentRepository
-import com.example.nestory.domain.repository.CategoryRepository
+import com.example.nestory.data.local.entity.DocumentEntity
+import com.example.nestory.domain.model.DocumentCategory
+import com.example.nestory.domain.model.ExpiryReminderSettings
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentRepository
-import com.example.nestory.domain.repository.ReminderRepository
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
-import com.example.nestory.utils.notification.WorkManagerHelper
+import java.time.LocalDate
 
-@OptIn(ExperimentalCoroutinesApi::class)
 class DocumentViewModel(
     private val documentRepository: DocumentRepository,
-    private val containerRepository: ContainerRepository,
-    private val categoryRepository: CategoryRepository,
-    private val attachmentRepository: AttachmentRepository,
-    private val reminderRepository: ReminderRepository,
-    private val imageStorageManager: ImageStorageManager
+    containerRepository: ContainerRepository,
+    expiryReminderSettings: Flow<ExpiryReminderSettings>,
+    private val todayProvider: () -> LocalDate = { LocalDate.now() },
 ) : ViewModel() {
 
-    private val _searchQuery = MutableStateFlow("")
-    val searchQuery = _searchQuery.asStateFlow()
-
-    private val _selectedDocumentId = MutableStateFlow<String?>(null)
+    private val localState = MutableStateFlow(DocumentLocalState())
 
     val uiState: StateFlow<DocumentUiState> = combine(
         documentRepository.observeAllDocuments(),
-        _searchQuery,
-        _selectedDocumentId,
         containerRepository.observeAllContainers(),
-        categoryRepository.getAllCategories(),
-        reminderRepository.observeAllReminders()
-    ) { array ->
-        val documents = array[0] as List<DocumentEntity>
-        val query = array[1] as String
-        val selectedId = array[2] as String?
-        val containers = array[3] as List<ContainerEntity>
-        val categories = array[4] as List<CategoryEntity>
-        val reminders = array[5] as List<ReminderEntity>
-
-        val filtered = if (query.isBlank()) documents else {
-            documents.filter { it.title.contains(query, ignoreCase = true) }
-        }
-
-        val mappedDocuments = filtered.map { entity ->
-            val reminder = reminders.find { it.documentId == entity.id }
-            mapToUiModel(entity, containers, categories, emptyList(), reminder)
-        }
-
-        DocumentUiState(
-            documents = mappedDocuments,
-            selectedDocument = mappedDocuments.find { it.id == selectedId },
-            searchQuery = query
-        )
-    }.flatMapLatest { state ->
-        if (state.documents.isEmpty()) flowOf(state)
-        else {
-            flow {
-                val enhancedDocs = state.documents.map { doc ->
-                    val attachments = attachmentRepository.getAttachmentsByDocumentId(doc.id.toLong()).getOrDefault(emptyList())
-                    doc.copy(attachmentUris = attachments.map { it.fileUri })
-                }
-                emit(state.copy(
-                    documents = enhancedDocs,
-                    selectedDocument = enhancedDocs.find { it.id == state.selectedDocument?.id }
-                ))
+        expiryReminderSettings,
+        localState,
+    ) { documents, containers, settings, state ->
+        val visibleDocuments = documents
+            .filter { document ->
+                state.searchQuery.isBlank() ||
+                    document.title.contains(state.searchQuery, ignoreCase = true) ||
+                    document.notes.orEmpty().contains(state.searchQuery, ignoreCase = true) ||
+                    categoryLabel(document.category).contains(state.searchQuery, ignoreCase = true)
             }
+            .map { document ->
+                document.toUiModel(
+                    containers = containers,
+                    settings = settings,
+                    today = todayProvider(),
+                )
+            }
+
+        state.toUiState(
+            documents = visibleDocuments,
+            selectedDocument = visibleDocuments.firstOrNull { it.id == state.selectedDocumentId },
+        )
+    }
+        .catch { error ->
+            emit(
+                localState.value.toUiState(
+                    documents = emptyList(),
+                    selectedDocument = null,
+                    errorMessage = error.localizedMessage ?: "Không thể tải danh sách giấy tờ",
+                ),
+            )
         }
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000),
-        initialValue = DocumentUiState()
-    )
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5000),
+            initialValue = DocumentUiState(isLoading = true),
+        )
 
     fun onSearchQueryChange(query: String) {
-        _searchQuery.value = query
+        localState.update { it.copy(searchQuery = query) }
     }
 
     fun selectDocument(documentId: String) {
-        _selectedDocumentId.value = documentId
+        localState.update { it.copy(selectedDocumentId = documentId) }
     }
 
     fun clearSelection() {
-        _selectedDocumentId.value = null
-    }
-
-    fun deleteDocument(documentId: String) {
-        viewModelScope.launch {
-            val idLong = documentId.toLongOrNull() ?: return@launch
-            val entity = documentRepository.getDocumentById(idLong).getOrNull()
-            if (entity != null) {
-                // Delete physical files first
-                val attachments = attachmentRepository.getAttachmentsByDocumentId(idLong).getOrDefault(emptyList())
-                attachments.forEach { attachment ->
-                    imageStorageManager.deleteFile(attachment.fileUri)
-                }
-                documentRepository.deleteDocument(entity)
-            }
-        }
+        localState.update { it.copy(selectedDocumentId = null) }
     }
 
     fun deleteSelectedDocument(onDeleted: () -> Unit) {
-        val selectedId = _selectedDocumentId.value ?: return
-        viewModelScope.launch {
-            val idLong = selectedId.toLongOrNull() ?: return@launch
-            val entity = documentRepository.getDocumentById(idLong).getOrNull()
-            if (entity != null) {
-                // Delete physical files first
-                val attachments = attachmentRepository.getAttachmentsByDocumentId(idLong).getOrDefault(emptyList())
-                attachments.forEach { attachment ->
-                    imageStorageManager.deleteFile(attachment.fileUri)
-                }
-                documentRepository.deleteDocument(entity)
-                _selectedDocumentId.value = null
-                onDeleted()
-            }
-        }
-    }
+        val selected = uiState.value.selectedDocument ?: return
+        val documentId = selected.id.toLongOrNull() ?: return
 
-    fun updateDocument(
-        id: String,
-        title: String,
-        categoryName: String,
-        expiryDate: String,
-        containerId: Long?
-    ) {
-        val context = imageStorageManager.context // Assuming context is available via one of dependencies or passing it
         viewModelScope.launch {
-            val idLong = id.toLongOrNull() ?: return@launch
-            val existing = documentRepository.getDocumentById(idLong).getOrNull() ?: return@launch
-            
-            val shouldResetNotification = existing.expirationDate != expiryDate
-
-            val updated = existing.copy(
-                title = title,
-                category = categoryName,
-                expirationDate = expiryDate,
-                containerId = containerId ?: existing.containerId,
-                lastNotifiedStatus = if (shouldResetNotification) null else existing.lastNotifiedStatus
+            documentRepository.getDocumentById(documentId).fold(
+                onSuccess = { document ->
+                    if (document != null) {
+                        documentRepository.deleteDocument(document).fold(
+                            onSuccess = {
+                                clearSelection()
+                                onDeleted()
+                            },
+                            onFailure = { error ->
+                                setError(error.localizedMessage ?: "Không thể xóa giấy tờ")
+                            },
+                        )
+                    } else {
+                        clearSelection()
+                        onDeleted()
+                    }
+                },
+                onFailure = { error ->
+                    setError(error.localizedMessage ?: "Không thể tải giấy tờ")
+                },
             )
-            documentRepository.updateDocument(updated)
-            
-            // Chạy kiểm tra ngay lập tức khi có cập nhật ngày tháng
-            if (shouldResetNotification) {
-                WorkManagerHelper.runImmediateCheck(context)
-            }
         }
     }
 
     fun clearError() {
-        // Implement if needed
+        localState.update { it.copy(errorMessage = null) }
     }
 
-    fun saveCustomReminder(documentId: String, date: String, time: String, isEnabled: Boolean) {
-        viewModelScope.launch {
-            val docIdLong = documentId.toLongOrNull() ?: return@launch
-            val existing = reminderRepository.getReminderByDocumentId(docIdLong).getOrNull()
-            
-            val reminder = if (existing != null) {
-                existing.copy(
-                    reminderDate = date,
-                    reminderTime = time,
-                    isEnabled = isEnabled
-                )
-            } else {
-                ReminderEntity(
-                    documentId = docIdLong,
-                    reminderDate = date,
-                    reminderTime = time,
-                    isEnabled = isEnabled
-                )
-            }
-            
-            if (existing != null) {
-                reminderRepository.updateReminder(reminder)
-            } else {
-                reminderRepository.createReminder(reminder)
-            }
-        }
+    private fun setError(message: String) {
+        localState.update { it.copy(errorMessage = message) }
     }
 
-    private fun mapToUiModel(
-        entity: DocumentEntity,
-        allContainers: List<ContainerEntity>,
-        allCategories: List<CategoryEntity>,
-        attachments: List<AttachmentEntity>,
-        reminderEntity: ReminderEntity? = null
-    ): DocumentUiModel {
-        val path = buildContainerPath(entity.containerId, allContainers)
-        val pathString = path.joinToString(" > ") { it.name }
-        
-        val categoryColor = allCategories.find { it.name == entity.category }?.let {
-            Color(it.colorValue.toULong())
-        } ?: Color(0xFF919191)
-
-        val customReminder = reminderEntity?.let {
-            CustomReminderUiModel(
-                id = it.id,
-                date = it.reminderDate ?: "",
-                time = it.reminderTime ?: "",
-                isEnabled = it.isEnabled
-            )
-        }
-
-        return DocumentUiModel(
-            id = entity.id.toString(),
-            name = entity.title,
-            category = entity.category,
-            containerPath = pathString,
-            containerId = entity.containerId,
-            status = calculateStatus(entity.expirationDate),
-            expiryDate = entity.expirationDate ?: "",
-            categoryColor = categoryColor,
-            attachmentUris = attachments.map { it.fileUri },
-            customReminder = customReminder
+    private data class DocumentLocalState(
+        val selectedDocumentId: String? = null,
+        val searchQuery: String = "",
+        val errorMessage: String? = null,
+    ) {
+        fun toUiState(
+            documents: List<DocumentUiModel>,
+            selectedDocument: DocumentUiModel?,
+            errorMessage: String? = this.errorMessage,
+        ) = DocumentUiState(
+            documents = documents,
+            selectedDocument = selectedDocument,
+            searchQuery = searchQuery,
+            errorMessage = errorMessage,
         )
     }
-
-    private fun buildContainerPath(
-        containerId: Long,
-        allContainers: List<ContainerEntity>
-    ): List<ContainerEntity> {
-        val path = mutableListOf<ContainerEntity>()
-        var currentId: Long? = containerId
-        while (currentId != null) {
-            val container = allContainers.find { it.id == currentId } ?: break
-            path.add(0, container)
-            currentId = container.parentId
-        }
-        return path
-    }
-
-    private fun calculateStatus(expiryDate: String?): DocumentStatus {
-        if (expiryDate.isNullOrBlank()) return DocumentStatus.Active
-        return try {
-            val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
-            val date = sdf.parse(expiryDate) ?: return DocumentStatus.Active
-            val now = Calendar.getInstance().time
-            val diff = date.time - now.time
-            val days = diff / (1000 * 60 * 60 * 24)
-
-            when {
-                diff < 0 -> DocumentStatus.Expired
-                days <= 30 -> DocumentStatus.ExpiringSoon
-                else -> DocumentStatus.Active
-            }
-        } catch (e: Exception) {
-            DocumentStatus.Active
-        }
-    }
 }
+
+private fun DocumentEntity.toUiModel(
+    containers: List<ContainerEntity>,
+    settings: ExpiryReminderSettings,
+    today: LocalDate,
+): DocumentUiModel =
+    DocumentUiModel(
+        id = id.toString(),
+        name = title,
+        category = categoryLabel(category),
+        containerPath = buildContainerPath(containerId, containers),
+        status = calculateDocumentStatus(expirationDate, settings, today),
+        expiryDate = expirationDate ?: "Chưa có hạn",
+        categoryColor = categoryColor(category),
+    )
+
+private fun buildContainerPath(
+    containerId: Long,
+    containers: List<ContainerEntity>,
+): String {
+    val path = mutableListOf<String>()
+    var currentId: Long? = containerId
+    while (currentId != null) {
+        val container = containers.firstOrNull { it.id == currentId } ?: break
+        path.add(0, container.name)
+        currentId = container.parentId
+    }
+    return path.takeIf { it.isNotEmpty() }?.joinToString(" > ") ?: "Chưa chọn container"
+}
+
+private fun categoryLabel(category: DocumentCategory): String =
+    when (category) {
+        DocumentCategory.IDENTITY -> "Nhân thân"
+        DocumentCategory.EDUCATION -> "Học vấn"
+        DocumentCategory.FINANCE -> "Tài chính"
+        DocumentCategory.PROPERTY -> "Bất động sản"
+        DocumentCategory.VEHICLE -> "Phương tiện"
+        DocumentCategory.HEALTH -> "Sức khỏe"
+        DocumentCategory.OTHER -> "Khác"
+    }
+
+private fun categoryColor(category: DocumentCategory): Color =
+    when (category) {
+        DocumentCategory.IDENTITY -> Color(0xFF1855EE)
+        DocumentCategory.EDUCATION -> Color(0xFF6D28D9)
+        DocumentCategory.FINANCE -> Color(0xFF07BC67)
+        DocumentCategory.PROPERTY -> Color(0xFFEB6E00)
+        DocumentCategory.VEHICLE -> Color(0xFF0F766E)
+        DocumentCategory.HEALTH -> Color(0xFFCF1111)
+        DocumentCategory.OTHER -> Color(0xFF717171)
+    }
 
 class DocumentViewModelFactory(
     private val documentRepository: DocumentRepository,
     private val containerRepository: ContainerRepository,
-    private val categoryRepository: CategoryRepository,
-    private val attachmentRepository: AttachmentRepository,
-    private val reminderRepository: ReminderRepository,
-    private val imageStorageManager: ImageStorageManager
+    private val expiryReminderSettings: Flow<ExpiryReminderSettings>,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
-        return DocumentViewModel(
-            documentRepository, 
-            containerRepository, 
-            categoryRepository, 
-            attachmentRepository, 
-            reminderRepository,
-            imageStorageManager
-        ) as T
+        if (modelClass.isAssignableFrom(DocumentViewModel::class.java)) {
+            return DocumentViewModel(
+                documentRepository = documentRepository,
+                containerRepository = containerRepository,
+                expiryReminderSettings = expiryReminderSettings,
+            ) as T
+        }
+        throw IllegalArgumentException("Unknown ViewModel class")
     }
 }

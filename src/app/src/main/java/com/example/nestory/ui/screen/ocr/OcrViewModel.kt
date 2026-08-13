@@ -7,11 +7,15 @@ import androidx.lifecycle.viewModelScope
 import com.example.nestory.data.local.entity.AttachmentEntity
 import com.example.nestory.data.local.entity.ContainerEntity
 import com.example.nestory.data.local.entity.DocumentEntity
+import com.example.nestory.data.local.entity.KitItemEntity
 import com.example.nestory.data.filesystem.ImageStorageManager
 import com.example.nestory.domain.model.DocumentCategory
 import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentRepository
+import com.example.nestory.domain.repository.KitItemRepository
+import com.example.nestory.ui.screen.document.parseExpirationDate
+import com.example.nestory.ui.screen.documentkit.KitItemStatus
 import com.example.nestory.utils.ocr.CategoryDetector
 import com.example.nestory.utils.ocr.DocumentDraftMapper
 import com.example.nestory.domain.model.DocumentDraft
@@ -37,6 +41,7 @@ class OcrViewModel(
     private val attachmentRepository: AttachmentRepository,
     private val containerRepository: ContainerRepository,
     private val imageStorageManager: ImageStorageManager,
+    private val kitItemRepository: KitItemRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<OcrUiState>(OcrUiState.Idle)
@@ -45,7 +50,15 @@ class OcrViewModel(
     private val _containers = MutableStateFlow<List<ContainerEntity>>(emptyList())
     val containers: StateFlow<List<ContainerEntity>> = _containers.asStateFlow()
 
+    private val _fieldErrors = MutableStateFlow(OcrFieldErrors())
+    val fieldErrors: StateFlow<OcrFieldErrors> = _fieldErrors.asStateFlow()
+
     private var capturedBitmaps: List<Bitmap> = emptyList()
+    private var pendingKitLinkItemId: Long? = null
+
+    fun setPendingKitLinkItemId(itemId: Long?) {
+        pendingKitLinkItemId = itemId
+    }
 
     init {
         observeContainers()
@@ -84,6 +97,7 @@ class OcrViewModel(
     }
 
     fun updateDraft(draft: DocumentDraft) {
+        _fieldErrors.value = OcrFieldErrors()
         val current = _uiState.value as? OcrUiState.Success ?: return
         _uiState.value = OcrUiState.Success(draft)
     }
@@ -92,14 +106,13 @@ class OcrViewModel(
         val draft = (_uiState.value as? OcrUiState.Success)?.draft ?: return
         val bitmaps = capturedBitmaps
         if (bitmaps.isEmpty()) return
-        val containerId = draft.containerId
 
-        if (containerId == null) {
-            _uiState.value = OcrUiState.Error("Vui lòng chọn container để lưu giấy tờ")
-            return
-        }
+        val fieldErrors = validateDraft(draft)
+        _fieldErrors.value = fieldErrors
+        if (fieldErrors.hasErrors) return
 
         viewModelScope.launch {
+            val containerId = draft.containerId ?: return@launch
             val document = DocumentEntity(
                 title = draft.title,
                 category = draft.category ?: "Khác",
@@ -127,6 +140,19 @@ class OcrViewModel(
                     }
 
                     if (saveError == null) {
+                        pendingKitLinkItemId?.let { itemId ->
+                            kitItemRepository.getItemById(itemId).onSuccess { item ->
+                                if (item != null) {
+                                    kitItemRepository.updateItem(
+                                        item.copy(
+                                            linkedDocumentId = documentId,
+                                            status = completionStatus(item, linkedCount = 1),
+                                        ),
+                                    )
+                                }
+                            }
+                        }
+                        pendingKitLinkItemId = null
                         onSaved(documentId)
                     } else {
                         saveError?.let { error ->
@@ -151,9 +177,40 @@ class OcrViewModel(
     }
 
     fun cancelOcr() {
+        _fieldErrors.value = OcrFieldErrors()
         _uiState.value = OcrUiState.Idle
         capturedBitmaps = emptyList()
     }
+
+    private fun completionStatus(item: KitItemEntity, linkedCount: Int): String {
+        val required = item.requiredDocuments
+        return when {
+            required != null && required > 0 && linkedCount >= required -> KitItemStatus.READY
+            required != null && required > 0 -> KitItemStatus.PENDING
+            else -> item.status
+        }
+    }
+
+    private fun validateDraft(draft: DocumentDraft): OcrFieldErrors {        val issueDate = draft.issueDate.orEmpty()
+        val expiryDate = draft.expiryDate.orEmpty()
+        return OcrFieldErrors(
+            title = draft.title.isBlank(),
+            category = draft.category == null,
+            issueDate = issueDate.isNotBlank() && parseExpirationDate(issueDate) == null,
+            expiryDate = expiryDate.isNotBlank() && parseExpirationDate(expiryDate) == null,
+            container = draft.containerId == null,
+        )
+    }
+}
+
+data class OcrFieldErrors(
+    val title: Boolean = false,
+    val category: Boolean = false,
+    val issueDate: Boolean = false,
+    val expiryDate: Boolean = false,
+    val container: Boolean = false,
+) {
+    val hasErrors: Boolean get() = title || category || issueDate || expiryDate || container
 }
 
 class OcrViewModelFactory(
@@ -165,6 +222,7 @@ class OcrViewModelFactory(
     private val attachmentRepository: AttachmentRepository,
     private val containerRepository: ContainerRepository,
     private val imageStorageManager: ImageStorageManager,
+    private val kitItemRepository: KitItemRepository,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -178,6 +236,7 @@ class OcrViewModelFactory(
                 attachmentRepository = attachmentRepository,
                 containerRepository = containerRepository,
                 imageStorageManager = imageStorageManager,
+                kitItemRepository = kitItemRepository,
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

@@ -67,7 +67,12 @@ class FileSystemManager(private val context: Context) {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "nestory_database",
-            ).addMigrations(AppDatabase.MIGRATION_1_2).build()
+            ).addMigrations(
+                AppDatabase.MIGRATION_1_2,
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5,
+            ).build()
 
             try {
                 db.openHelper.writableDatabase

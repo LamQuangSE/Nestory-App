@@ -8,7 +8,6 @@ import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Update
 import com.example.nestory.data.local.entity.DocumentKitEntity
-import com.example.nestory.data.local.entity.KitItemEntity
 import com.example.nestory.relation.KitWithItems
 import kotlinx.coroutines.flow.Flow
 
@@ -43,18 +42,6 @@ interface DocumentKitDao {
     @Query("SELECT * FROM document_kits WHERE id = :kitId")
     suspend fun getKitById(kitId: Long): DocumentKitEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertKitItem(item: KitItemEntity): Long
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertKitItems(items: List<KitItemEntity>)
-
-    @Update
-    suspend fun updateKitItem(item: KitItemEntity)
-
-    @Delete
-    suspend fun deleteKitItem(item: KitItemEntity)
-
-    @Query("SELECT * FROM kit_items WHERE id = :itemId")
-    suspend fun getKitItemById(itemId: Long): KitItemEntity?
+    @Query("UPDATE document_kits SET is_favorite = :isFavorite WHERE id = :kitId")
+    suspend fun updateFavoriteStatus(kitId: Long, isFavorite: Boolean)
 }

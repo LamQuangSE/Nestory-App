@@ -51,6 +51,7 @@ object AppIcons {
     val DocumentFilterExpiring = R.drawable.ic_document_filter_expiring
     val DocumentCamera = R.drawable.ic_camera
 
+
     val IcRotateLeft = R.drawable.ic_rotate_left
     val IcRotateRight = R.drawable.ic_rotate_right
     val IcCrop = R.drawable.ic_crop
@@ -65,8 +66,4 @@ object AppIcons {
     val IcMoreInfor = R.drawable.ic_more_infor
     val IcMinus = R.drawable.ic_minus
     val IcPlus = R.drawable.ic_plus
-
-    val MdiExport = R.drawable.ic_mdi_export
-    val MdiImport = R.drawable.ic_mdi_import
-    val WeuiFolderOutlined = R.drawable.ic_weui_folder_outlined
 }

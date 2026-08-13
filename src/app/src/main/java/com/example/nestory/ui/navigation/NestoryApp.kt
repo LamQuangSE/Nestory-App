@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -45,18 +44,10 @@ import com.example.nestory.ui.screen.setting.ExpiryReminderSettingScreen
 import com.example.nestory.ui.screen.setting.SettingScreen
 import com.example.nestory.ui.screen.setting.toSettings
 import com.example.nestory.ui.screen.setting.toUiState
-import com.example.nestory.worker.ExpiryReminderWorker
 import kotlinx.coroutines.launch
-import java.util.Calendar
-import java.util.concurrent.TimeUnit
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
-
-import com.example.nestory.utils.notification.WorkManagerHelper
 
 @Composable
-fun NestoryApp(initialDocumentId: String? = null) {
+fun NestoryApp() {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
     val unlockSessionManager = remember { VaultUnlockSessionProvider.manager }
@@ -65,15 +56,10 @@ fun NestoryApp(initialDocumentId: String? = null) {
         initial = com.example.nestory.domain.model.ExpiryReminderSettings(),
     )
     val coroutineScope = rememberCoroutineScope()
-
-    // Theo dõi thay đổi settings để cập nhật lịch nhắc
-    LaunchedEffect(expiryReminderSettings) {
-        WorkManagerHelper.schedulePeriodicReminder(context, expiryReminderSettings)
-    }
     val initialDestination = remember {
         if (FileSystemManager(context).isVaultInitialized()) {
             if (unlockSessionManager.isSessionValid()) {
-                if (initialDocumentId != null) NestoryDestination.DocumentDetail else NestoryDestination.Home
+                NestoryDestination.Home
             } else {
                 NestoryDestination.Unlock
             }
@@ -82,7 +68,6 @@ fun NestoryApp(initialDocumentId: String? = null) {
         }
     }
     var destination by remember { mutableStateOf(initialDestination) }
-    var pendingDocumentId by remember { mutableStateOf(initialDocumentId) }
     var ocrReturnDestination by remember { mutableStateOf(NestoryDestination.Home) }
     var vaultCreationSession by remember { mutableIntStateOf(0) }
     var isEditingMode by remember { mutableStateOf(false) }
@@ -199,13 +184,7 @@ fun NestoryApp(initialDocumentId: String? = null) {
                             )
                     NestoryDestination.UnlockSuccess ->
                             UnlockSuccessScreen(
-                                    onLoaded = {
-                                        destination = if (pendingDocumentId != null) {
-                                            NestoryDestination.DocumentDetail
-                                        } else {
-                                            NestoryDestination.Home
-                                        }
-                                    },
+                                    onLoaded = { destination = NestoryDestination.Home },
                             )
                     NestoryDestination.Home ->
                             HomeDashboardScreen(
@@ -235,14 +214,12 @@ fun NestoryApp(initialDocumentId: String? = null) {
                                     },
                                     onBack = { destination = NestoryDestination.Settings },
                             )
-                    NestoryDestination.DocumentSelection,
-                    NestoryDestination.DocumentDetail,
+                    NestoryDestination.DocumentSelection ->
+                            DocumentRoute(onAddDocument = goToScan)
+                    NestoryDestination.DocumentDetail ->
+                            DocumentRoute(onAddDocument = goToScan)
                     NestoryDestination.FilterSelection ->
-                            DocumentRoute(
-                                onAddDocument = goToScan,
-                                initialDocumentId = pendingDocumentId,
-                                onClearInitialId = { pendingDocumentId = null }
-                            )
+                            DocumentRoute(onAddDocument = goToScan)
                     NestoryDestination.Scan ->
                             OcrRoute(
                                     onBack = { destination = ocrReturnDestination },

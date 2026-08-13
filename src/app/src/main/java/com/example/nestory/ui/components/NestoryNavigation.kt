@@ -80,10 +80,10 @@ fun NestoryBottomBar(
         }
 
         BottomNavItem(
-            icon = AppIcons.FigmaNavFolder,
+            icon = if (currentDestination == NestoryDestination.DocumentKit) AppIcons.NavDocumentEnable else AppIcons.FigmaNavFolder,
             label = "Bộ hồ sơ",
-            selected = false, // Not implemented
-            onClick = { }
+            selected = currentDestination == NestoryDestination.DocumentKit,
+            onClick = { onNavigate(NestoryDestination.DocumentKit) }
         )
         BottomNavItem(
             icon = AppIcons.FigmaNavSettings,

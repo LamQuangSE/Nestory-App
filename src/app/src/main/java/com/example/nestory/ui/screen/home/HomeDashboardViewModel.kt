@@ -6,7 +6,9 @@ import androidx.lifecycle.viewModelScope
 import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
+import com.example.nestory.domain.repository.DocumentKitRepository
 import com.example.nestory.domain.repository.DocumentRepository
+import com.example.nestory.ui.screen.documentkit.KitItemStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,6 +22,7 @@ class HomeDashboardViewModel(
     containerRepository: ContainerRepository,
     categoryRepository: CategoryRepository,
     attachmentRepository: AttachmentRepository,
+    documentKitRepository: DocumentKitRepository,
     private val recentCount: Int = DEFAULT_RECENT_COUNT,
 ) : ViewModel() {
 
@@ -33,8 +36,9 @@ class HomeDashboardViewModel(
                 documentRepository.observeAllDocuments(),
                 containerRepository.observeAllContainers(),
                 categoryRepository.getAllCategories(),
-                attachmentRepository.observeAllAttachments()
-            ) { documents, containers, categories, attachments ->
+                attachmentRepository.observeAllAttachments(),
+                documentKitRepository.observeAllKits(),
+            ) { documents, _, categories, attachments, kits ->
                 val attachmentsByDocId = attachments.groupBy { it.documentId }
                 
                 HomeDashboardUiState(
@@ -52,7 +56,19 @@ class HomeDashboardViewModel(
                                 attachmentUris = attachmentsByDocId[doc.id].orEmpty().map { it.fileUri }
                             )
                         },
-                    rootContainers = containers.filter { it.parentId == null },
+                    documentKits = kits
+                        .sortedByDescending { it.kit.id }
+                        .take(DEFAULT_KIT_COUNT)
+                        .map { kitWithItems ->
+                            HomeDocumentKitUi(
+                                id = kitWithItems.kit.id,
+                                name = kitWithItems.kit.name,
+                                category = kitWithItems.kit.category,
+                                targetCompletionDate = kitWithItems.kit.targetCompletionDate,
+                                totalItems = kitWithItems.items.size,
+                                readyItems = kitWithItems.items.count { it.status == KitItemStatus.READY },
+                            )
+                        },
                     isLoading = false,
                 )
             }
@@ -70,6 +86,7 @@ class HomeDashboardViewModel(
 
     companion object {
         private const val DEFAULT_RECENT_COUNT = 4
+        private const val DEFAULT_KIT_COUNT = 3
     }
 }
 
@@ -78,6 +95,7 @@ class HomeDashboardViewModelFactory(
     private val containerRepository: ContainerRepository,
     private val categoryRepository: CategoryRepository,
     private val attachmentRepository: AttachmentRepository,
+    private val documentKitRepository: DocumentKitRepository,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -87,6 +105,7 @@ class HomeDashboardViewModelFactory(
                 containerRepository = containerRepository,
                 categoryRepository = categoryRepository,
                 attachmentRepository = attachmentRepository,
+                documentKitRepository = documentKitRepository,
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

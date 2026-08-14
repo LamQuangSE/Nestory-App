@@ -1,0 +1,69 @@
+@startuml
+title Nestory - UML Deployment Diagram
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam nodesep 55
+skinparam ranksep 45
+skinparam node {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+}
+skinparam database {
+  BackgroundColor #ECFDF5
+  BorderColor #047857
+}
+skinparam artifact {
+  BackgroundColor #EFF6FF
+  BorderColor #2563EB
+}
+skinparam component {
+  BackgroundColor #F8FAFC
+  BorderColor #64748B
+}
+
+node "Android Device\n<<device>>" as AndroidDevice {
+  node "Android OS / Runtime\n<<execution environment>>" as Runtime {
+    artifact "Nestory APK\n<<artifact>>" as APK {
+      component "UI Layer\nJetpack Compose" as UI
+      component "Domain + ViewModel\nLayer" as Domain
+      component "Data Layer\nRepositories + Managers" as Data
+      component "OCR / Scanner\nML Kit" as OCR
+      component "Vault Unlock\nBiometricPrompt" as Unlock
+    }
+
+    node "Device Hardware / System Services\n<<device service>>" as Services {
+      component "Camera Service" as Camera
+      component "Biometric Sensor /\nDevice Credential" as Credential
+    }
+  }
+
+  node "Internal App Storage\n<<local storage>>" as Storage {
+    database "Room SQLite DB\nnestory_database" as RoomDb
+    artifact "DataStore /\nSharedPreferences" as Preferences
+    artifact "Attachment Files\nscanned images" as Attachments
+  }
+}
+
+UI -down-> Domain : user actions
+Domain -down-> Data : state / use cases
+UI -right-> OCR : scan
+UI -right-> Unlock : unlock
+
+Data -down-> RoomDb : Room / SQLite
+Data -down-> Preferences : settings
+Data -down-> Attachments : file I/O
+
+OCR -right-> Camera : camera
+Unlock -right-> Credential : auth API
+
+legend bottom
+Nestory is deployed as a native Android application.
+No Web server, backend API, Firebase, or network service is deployed for this system.
+endlegend
+
+@enduml

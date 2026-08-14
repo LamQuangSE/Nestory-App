@@ -294,7 +294,12 @@ fun NestoryApp(initialDocumentId: String? = null) {
                             )
                     NestoryDestination.Home ->
                             HomeDashboardRoute(
-                                    onOpenAll = { destination = NestoryDestination.Container },
+                                    onOpenDocuments = {
+                                        destination = NestoryDestination.DocumentSelection
+                                    },
+                                    onOpenDocumentKits = {
+                                        destination = NestoryDestination.DocumentKit
+                                    },
                                     onAddDocument = goToScan,
                                     onRecentDocumentClick = { documentId ->
                                         pendingDocumentId = documentId.toString()

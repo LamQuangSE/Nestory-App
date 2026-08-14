@@ -1,10 +1,8 @@
 package com.example.nestory.ui.screen.home
 
-import com.example.nestory.data.local.entity.ContainerEntity
-
 data class HomeDashboardUiState(
     val recentDocuments: List<RecentDocumentUi> = emptyList(),
-    val rootContainers: List<ContainerEntity> = emptyList(),
+    val documentKits: List<HomeDocumentKitUi> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -16,3 +14,15 @@ data class RecentDocumentUi(
     val expiryDate: String,
     val attachmentUris: List<String> = emptyList(),
 )
+
+data class HomeDocumentKitUi(
+    val id: Long,
+    val name: String,
+    val category: String?,
+    val targetCompletionDate: String,
+    val totalItems: Int,
+    val readyItems: Int,
+) {
+    val progressPercent: Int
+        get() = if (totalItems == 0) 0 else (readyItems * 100) / totalItems
+}

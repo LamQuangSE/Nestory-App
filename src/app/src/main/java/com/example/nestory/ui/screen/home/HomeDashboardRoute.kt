@@ -9,11 +9,13 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.repository.AttachmentRepositoryImpl
 import com.example.nestory.data.repository.ContainerRepositoryImpl
+import com.example.nestory.data.repository.DocumentKitRepositoryImpl
 import com.example.nestory.data.repository.DocumentRepositoryImpl
 
 @Composable
 fun HomeDashboardRoute(
-    onOpenAll: () -> Unit,
+    onOpenDocuments: () -> Unit,
+    onOpenDocumentKits: () -> Unit,
     onAddDocument: () -> Unit,
     onRecentDocumentClick: (Long) -> Unit,
 ) {
@@ -24,7 +26,8 @@ fun HomeDashboardRoute(
             documentRepository = DocumentRepositoryImpl(db.documentDao()),
             containerRepository = ContainerRepositoryImpl(db.containerDao()),
             categoryRepository = com.example.nestory.data.repository.CategoryRepositoryImpl(db.categoryDao()),
-            attachmentRepository = AttachmentRepositoryImpl(db.attachmentDao())
+            attachmentRepository = AttachmentRepositoryImpl(db.attachmentDao()),
+            documentKitRepository = DocumentKitRepositoryImpl(db.documentKitDao()),
         )
     }
     val viewModel: HomeDashboardViewModel = viewModel(factory = factory)
@@ -32,7 +35,8 @@ fun HomeDashboardRoute(
 
     HomeDashboardScreen(
         uiState = uiState,
-        onOpenAll = onOpenAll,
+        onOpenDocuments = onOpenDocuments,
+        onOpenDocumentKits = onOpenDocumentKits,
         onAddDocument = onAddDocument,
         onRecentDocumentClick = onRecentDocumentClick,
     )

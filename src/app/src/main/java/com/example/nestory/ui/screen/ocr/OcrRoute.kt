@@ -3,6 +3,7 @@ package com.example.nestory.ui.screen.ocr
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -345,12 +346,17 @@ fun OcrRoute(
                 }
 
                 else -> {
-                    ScannerOpeningScreen()
+                    ScannerOpeningScreen(onBack = onBack)
                 }
             }
         }
 
         is OcrUiState.Processing -> {
+            BackHandler {
+                viewModel.cancelOcr()
+                onBack()
+            }
+
             NestoryScreen(
                 useStatusBarPadding = true,
                 verticalPadding = 20.dp,
@@ -372,6 +378,11 @@ fun OcrRoute(
         }
 
         is OcrUiState.Error -> {
+            BackHandler {
+                viewModel.cancelOcr()
+                onBack()
+            }
+
             NestoryScreen(
                 useStatusBarPadding = true,
                 verticalPadding = 20.dp,
@@ -426,7 +437,11 @@ fun OcrRoute(
 }
 
 @Composable
-private fun ScannerOpeningScreen() {
+private fun ScannerOpeningScreen(
+    onBack: () -> Unit,
+) {
+    BackHandler(onBack = onBack)
+
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -448,6 +463,8 @@ private fun ScannerErrorScreen(
     onRetry: () -> Unit,
     onBack: () -> Unit,
 ) {
+    BackHandler(onBack = onBack)
+
     NestoryScreen(
         useStatusBarPadding = true,
         verticalPadding = 20.dp,

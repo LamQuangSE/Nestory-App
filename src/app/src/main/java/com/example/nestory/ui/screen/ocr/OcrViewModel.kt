@@ -98,7 +98,7 @@ class OcrViewModel(
     fun updateDraft(draft: DocumentDraft) {
         _fieldErrors.value = OcrFieldErrors()
         val current = _uiState.value as? OcrUiState.Success ?: return
-        _uiState.value = OcrUiState.Success(draft)
+        _uiState.value = current.copy(draft = draft)
     }
 
     fun saveDocument(onSaved: (Long) -> Unit) {
@@ -115,7 +115,7 @@ class OcrViewModel(
             
             val document = DocumentEntity(
                 title = draft.title,
-                categoryId = "", // OCR chưa có chọn danh mục động, tạm lưu rỗng
+                categoryId = draft.categoryId ?: draft.category?.name.orEmpty(),
                 expirationDate = draft.expiryDate,
                 notes = draft.notes,
                 containerId = containerId,
@@ -200,7 +200,7 @@ class OcrViewModel(
         val expiryDate = draft.expiryDate.orEmpty()
         return OcrFieldErrors(
             title = draft.title.isBlank(),
-            category = draft.category == null,
+            category = draft.categoryId.isNullOrBlank() && draft.category == null,
             issueDate = issueDate.isNotBlank() && DocumentStatusCalculator.parseExpirationDate(issueDate) == null,
             expiryDate = expiryDate.isNotBlank() && DocumentStatusCalculator.parseExpirationDate(expiryDate) == null,
             container = draft.containerId == null,

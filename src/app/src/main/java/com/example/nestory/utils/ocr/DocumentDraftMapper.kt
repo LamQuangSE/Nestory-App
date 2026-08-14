@@ -17,6 +17,7 @@ class DocumentDraftMapper(
         return DocumentDraft(
             title = title,
             category = categoryEnum,
+            categoryName = categoryEnum?.toVietnameseLabel(),
             issueDate = result.issueDate,
             expiryDate = result.expiryDate,
             documentNumber = result.documentNumber,
@@ -37,5 +38,4 @@ class DocumentDraftMapper(
         }
     }
 }
-
 

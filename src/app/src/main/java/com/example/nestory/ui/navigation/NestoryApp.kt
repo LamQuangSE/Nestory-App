@@ -1,5 +1,6 @@
 package com.example.nestory.ui.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.core.tween
@@ -150,6 +151,29 @@ fun NestoryApp(initialDocumentId: String? = null) {
             editLeaveRequested = true
         } else {
             destination = target
+        }
+    }
+
+    BackHandler(
+        enabled = when (destination) {
+            NestoryDestination.Category,
+            NestoryDestination.Container,
+            NestoryDestination.Settings,
+            NestoryDestination.ExpiryReminderSettings,
+            NestoryDestination.DocumentSelection,
+            NestoryDestination.DocumentKit -> true
+            else -> false
+        },
+    ) {
+        if (isEditingMode) {
+            pendingLeaveDestination = NestoryDestination.Home
+            pendingScanLinkItemId = null
+            editLeaveRequested = true
+        } else {
+            destination = when (destination) {
+                NestoryDestination.ExpiryReminderSettings -> NestoryDestination.Settings
+                else -> NestoryDestination.Home
+            }
         }
     }
 

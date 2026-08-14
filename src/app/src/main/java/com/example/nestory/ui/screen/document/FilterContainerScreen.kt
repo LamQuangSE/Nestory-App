@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.document
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -55,6 +56,8 @@ fun FilterContainerScreen(
             onBack()
         }
     }
+
+    BackHandler(onBack = handleBack)
 
     NestoryScreen(verticalPadding = 20.dp, useStatusBarPadding = true) {
         Column(modifier = Modifier.fillMaxSize()) {

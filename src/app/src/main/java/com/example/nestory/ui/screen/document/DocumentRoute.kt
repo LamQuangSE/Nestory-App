@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.document
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
@@ -84,6 +85,19 @@ fun DocumentRoute(
         val message = uiState.errorMessage ?: return@LaunchedEffect
         snackbarHostState.showSnackbar(message)
         viewModel.clearError()
+    }
+
+    BackHandler(
+        enabled = subScreen == DocumentSubScreen.Filter ||
+            subScreen == DocumentSubScreen.FilterCategory ||
+            subScreen == DocumentSubScreen.FilterContainer,
+    ) {
+        subScreen = when (subScreen) {
+            DocumentSubScreen.Filter -> DocumentSubScreen.Selection
+            DocumentSubScreen.FilterCategory,
+            DocumentSubScreen.FilterContainer -> DocumentSubScreen.Filter
+            else -> subScreen
+        }
     }
 
     when (subScreen) {

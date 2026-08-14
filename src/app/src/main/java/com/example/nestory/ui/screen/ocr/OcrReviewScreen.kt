@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -32,6 +33,7 @@ import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryScreen
 import com.example.nestory.ui.components.PrimaryActionButton
 import com.example.nestory.ui.screen.category.CategoryRoute
+import com.example.nestory.ui.screen.category.CategoryUiModel
 import com.example.nestory.ui.screen.container.ContainerRoute
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
@@ -55,29 +57,50 @@ fun OcrReviewScreen(
     onBack: () -> Unit,
     onSave: () -> Unit,
     fieldErrors: OcrFieldErrors = OcrFieldErrors(),
+    categorySelectionContent: (@Composable (
+        onBack: () -> Unit,
+        onConfirmSelection: (CategoryUiModel) -> Unit,
+    ) -> Unit)? = null,
 ) {
     var subScreen by remember { mutableStateOf(OcrReviewSubScreen.Review) }
     var datePickerTarget by remember { mutableStateOf<DatePickerTarget?>(null) }
     var showDiscardDialog by remember { mutableStateOf(false) }
 
     val selectedContainer = containers.firstOrNull { it.id == draft.containerId }
-
-    BackHandler(enabled = subScreen != OcrReviewSubScreen.Review) {
+    val selectedCategoryName = draft.categoryName
+        ?: draft.category?.toVietnameseLabel()
+        ?: "Chưa xác định"
+    val onCategorySelected: (CategoryUiModel) -> Unit = { category ->
+        val matchedCategory = DocumentCategory.entries.find { it.toVietnameseLabel() == category.name }
+        onDraftChange(
+            draft.copy(
+                category = matchedCategory,
+                categoryId = category.id,
+                categoryName = category.name,
+            ),
+        )
         subScreen = OcrReviewSubScreen.Review
     }
 
+    BackHandler {
+        when {
+            showDiscardDialog -> showDiscardDialog = false
+            datePickerTarget != null -> datePickerTarget = null
+            subScreen != OcrReviewSubScreen.Review -> subScreen = OcrReviewSubScreen.Review
+            else -> showDiscardDialog = true
+        }
+    }
+
     if (subScreen == OcrReviewSubScreen.CategorySelection) {
-        CategoryRoute(
-            onBack = { subScreen = OcrReviewSubScreen.Review },
-            onConfirmSelection = { category ->
-                // Assuming CategoryUiModel name maps to DocumentCategory or similar logic
-                // For now, try to find matching enum or default to IDENTITY
-                val matchedCategory = DocumentCategory.entries.find { it.toVietnameseLabel() == category.name }
-                    ?: DocumentCategory.OTHER
-                onDraftChange(draft.copy(category = matchedCategory))
-                subScreen = OcrReviewSubScreen.Review
-            }
-        )
+        val handleBack = { subScreen = OcrReviewSubScreen.Review }
+        if (categorySelectionContent != null) {
+            categorySelectionContent(handleBack, onCategorySelected)
+        } else {
+            CategoryRoute(
+                onBack = handleBack,
+                onConfirmSelection = onCategorySelected,
+            )
+        }
         return
     }
 
@@ -177,7 +200,7 @@ fun OcrReviewScreen(
 
                 ReviewField(
                     label = "Danh mục",
-                    value = draft.category?.toVietnameseLabel() ?: "Chưa xác định",
+                    value = selectedCategoryName,
                     hint = "Chọn danh mục",
                     onClick = { subScreen = OcrReviewSubScreen.CategorySelection },
                     errorText = if (fieldErrors.category) "Vui lòng chọn danh mục" else null,
@@ -314,6 +337,7 @@ private fun ReviewField(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(45.dp)
+                .testTag("ReviewField:$label")
                 .clip(NestoryRadius.R10)
                 .background(GeneratedColor.FigmaF3f6ff)
                 .border(

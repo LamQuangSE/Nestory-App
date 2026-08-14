@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.category
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -77,6 +78,14 @@ fun CategoryScreen(
     }
     val selectedCategory = uiState.categories.firstOrNull { it.id == uiState.selectedCategoryId }
     val deleteTarget = uiState.categories.firstOrNull { it.id == uiState.deleteTargetId }
+
+    BackHandler {
+        when {
+            uiState.isDeleteDialogVisible -> onEvent(CategoryEvent.OnDismissDeleteDialog)
+            uiState.mode == CategoryMode.Selection -> onBack()
+            else -> onEvent(CategoryEvent.OnCancelForm)
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Surface(

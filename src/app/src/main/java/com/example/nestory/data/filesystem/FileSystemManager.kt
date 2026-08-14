@@ -6,14 +6,14 @@ import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class FileSystemManager(private val context: Context) {
+class FileSystemManager(private val context: Context) : VaultInitializer {
 
     fun isVaultInitialized(): Boolean {
         val prefs = context.getSharedPreferences("nestory_vault_prefs", Context.MODE_PRIVATE)
         return prefs.getBoolean("vault_initialized", false)
     }
 
-    suspend fun createVaultStructure(): VaultCreationResult = withContext(Dispatchers.IO) {
+    override suspend fun createVaultStructure(): VaultCreationResult = withContext(Dispatchers.IO) {
         val completedSteps = mutableListOf<VaultCreationStep>()
 
         val filesReady = runCatching { ensureDirectory(context.filesDir) }.getOrElse {

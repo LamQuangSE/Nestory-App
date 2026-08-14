@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.setting
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -88,6 +89,8 @@ fun SettingScreen(
     onExportBackupClick: () -> Unit = {},
     onRestoreBackupClick: () -> Unit = {},
 ) {
+    BackHandler(onBack = onBack)
+
     NestoryScreen(
         horizontalPadding = 20.dp,
         verticalPadding = 0.dp,
@@ -139,6 +142,8 @@ fun ExpiryReminderSettingScreen(
     onStateChange: (ExpiryReminderUiState) -> Unit,
     onBack: () -> Unit,
 ) {
+    BackHandler(onBack = onBack)
+
     // Local state for immediate feedback to avoid flickering from async DataStore updates
     var localState by remember { mutableStateOf(state) }
     

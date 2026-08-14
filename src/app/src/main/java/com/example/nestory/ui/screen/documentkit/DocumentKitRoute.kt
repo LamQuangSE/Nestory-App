@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.documentkit
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -131,6 +132,40 @@ fun DocumentKitRoute(
                 isFavorite = doc.isFavorite,
             )
         }
+
+    BackHandler(
+        enabled = when {
+            subScreen == DocumentKitSubScreen.Create && editingKit != null -> false
+            subScreen == DocumentKitSubScreen.ItemCreate && editingItem != null -> false
+            subScreen == DocumentKitSubScreen.LinkedDocDetail -> false
+            else -> true
+        },
+    ) {
+        when {
+            showLinkSourceSheet -> showLinkSourceSheet = false
+            showDocumentPicker -> showDocumentPicker = false
+            showUnlinkConfirmDialog -> showUnlinkConfirmDialog = false
+            showConfirmDialog -> {
+                showConfirmDialog = false
+                pendingForm = null
+            }
+            showItemConfirmDialog -> {
+                showItemConfirmDialog = false
+                pendingItemForm = null
+            }
+            subScreen == DocumentKitSubScreen.List -> onBack()
+            subScreen == DocumentKitSubScreen.Create -> subScreen = DocumentKitSubScreen.List
+            subScreen == DocumentKitSubScreen.Detail -> subScreen = DocumentKitSubScreen.List
+            subScreen == DocumentKitSubScreen.ItemList -> subScreen = DocumentKitSubScreen.Detail
+            subScreen == DocumentKitSubScreen.ItemCreate -> subScreen = DocumentKitSubScreen.ItemList
+            subScreen == DocumentKitSubScreen.ItemDetail -> subScreen = DocumentKitSubScreen.ItemList
+            subScreen == DocumentKitSubScreen.LinkedDocDetail -> {
+                viewingDocumentId = null
+                subScreen = linkedDocReturnSubScreen
+            }
+        }
+    }
+
     when (subScreen) {
         DocumentKitSubScreen.List -> {
             DocumentKitListScreen(

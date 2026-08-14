@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.scanner
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -10,6 +11,14 @@ fun ScannerScreen(
     uiState: ScannerUiState,
     onEvent: (ScannerEvent) -> Unit
 ) {
+    BackHandler {
+        when (uiState.mode) {
+            ScannerMode.Crop -> onEvent(ScannerEvent.OnCloseCropClick)
+            ScannerMode.FullscreenView,
+            ScannerMode.Preview -> onEvent(ScannerEvent.OnBackClick)
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         when (uiState.mode) {
             ScannerMode.Preview -> {

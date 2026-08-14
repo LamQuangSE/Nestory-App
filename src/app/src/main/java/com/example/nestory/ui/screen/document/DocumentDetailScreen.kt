@@ -82,11 +82,17 @@ fun DocumentDetailScreen(
         editedContainerPath = document.containerPath
     }
 
-    BackHandler(enabled = isEditMode || subScreen != DocumentDetailSubScreen.Main) {
-        if (subScreen != DocumentDetailSubScreen.Main) {
-            subScreen = DocumentDetailSubScreen.Main
-        } else {
-            showEditConfirmDialog = true
+    BackHandler {
+        when {
+            showEditConfirmDialog -> {
+                showEditConfirmDialog = false
+                if (editLeaveRequested) onEditLeaveDismiss()
+            }
+            showDeleteConfirmDialog -> showDeleteConfirmDialog = false
+            showDatePicker -> showDatePicker = false
+            subScreen != DocumentDetailSubScreen.Main -> subScreen = DocumentDetailSubScreen.Main
+            isEditMode -> showEditConfirmDialog = true
+            else -> onBack()
         }
     }
 
@@ -267,7 +273,7 @@ fun DocumentDetailScreen(
                 ) {
                     DetailField(
                         label = "Nơi lưu trữ hiện tại",
-                        value = if (isEditMode) editedContainerPath else "Ngăn 4", // Default value from before, should probably use document.containerPath
+                        value = if (isEditMode) editedContainerPath else currentContainerName(document.containerPath),
                         isEditMode = isEditMode,
                         hint = "Chọn container",
                         onClick = if (isEditMode) { { subScreen = DocumentDetailSubScreen.ContainerSelection } } else null
@@ -313,6 +319,7 @@ fun DocumentDetailScreen(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 document.attachmentUris.forEach { fileUri ->
+                                    val fileName = attachmentFileName(fileUri)
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -332,7 +339,7 @@ fun DocumentDetailScreen(
                                                 )
                                                 Spacer(modifier = Modifier.height(8.dp))
                                                 Text(
-                                                    text = "Tệp PDF: " + attachmentFileName(fileUri),
+                                                    text = fileName,
                                                     style = NestoryTextStyles.Body12Semi,
                                                     color = GeneratedColor.Figma000000
                                                 )
@@ -344,6 +351,16 @@ fun DocumentDetailScreen(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 contentScale = ContentScale.FillWidth,
                                                 error = painterResource(AppIcons.FigmaDocument)
+                                            )
+                                            Text(
+                                                text = fileName,
+                                                style = NestoryTextStyles.Body12Semi,
+                                                color = GeneratedColor.Figma000000,
+                                                modifier = Modifier
+                                                    .align(Alignment.BottomCenter)
+                                                    .fillMaxWidth()
+                                                    .background(GeneratedColor.FigmaFfffff.copy(alpha = 0.92f))
+                                                    .padding(horizontal = 12.dp, vertical = 8.dp)
                                             )
                                         }
                                     }
@@ -648,6 +665,9 @@ private fun EditActions(
 
 internal fun attachmentFileName(filePath: String): String =
     filePath.substringAfterLast('/').ifBlank { filePath }
+
+internal fun currentContainerName(containerPath: String): String =
+    containerPath.substringAfterLast(" > ").ifBlank { containerPath }
 
 @Preview(showBackground = true)
 @Composable

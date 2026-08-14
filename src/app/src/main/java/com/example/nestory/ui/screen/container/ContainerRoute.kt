@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.container
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,6 +26,17 @@ fun ContainerRoute(
     var searchQuery by remember { mutableStateOf("") }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<ContainerEntity?>(null) }
+
+    BackHandler {
+        when {
+            showDeleteDialog -> {
+                showDeleteDialog = false
+                deleteTarget = null
+            }
+            subScreen == ContainerSubScreen.Selection -> onBack()
+            else -> subScreen = ContainerSubScreen.Selection
+        }
+    }
 
     when (subScreen) {
         ContainerSubScreen.Selection -> {

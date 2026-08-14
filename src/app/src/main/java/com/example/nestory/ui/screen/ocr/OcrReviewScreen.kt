@@ -12,7 +12,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -26,18 +25,15 @@ import com.example.nestory.domain.model.DocumentDraft
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryScreen
 import com.example.nestory.ui.components.PrimaryActionButton
-import com.example.nestory.ui.screen.document.parseExpirationDate
+import com.example.nestory.ui.screen.document.DocumentStatusCalculator
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestoryTextStyles
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
+import androidx.compose.ui.graphics.Color
 
-/**
- * Auto-fill review form. Displays the OCR-derived [DocumentDraft], lets the
- * user correct fields and pick a container, then saves.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OcrReviewScreen(
@@ -85,7 +81,6 @@ fun OcrReviewScreen(
                 )
             }
 
-            // Section 1: Thông tin chính
             ReviewSection(
                 title = "Thông tin chính",
                 icon = AppIcons.DocumentMainInfo
@@ -145,7 +140,6 @@ fun OcrReviewScreen(
                 }
             }
 
-            // Section 2: Thời hạn
             ReviewSection(
                 title = "Thời hạn",
                 icon = AppIcons.DocumentDeadline
@@ -159,7 +153,6 @@ fun OcrReviewScreen(
                 )
             }
 
-            // Section 3: Vị trí lưu trữ
             ReviewSection(
                 title = "Vị trí lưu trữ",
                 icon = AppIcons.DocumentStorage
@@ -203,7 +196,6 @@ fun OcrReviewScreen(
                 }
             }
             
-            // Other fields (Holder Name, etc.) could be in another section or main info
             ReviewSection(
                 title = "Thông tin bổ sung",
                 icon = AppIcons.NestoryNote
@@ -530,6 +522,7 @@ private fun DialogActionButton(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun OcrDatePickerDialog(
     initialDate: String?,
@@ -538,7 +531,7 @@ private fun OcrDatePickerDialog(
 ) {
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = initialDate?.let {
-            parseExpirationDate(it)
+            DocumentStatusCalculator.parseExpirationDate(it)
                 ?.atStartOfDay(ZoneOffset.UTC)
                 ?.toInstant()
                 ?.toEpochMilli()
@@ -580,4 +573,3 @@ internal fun categoryLabel(category: DocumentCategory): String = when (category)
     DocumentCategory.HEALTH -> "Sức khỏe"
     DocumentCategory.OTHER -> "Khác"
 }
-

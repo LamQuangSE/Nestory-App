@@ -14,7 +14,7 @@ import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentRepository
 import com.example.nestory.domain.repository.KitItemRepository
-import com.example.nestory.ui.screen.document.parseExpirationDate
+import com.example.nestory.ui.screen.document.DocumentStatusCalculator
 import com.example.nestory.ui.screen.documentkit.KitItemStatus
 import com.example.nestory.utils.ocr.CategoryDetector
 import com.example.nestory.utils.ocr.DocumentDraftMapper
@@ -28,10 +28,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/**
- * Orchestrates the full flow:
- * Image -> OcrRepository -> Parser -> CategoryDetector -> DocumentDraftMapper -> UiState.
- */
 class OcrViewModel(
     private val ocrRepository: OcrRepository,
     private val parser: OcrTextParser,
@@ -113,9 +109,10 @@ class OcrViewModel(
 
         viewModelScope.launch {
             val containerId = draft.containerId ?: return@launch
+            
             val document = DocumentEntity(
                 title = draft.title,
-                category = draft.category ?: DocumentCategory.OTHER,
+                categoryId = "", // OCR chưa có chọn danh mục động, tạm lưu rỗng
                 expirationDate = draft.expiryDate,
                 notes = draft.notes,
                 containerId = containerId,
@@ -193,12 +190,14 @@ class OcrViewModel(
         }
     }
 
-    private fun validateDraft(draft: DocumentDraft): OcrFieldErrors {
+    private fun validateDraft(draft: DocumentDraft): OcrFieldErrors {        
+        val issueDate = draft.issueDate.orEmpty()
         val expiryDate = draft.expiryDate.orEmpty()
         return OcrFieldErrors(
             title = draft.title.isBlank(),
             category = draft.category == null,
-            expiryDate = expiryDate.isBlank() || parseExpirationDate(expiryDate) == null,
+            issueDate = issueDate.isNotBlank() && DocumentStatusCalculator.parseExpirationDate(issueDate) == null,
+            expiryDate = expiryDate.isNotBlank() && DocumentStatusCalculator.parseExpirationDate(expiryDate) == null,
             container = draft.containerId == null,
         )
     }
@@ -207,10 +206,11 @@ class OcrViewModel(
 data class OcrFieldErrors(
     val title: Boolean = false,
     val category: Boolean = false,
+    val issueDate: Boolean = false,
     val expiryDate: Boolean = false,
     val container: Boolean = false,
 ) {
-    val hasErrors: Boolean get() = title || category || expiryDate || container
+    val hasErrors: Boolean get() = title || category || issueDate || expiryDate || container
 }
 
 class OcrViewModelFactory(

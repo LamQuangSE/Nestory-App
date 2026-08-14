@@ -61,4 +61,7 @@ object GeneratedColor {
     val FigmaEeeeee = Color(0xFFEEEEEE)
     val FigmaFef2f2 = Color(0xFFFEF2F2)
     val FigmaEf4444 = Color(0xFFEF4444)
+
+    val FigmaD0cfd1 = Color(0xFFD0CFD1)
+    val FigmaC2c2c4 = Color(0xFFC2C2C4)
 }

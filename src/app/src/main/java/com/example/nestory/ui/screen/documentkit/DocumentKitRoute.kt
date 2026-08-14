@@ -22,9 +22,8 @@ import com.example.nestory.domain.model.ExpiryReminderSettings
 import com.example.nestory.ui.screen.document.DocumentDetailScreen
 import com.example.nestory.ui.screen.document.DocumentUiModel
 import com.example.nestory.ui.screen.document.buildContainerPath
-import com.example.nestory.ui.screen.document.calculateDocumentStatus
-import com.example.nestory.ui.screen.document.categoryColor
-import com.example.nestory.ui.screen.document.categoryLabel
+import com.example.nestory.ui.screen.document.DocumentStatusCalculator
+import androidx.compose.ui.graphics.Color
 
 enum class DocumentKitSubScreen {
     List,
@@ -120,19 +119,18 @@ fun DocumentKitRoute(
 
     val viewingDocument = viewingDocumentId?.let { id -> allDocuments.find { it.id == id } }
     val viewingDocumentUi = viewingDocument?.let { doc ->
-        DocumentUiModel(
-            id = doc.id.toString(),
-            name = doc.title,
-            category = categoryLabel(doc.category),
-            containerPath = buildContainerPath(doc.containerId, containers),
-            containerId = doc.containerId,
-            status = calculateDocumentStatus(doc.expirationDate, ExpiryReminderSettings()),
-            expiryDate = doc.expirationDate ?: "Chưa có hạn",
-            categoryColor = categoryColor(doc.category),
-            isFavorite = doc.isFavorite,
-        )
-    }
-
+            DocumentUiModel(
+                id = doc.id.toString(),
+                name = doc.title,
+                category = "Chưa phân loại",
+                containerPath = buildContainerPath(doc.containerId, containers),
+                containerId = doc.containerId,
+                status = DocumentStatusCalculator.calculate(doc.expirationDate, ExpiryReminderSettings()),
+                expiryDate = doc.expirationDate ?: "Chưa có hạn",
+                categoryColor = Color(0xFF717171),
+                isFavorite = doc.isFavorite,
+            )
+        }
     when (subScreen) {
         DocumentKitSubScreen.List -> {
             DocumentKitListScreen(

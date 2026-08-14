@@ -3,7 +3,7 @@ package com.example.nestory.ui.screen.documentkit
 import com.example.nestory.data.local.entity.DocumentEntity
 import com.example.nestory.data.local.entity.KitItemEntity
 import com.example.nestory.relation.KitWithItems
-import com.example.nestory.ui.screen.document.parseExpirationDate
+import com.example.nestory.ui.screen.document.DocumentStatusCalculator
 import java.time.LocalDate
 import kotlin.math.roundToInt
 
@@ -92,7 +92,7 @@ private fun resolveKitItemStatus(
     document: DocumentEntity?,
 ): String {
     val linkedDocExpired = document?.expirationDate
-        ?.let(::parseExpirationDate)
+        ?.let { DocumentStatusCalculator.parseExpirationDate(it) }
         ?.isBefore(LocalDate.now()) == true
     if (linkedDocExpired) {
         return KitItemStatus.EXPIRED

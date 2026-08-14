@@ -22,6 +22,8 @@ private enum class DocumentSubScreen {
     Selection,
     Detail,
     Filter,
+    FilterCategory,
+    FilterContainer
 }
 
 @Composable
@@ -42,10 +44,15 @@ fun DocumentRoute(
     val settingsRepository = remember {
         ExpiryReminderSettingsRepository(context.applicationContext)
     }
+    
+    val categoryRepository = remember { 
+        com.example.nestory.data.repository.CategoryRepositoryImpl(db.categoryDao()) 
+    }
     val factory = remember {
         DocumentViewModelFactory(
             documentRepository = documentRepository,
             containerRepository = containerRepository,
+            categoryRepository = categoryRepository,
             attachmentRepository = attachmentRepository,
             expiryReminderSettings = settingsRepository.settings,
         )
@@ -88,7 +95,10 @@ fun DocumentRoute(
                     viewModel.selectDocument(documentId)
                     subScreen = DocumentSubScreen.Detail
                 },
-                onFilterClick = { subScreen = DocumentSubScreen.Filter },
+                onFilterClick = { 
+                    viewModel.syncDraftWithActiveFilter()
+                    subScreen = DocumentSubScreen.Filter 
+                },
                 onSearchQueryChange = viewModel::onSearchQueryChange,
             )
         }
@@ -132,9 +142,39 @@ fun DocumentRoute(
 
         DocumentSubScreen.Filter -> {
             FilterSelectionScreen(
+                uiState = uiState,
                 onBack = { subScreen = DocumentSubScreen.Selection },
-                onApply = { subScreen = DocumentSubScreen.Selection },
-                onReset = {},
+                onApply = { 
+                    viewModel.applyFilter()
+                    subScreen = DocumentSubScreen.Selection 
+                },
+                onReset = { viewModel.resetFilter() },
+                onCategoryClick = { subScreen = DocumentSubScreen.FilterCategory },
+                onContainerClick = { subScreen = DocumentSubScreen.FilterContainer },
+                onFavoriteToggle = { viewModel.updateDraftFavorite(it) },
+                onStatusToggle = { viewModel.toggleDraftStatus(it) }
+            )
+        }
+
+        DocumentSubScreen.FilterCategory -> {
+            FilterCategoryScreen(
+                uiState = uiState,
+                onBack = { subScreen = DocumentSubScreen.Filter },
+                onCategorySelected = { category ->
+                    viewModel.updateDraftCategory(category)
+                    subScreen = DocumentSubScreen.Filter
+                }
+            )
+        }
+
+        DocumentSubScreen.FilterContainer -> {
+            FilterContainerScreen(
+                uiState = uiState,
+                onBack = { subScreen = DocumentSubScreen.Filter },
+                onContainerSelected = { containerId ->
+                    viewModel.updateDraftContainer(containerId)
+                    subScreen = DocumentSubScreen.Filter
+                }
             )
         }
     }

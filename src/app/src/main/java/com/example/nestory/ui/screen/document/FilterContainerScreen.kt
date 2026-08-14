@@ -114,7 +114,7 @@ fun FilterContainerScreen(
             Row(modifier = Modifier.fillMaxWidth().height(50.dp).padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 // 1. Nút Chi tiết
                 val detailBg = if (canViewDetails) Color(0xFF6155F5) else GeneratedColor.FigmaF3f6ff
-                val detailTextColor = if (canViewDetails) Color.White else GeneratedColor.FigmaC2c2c4
+                val detailTextColor = if (canViewDetails) Color.White else Color(0xFFC2C2C4)
                 Box(
                     modifier = Modifier.weight(1f).fillMaxHeight().clip(NestoryRadius.R10).background(detailBg)
                         .clickable(enabled = canViewDetails) {

@@ -14,4 +14,5 @@ data class RecentDocumentUi(
     val title: String,
     val categoryLabel: String,
     val expiryDate: String,
+    val attachmentUris: List<String> = emptyList(),
 )

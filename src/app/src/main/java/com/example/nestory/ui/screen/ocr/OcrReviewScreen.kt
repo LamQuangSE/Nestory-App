@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.ocr
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -12,12 +13,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.window.Dialog
+import coil.compose.AsyncImage
 import com.example.nestory.R
 import com.example.nestory.data.local.entity.ContainerEntity
 import com.example.nestory.domain.model.DocumentCategory
@@ -25,30 +31,77 @@ import com.example.nestory.domain.model.DocumentDraft
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryScreen
 import com.example.nestory.ui.components.PrimaryActionButton
-import com.example.nestory.ui.screen.document.DocumentStatusCalculator
+import com.example.nestory.ui.screen.category.CategoryRoute
+import com.example.nestory.ui.screen.container.ContainerRoute
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestoryTextStyles
-import java.time.Instant
-import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
-import androidx.compose.ui.graphics.Color
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
+
+enum class OcrReviewSubScreen { Review, CategorySelection, ContainerSelection }
+enum class DatePickerTarget { ExpiryDate }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OcrReviewScreen(
     draft: DocumentDraft,
+    bitmaps: List<android.graphics.Bitmap>,
     containers: List<ContainerEntity>,
     onDraftChange: (DocumentDraft) -> Unit,
     onBack: () -> Unit,
     onSave: () -> Unit,
     fieldErrors: OcrFieldErrors = OcrFieldErrors(),
 ) {
-    var categoryMenuOpen by remember { mutableStateOf(false) }
-    var containerMenuOpen by remember { mutableStateOf(false) }
+    var subScreen by remember { mutableStateOf(OcrReviewSubScreen.Review) }
+    var datePickerTarget by remember { mutableStateOf<DatePickerTarget?>(null) }
     var showDiscardDialog by remember { mutableStateOf(false) }
-    var showExpiryPicker by remember { mutableStateOf(false) }
+
     val selectedContainer = containers.firstOrNull { it.id == draft.containerId }
+
+    BackHandler(enabled = subScreen != OcrReviewSubScreen.Review) {
+        subScreen = OcrReviewSubScreen.Review
+    }
+
+    if (subScreen == OcrReviewSubScreen.CategorySelection) {
+        CategoryRoute(
+            onBack = { subScreen = OcrReviewSubScreen.Review },
+            onConfirmSelection = { category ->
+                // Assuming CategoryUiModel name maps to DocumentCategory or similar logic
+                // For now, try to find matching enum or default to IDENTITY
+                val matchedCategory = DocumentCategory.entries.find { it.toVietnameseLabel() == category.name }
+                    ?: DocumentCategory.OTHER
+                onDraftChange(draft.copy(category = matchedCategory))
+                subScreen = OcrReviewSubScreen.Review
+            }
+        )
+        return
+    }
+
+    if (subScreen == OcrReviewSubScreen.ContainerSelection) {
+        ContainerRoute(
+            onBack = { subScreen = OcrReviewSubScreen.Review },
+            onConfirmSelection = { container ->
+                onDraftChange(draft.copy(containerId = container.id))
+                subScreen = OcrReviewSubScreen.Review
+            }
+        )
+        return
+    }
+
+    if (datePickerTarget != null) {
+        OcrDatePickerDialog(
+            initialDate = draft.expiryDate,
+            onConfirm = { selected ->
+                onDraftChange(draft.copy(expiryDate = selected))
+                datePickerTarget = null
+            },
+            onDismiss = { datePickerTarget = null },
+        )
+    }
 
     NestoryScreen(
         scrollable = true,
@@ -81,6 +134,35 @@ fun OcrReviewScreen(
                 )
             }
 
+            if (bitmaps.isNotEmpty()) {
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    items(bitmaps) { bitmap ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(150.dp)
+                                .clip(NestoryRadius.R15)
+                                .background(GeneratedColor.FigmaF3f6ff)
+                                .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R15),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Image(
+                                bitmap = bitmap.asImageBitmap(),
+                                contentDescription = "Document Preview",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+                }
+            }
+
             ReviewSection(
                 title = "Thông tin chính",
                 icon = AppIcons.DocumentMainInfo
@@ -93,63 +175,26 @@ fun OcrReviewScreen(
                     errorText = if (fieldErrors.title) "Vui lòng nhập tên giấy tờ" else null,
                 )
 
-                // Danh mục field
-                val categoryError = fieldErrors.category
-                Column(modifier = Modifier.padding(bottom = 12.dp)) {
-                    Text(
-                        text = "Danh mục",
-                        style = NestoryTextStyles.Body12Semi,
-                        color = GeneratedColor.Figma000000
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { categoryMenuOpen = true },
-                    ) {
-                        ReviewReadOnlyField(
-                            value = draft.category?.toVietnameseLabel() ?: "Chưa xác định",
-                            hint = "Chọn hoặc nhập danh mục",
-                            error = categoryError,
-                        )
-                        DropdownMenu(
-                            expanded = categoryMenuOpen,
-                            onDismissRequest = { categoryMenuOpen = false },
-                        ) {
-                            DocumentCategory.entries.forEach { category ->
-                                DropdownMenuItem(
-                                    text = { Text(text = category.toVietnameseLabel()) },
-                                    onClick = {
-                                        onDraftChange(draft.copy(category = category))
-                                        categoryMenuOpen = false
-                                    },
-                                )
-                            }
-                            DropdownMenuItem(
-                                text = { Text(text = "Chưa xác định") },
-                                onClick = {
-                                    onDraftChange(draft.copy(category = null))
-                                    categoryMenuOpen = false
-                                },
-                            )
-                        }
-                    }
-                    if (categoryError) {
-                        FieldErrorText(text = "Vui lòng chọn danh mục")
-                    }
-                }
+                ReviewField(
+                    label = "Danh mục",
+                    value = draft.category?.toVietnameseLabel() ?: "Chưa xác định",
+                    hint = "Chọn danh mục",
+                    onClick = { subScreen = OcrReviewSubScreen.CategorySelection },
+                    errorText = if (fieldErrors.category) "Vui lòng chọn danh mục" else null,
+                )
             }
 
             ReviewSection(
                 title = "Thời hạn",
                 icon = AppIcons.DocumentDeadline
             ) {
-                ReviewDateField(
+                ReviewField(
                     label = "Ngày hết hạn",
-                    value = draft.expiryDate,
-                    hint = "DD/MM/YYYY",
-                    onClick = { showExpiryPicker = true },
-                    error = fieldErrors.expiryDate,
+                    value = draft.expiryDate.orEmpty(),
+                    hint = "Chọn ngày hết hạn",
+                    onClick = { datePickerTarget = DatePickerTarget.ExpiryDate },
+                    errorText = if (fieldErrors.expiryDate) "Ngày hết hạn không hợp lệ" else null,
+                    trailingIcon = AppIcons.KitCalendar
                 )
             }
 
@@ -157,43 +202,13 @@ fun OcrReviewScreen(
                 title = "Vị trí lưu trữ",
                 icon = AppIcons.DocumentStorage
             ) {
-                val containerError = fieldErrors.container
-                Column(modifier = Modifier.padding(bottom = 12.dp)) {
-                    Text(
-                        text = "Nơi lưu trữ hiện tại",
-                        style = NestoryTextStyles.Body12Semi,
-                        color = GeneratedColor.Figma000000
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { containerMenuOpen = true },
-                    ) {
-                        ReviewReadOnlyField(
-                            value = selectedContainer?.name.orEmpty(),
-                            hint = "Chọn container",
-                            error = containerError,
-                        )
-                        DropdownMenu(
-                            expanded = containerMenuOpen,
-                            onDismissRequest = { containerMenuOpen = false },
-                        ) {
-                            containers.forEach { container ->
-                                DropdownMenuItem(
-                                    text = { Text(text = container.name) },
-                                    onClick = {
-                                        onDraftChange(draft.copy(containerId = container.id))
-                                        containerMenuOpen = false
-                                    },
-                                )
-                            }
-                        }
-                    }
-                    if (containerError) {
-                        FieldErrorText(text = "Vui lòng chọn nơi lưu trữ")
-                    }
-                }
+                ReviewField(
+                    label = "Nơi lưu trữ hiện tại",
+                    value = selectedContainer?.name.orEmpty(),
+                    hint = "Chọn container",
+                    onClick = { subScreen = OcrReviewSubScreen.ContainerSelection },
+                    errorText = if (fieldErrors.container) "Vui lòng chọn nơi lưu trữ" else null,
+                )
             }
             
             ReviewSection(
@@ -230,17 +245,6 @@ fun OcrReviewScreen(
                 onBack()
             },
             onDismiss = { showDiscardDialog = false },
-        )
-    }
-
-    if (showExpiryPicker) {
-        OcrDatePickerDialog(
-            initialDate = draft.expiryDate,
-            onConfirm = { selected ->
-                onDraftChange(draft.copy(expiryDate = selected))
-                showExpiryPicker = false
-            },
-            onDismiss = { showExpiryPicker = false },
         )
     }
 }
@@ -294,8 +298,10 @@ private fun ReviewField(
     label: String,
     value: String,
     hint: String,
-    onValueChange: (String) -> Unit,
+    onValueChange: ((String) -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
     errorText: String? = null,
+    trailingIcon: Int? = null,
 ) {
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
         Text(
@@ -312,122 +318,61 @@ private fun ReviewField(
                 .background(GeneratedColor.FigmaF3f6ff)
                 .border(
                     1.dp,
-                    if (errorText != null) GeneratedColor.FigmaFf0000 else GeneratedColor.FigmaE5e7eb,
+                    if (errorText != null) Color.Red else GeneratedColor.FigmaE5e7eb,
                     NestoryRadius.R10,
                 )
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            BasicTextField(
-                value = value,
-                onValueChange = onValueChange,
-                modifier = Modifier.fillMaxWidth(),
-                textStyle = NestoryTextStyles.Body14Medium,
-                singleLine = true,
-                decorationBox = { innerTextField ->
-                    if (value.isEmpty()) {
-                        Text(
-                            text = hint,
-                            style = NestoryTextStyles.Body14Medium,
-                            color = GeneratedColor.Figma919191
-                        )
+            if (onValueChange != null && onClick == null) {
+                BasicTextField(
+                    value = value,
+                    onValueChange = onValueChange,
+                    modifier = Modifier.fillMaxWidth(),
+                    textStyle = NestoryTextStyles.Body14Medium,
+                    singleLine = true,
+                    decorationBox = { innerTextField ->
+                        if (value.isEmpty()) {
+                            Text(
+                                text = hint,
+                                style = NestoryTextStyles.Body14Medium,
+                                color = GeneratedColor.Figma919191
+                            )
+                        }
+                        innerTextField()
                     }
-                    innerTextField()
-                }
-            )
+                )
+            } else {
+                Text(
+                    text = value.ifEmpty { hint },
+                    style = NestoryTextStyles.Body14Medium,
+                    color = if (value.isEmpty()) GeneratedColor.Figma919191 else GeneratedColor.Figma000000
+                )
+            }
+            
+            val icon = trailingIcon ?: if (onClick != null) AppIcons.LsiconDownFilled else null
+            if (icon != null) {
+                Image(
+                    painter = painterResource(id = icon),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .size(16.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
         }
         if (errorText != null) {
-            FieldErrorText(text = errorText)
-        }
-    }
-}
-
-@Composable
-private fun ReviewReadOnlyField(
-    value: String,
-    hint: String,
-    error: Boolean = false,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(45.dp)
-            .clip(NestoryRadius.R10)
-            .background(GeneratedColor.FigmaF3f6ff)
-            .border(
-                1.dp,
-                if (error) GeneratedColor.FigmaFf0000 else GeneratedColor.FigmaE5e7eb,
-                NestoryRadius.R10,
-            )
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text(
-            text = value.ifEmpty { hint },
-            style = NestoryTextStyles.Body14Medium,
-            color = if (value.isEmpty()) GeneratedColor.Figma919191 else GeneratedColor.Figma000000
-        )
-    }
-}
-
-@Composable
-private fun ReviewDateField(
-    label: String,
-    value: String?,
-    hint: String,
-    onClick: () -> Unit,
-    error: Boolean = false,
-) {
-    Column(modifier = Modifier.padding(bottom = 12.dp)) {
-        Text(
-            text = label,
-            style = NestoryTextStyles.Body12Semi,
-            color = GeneratedColor.Figma000000
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(45.dp)
-                .clip(NestoryRadius.R10)
-                .background(GeneratedColor.FigmaF3f6ff)
-                .border(
-                    1.dp,
-                    if (error) GeneratedColor.FigmaFf0000 else GeneratedColor.FigmaE5e7eb,
-                    NestoryRadius.R10,
-                )
-                .clickable(onClick = onClick)
-                .padding(horizontal = 12.dp),
-            contentAlignment = Alignment.CenterStart
-        ) {
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = value.orEmpty().ifEmpty { hint },
-                style = NestoryTextStyles.Body14Medium,
-                color = if (value.isNullOrEmpty()) GeneratedColor.Figma919191 else GeneratedColor.Figma000000
+                text = errorText,
+                style = NestoryTextStyles.Body10Semi,
+                color = Color.Red,
+                modifier = Modifier.padding(start = 4.dp)
             )
-            Image(
-                painter = painterResource(id = AppIcons.KitCalendar),
-                contentDescription = null,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .size(18.dp),
-                contentScale = ContentScale.Fit,
-            )
-        }
-        if (error) {
-            FieldErrorText(text = "Vui lòng chọn ngày hết hạn")
         }
     }
-}
-
-@Composable
-private fun FieldErrorText(text: String) {
-    Spacer(modifier = Modifier.height(4.dp))
-    Text(
-        text = text,
-        style = NestoryTextStyles.Body12Semi,
-        color = GeneratedColor.FigmaFf0000,
-    )
 }
 
 @Composable
@@ -530,11 +475,14 @@ private fun OcrDatePickerDialog(
     onDismiss: () -> Unit,
 ) {
     val datePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = initialDate?.let {
-            DocumentStatusCalculator.parseExpirationDate(it)
-                ?.atStartOfDay(ZoneOffset.UTC)
-                ?.toInstant()
-                ?.toEpochMilli()
+        initialSelectedDateMillis = initialDate?.let { dateStr ->
+            try {
+                val sdf = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                sdf.timeZone = TimeZone.getTimeZone("UTC")
+                sdf.parse(dateStr)?.time
+            } catch (e: Exception) {
+                null
+            }
         }
     )
     DatePickerDialog(
@@ -543,7 +491,14 @@ private fun OcrDatePickerDialog(
             TextButton(
                 onClick = {
                     val millis = datePickerState.selectedDateMillis
-                    if (millis != null) onConfirm(millisToReviewDate(millis)) else onDismiss()
+                    if (millis != null) {
+                        val date = Date(millis)
+                        val formatter = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+                        formatter.timeZone = TimeZone.getTimeZone("UTC")
+                        onConfirm(formatter.format(date))
+                    } else {
+                        onDismiss()
+                    }
                 }
             ) {
                 Text(text = "Chọn", color = GeneratedColor.Figma522ec8)
@@ -557,19 +512,4 @@ private fun OcrDatePickerDialog(
     ) {
         DatePicker(state = datePickerState)
     }
-}
-
-private val reviewDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-
-private fun millisToReviewDate(millis: Long): String =
-    Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().format(reviewDateFormatter)
-
-internal fun categoryLabel(category: DocumentCategory): String = when (category) {
-    DocumentCategory.IDENTITY -> "Nhân thân"
-    DocumentCategory.EDUCATION -> "Học vấn"
-    DocumentCategory.FINANCE -> "Tài chính"
-    DocumentCategory.PROPERTY -> "Bất động sản"
-    DocumentCategory.VEHICLE -> "Phương tiện"
-    DocumentCategory.HEALTH -> "Sức khỏe"
-    DocumentCategory.OTHER -> "Khác"
 }

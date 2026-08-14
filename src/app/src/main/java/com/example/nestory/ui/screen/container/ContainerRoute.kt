@@ -11,7 +11,8 @@ enum class ContainerSubScreen { Selection, Create, Edit }
 
 @Composable
 fun ContainerRoute(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onConfirmSelection: ((ContainerEntity) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getDatabase(context.applicationContext) }
@@ -35,7 +36,15 @@ fun ContainerRoute(
                 onToggleContainer = { viewModel.toggleContainer(it) },
                 onCreateClick = { subScreen = ContainerSubScreen.Create },
                 onEditClick = { subScreen = ContainerSubScreen.Edit },
-                onConfirmClick = onBack,
+                onConfirmClick = {
+                    if (onConfirmSelection != null) {
+                        uiState.allContainers.find { it.id == uiState.selectedContainerId }?.let {
+                            onConfirmSelection(it)
+                        }
+                    } else {
+                        onBack()
+                    }
+                },
                 onDeleteClick = { id ->
                     val container = uiState.allContainers.find { it.id == id }
                     deleteTarget = container

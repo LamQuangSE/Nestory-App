@@ -7,6 +7,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nestory.data.local.database.AppDatabase
+import com.example.nestory.data.repository.AttachmentRepositoryImpl
 import com.example.nestory.data.repository.ContainerRepositoryImpl
 import com.example.nestory.data.repository.DocumentRepositoryImpl
 
@@ -22,7 +23,8 @@ fun HomeDashboardRoute(
         HomeDashboardViewModelFactory(
             documentRepository = DocumentRepositoryImpl(db.documentDao()),
             containerRepository = ContainerRepositoryImpl(db.containerDao()),
-            categoryRepository = com.example.nestory.data.repository.CategoryRepositoryImpl(db.categoryDao())
+            categoryRepository = com.example.nestory.data.repository.CategoryRepositoryImpl(db.categoryDao()),
+            attachmentRepository = AttachmentRepositoryImpl(db.attachmentDao())
         )
     }
     val viewModel: HomeDashboardViewModel = viewModel(factory = factory)

@@ -82,7 +82,10 @@ class OcrViewModel(
                 .map { rawText -> parser.parse(rawText) }
                 .onSuccess { result ->
                     val withCategory = result.copy(category = categoryDetector.detect(result))
-                    _uiState.value = OcrUiState.Success(draftMapper.toDraft(withCategory))
+                    _uiState.value = OcrUiState.Success(
+                        draft = draftMapper.toDraft(withCategory),
+                        bitmaps = bitmaps
+                    )
                 }
                 .onFailure { error ->
                     _uiState.value = OcrUiState.Error(
@@ -125,18 +128,20 @@ class OcrViewModel(
             documentRepository.createDocument(document).fold(
                 onSuccess = { documentId ->
                     var saveError: Throwable? = null
-                    imageStorageManager.saveBitmapsAsPdf(bitmaps).fold(
-                        onSuccess = { filePath ->
-                            attachmentRepository.addAttachmentMetadata(
-                                AttachmentEntity(
-                                    fileUri = filePath,
-                                    documentId = documentId,
-                                    displayOrder = 0,
-                                ),
-                            ).onFailure { error -> saveError = error }
-                        },
-                        onFailure = { error -> saveError = error },
-                    )
+                    bitmaps.forEachIndexed { index, bitmap ->
+                        imageStorageManager.saveBitmap(bitmap).fold(
+                            onSuccess = { filePath ->
+                                attachmentRepository.addAttachmentMetadata(
+                                    AttachmentEntity(
+                                        fileUri = filePath,
+                                        documentId = documentId,
+                                        displayOrder = index,
+                                    ),
+                                ).onFailure { error -> saveError = error }
+                            },
+                            onFailure = { error -> saveError = error },
+                        )
+                    }
 
                     if (saveError == null) {
                         pendingKitLinkItemId?.let { itemId ->

@@ -3,6 +3,7 @@ package com.example.nestory.ui.screen.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentRepository
@@ -18,6 +19,7 @@ class HomeDashboardViewModel(
     documentRepository: DocumentRepository,
     containerRepository: ContainerRepository,
     categoryRepository: CategoryRepository,
+    attachmentRepository: AttachmentRepository,
     private val recentCount: Int = DEFAULT_RECENT_COUNT,
 ) : ViewModel() {
 
@@ -30,8 +32,11 @@ class HomeDashboardViewModel(
             combine(
                 documentRepository.observeAllDocuments(),
                 containerRepository.observeAllContainers(),
-                categoryRepository.getAllCategories()
-            ) { documents, containers, categories ->
+                categoryRepository.getAllCategories(),
+                attachmentRepository.observeAllAttachments()
+            ) { documents, containers, categories, attachments ->
+                val attachmentsByDocId = attachments.groupBy { it.documentId }
+                
                 HomeDashboardUiState(
                     recentDocuments = documents
                         .sortedByDescending { it.id }
@@ -43,7 +48,8 @@ class HomeDashboardViewModel(
                                 id = doc.id,
                                 title = doc.title,
                                 categoryLabel = catName,
-                                expiryDate = doc.expirationDate ?: "Chưa có hạn"
+                                expiryDate = doc.expirationDate ?: "Chưa có hạn",
+                                attachmentUris = attachmentsByDocId[doc.id].orEmpty().map { it.fileUri }
                             )
                         },
                     rootContainers = containers.filter { it.parentId == null },
@@ -71,6 +77,7 @@ class HomeDashboardViewModelFactory(
     private val documentRepository: DocumentRepository,
     private val containerRepository: ContainerRepository,
     private val categoryRepository: CategoryRepository,
+    private val attachmentRepository: AttachmentRepository,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -79,6 +86,7 @@ class HomeDashboardViewModelFactory(
                 documentRepository = documentRepository,
                 containerRepository = containerRepository,
                 categoryRepository = categoryRepository,
+                attachmentRepository = attachmentRepository,
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

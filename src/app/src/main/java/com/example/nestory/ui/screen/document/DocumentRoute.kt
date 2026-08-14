@@ -123,11 +123,12 @@ fun DocumentRoute(
                             subScreen = DocumentSubScreen.Selection
                         }
                     },
-                    onSave = { name, categoryLabelValue, expiryDate ->
+                    onSave = { name, categoryLabelValue, expiryDate, containerId ->
                         viewModel.updateDocumentDetails(
                             title = name,
                             categoryLabelValue = categoryLabelValue,
                             expirationDate = expiryDate,
+                            containerId = containerId,
                         )
                     },
                     onToggleFavorite = { viewModel.toggleFavorite() },

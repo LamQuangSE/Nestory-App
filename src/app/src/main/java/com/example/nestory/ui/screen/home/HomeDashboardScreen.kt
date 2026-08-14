@@ -33,6 +33,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import com.example.nestory.data.local.entity.ContainerEntity
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryLogo
@@ -187,7 +188,7 @@ private fun RecentDocumentCard(
 ) {
     Column(
         modifier = modifier
-            .height(106.dp)
+            .height(115.dp) // Slightly increased height for better preview
             .clip(NestoryRadius.R14)
             .background(GeneratedColor.FigmaFfffff)
             .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R14)
@@ -203,11 +204,31 @@ private fun RecentDocumentCard(
                 .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R10),
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = document.categoryLabel.take(1),
-                style = NestoryTextStyles.Body14Semi,
-                color = GeneratedColor.Figma522ec8
-            )
+            val firstAttachment = document.attachmentUris.firstOrNull()
+            if (firstAttachment != null) {
+                if (firstAttachment.endsWith(".pdf", ignoreCase = true)) {
+                    Image(
+                        painter = painterResource(AppIcons.DocumentFileScan),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    AsyncImage(
+                        model = firstAttachment,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        error = painterResource(AppIcons.FigmaDocument)
+                    )
+                }
+            } else {
+                Text(
+                    text = document.categoryLabel.take(1),
+                    style = NestoryTextStyles.Body14Semi,
+                    color = GeneratedColor.Figma522ec8
+                )
+            }
         }
         Spacer(modifier = Modifier.height(NestorySpacing.S8))
         Text(

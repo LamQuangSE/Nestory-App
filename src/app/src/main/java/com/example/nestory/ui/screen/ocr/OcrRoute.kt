@@ -410,6 +410,7 @@ fun OcrRoute(
         is OcrUiState.Success -> {
             OcrReviewScreen(
                 draft = state.draft,
+                bitmaps = state.bitmaps,
                 containers = containers,
                 onDraftChange = viewModel::updateDraft,
                 onBack = {

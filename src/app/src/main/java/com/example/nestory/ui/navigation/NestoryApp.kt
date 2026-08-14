@@ -179,6 +179,7 @@ fun NestoryApp(initialDocumentId: String? = null) {
             when (destination) {
                 NestoryDestination.Home,
                 NestoryDestination.DocumentSelection,
+                NestoryDestination.DocumentDetail,
                 NestoryDestination.DocumentKit,
                 NestoryDestination.Category,
                 NestoryDestination.Settings -> true

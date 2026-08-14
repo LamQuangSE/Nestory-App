@@ -111,39 +111,52 @@ fun DocumentListItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(122.dp)
+            .height(110.dp)
             .clip(NestoryRadius.R14)
             .background(GeneratedColor.FigmaFfffff)
             .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R14)
             .clickable(onClick = onClick)
-            .padding(NestorySpacing.S12),
+            .padding(10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon or Thumbnail box
+        // Thumbnail section - Show image content directly
         Box(
             modifier = Modifier
-                .size(60.dp)
+                .size(90.dp)
                 .clip(NestoryRadius.R10)
                 .background(document.categoryColor.copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) {
-            if (document.attachmentUris.isNotEmpty()) {
-                AsyncImage(
-                    model = document.attachmentUris.first(),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+            val firstAttachment = document.attachmentUris.firstOrNull()
+            if (firstAttachment != null) {
+                if (firstAttachment.endsWith(".pdf", ignoreCase = true)) {
+                    Image(
+                        painter = painterResource(AppIcons.DocumentFileScan),
+                        contentDescription = null,
+                        modifier = Modifier.size(40.dp),
+                        contentScale = ContentScale.Fit
+                    )
+                } else {
+                    AsyncImage(
+                        model = firstAttachment,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        error = painterResource(AppIcons.FigmaDocument)
+                    )
+                }
             } else {
                 Image(
                     painter = painterResource(AppIcons.FigmaDocument),
                     contentDescription = null,
-                    modifier = Modifier.size(30.dp),
+                    modifier = Modifier.size(40.dp),
                     contentScale = ContentScale.Fit
                 )
             }
         }
-        Spacer(modifier = Modifier.width(NestorySpacing.S16))
+        
+        Spacer(modifier = Modifier.width(12.dp))
+        
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = document.name,
@@ -152,7 +165,7 @@ fun DocumentListItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = document.category,
                 style = NestoryTextStyles.Body12Semi,
@@ -160,10 +173,14 @@ fun DocumentListItem(
             )
             Text(
                 text = document.containerPath,
-                style = NestoryTextStyles.Body12Semi,
-                color = GeneratedColor.Figma919191
+                style = NestoryTextStyles.Body11Semi,
+                color = GeneratedColor.Figma919191,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(10.dp))
+            
+            Spacer(modifier = Modifier.height(6.dp))
+            
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val statusColor = when (document.status) {
                     DocumentStatus.Active -> Color(0xFF137C23)
@@ -188,12 +205,17 @@ fun DocumentListItem(
                 )
             }
         }
-        Text(
-            text = document.expiryDate,
-            style = NestoryTextStyles.Body12Semi,
-            color = GeneratedColor.Figma919191,
-            modifier = Modifier.align(Alignment.Bottom)
-        )
+
+        Column(
+            modifier = Modifier.fillMaxHeight(),
+            verticalArrangement = Arrangement.Bottom
+        ) {
+            Text(
+                text = document.expiryDate,
+                style = NestoryTextStyles.Body11Semi,
+                color = GeneratedColor.Figma919191
+            )
+        }
     }
 }
 

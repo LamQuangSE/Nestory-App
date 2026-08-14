@@ -165,6 +165,7 @@ class DocumentViewModel(
         title: String,
         categoryLabelValue: String,
         expirationDate: String,
+        containerId: Long? = null,
     ) {
         val selected = uiState.value.selectedDocument ?: return
         val documentId = selected.id.toLongOrNull() ?: return
@@ -181,6 +182,7 @@ class DocumentViewModel(
                             document.copy(
                                 title = title.ifBlank { document.title },
                                 categoryId = newCategoryId,
+                                containerId = containerId ?: document.containerId,
                                 expirationDate = expirationDate.takeUnless {
                                     it.isBlank() || it == "Chưa có hạn"
                                 },

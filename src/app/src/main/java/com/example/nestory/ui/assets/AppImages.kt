@@ -17,4 +17,5 @@ object AppImages {
     val ContainerEmptyState = R.drawable.img_container
 
     val ImgCccd = R.drawable.img_cccd
+    val EmptyDocument = R.drawable.img_empty_document
 }

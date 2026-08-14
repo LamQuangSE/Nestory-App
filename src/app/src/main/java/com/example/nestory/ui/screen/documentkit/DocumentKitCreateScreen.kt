@@ -42,7 +42,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.nestory.ui.assets.AppIcons
-import com.example.nestory.ui.screen.document.parseExpirationDate
+import com.example.nestory.ui.screen.document.DocumentStatusCalculator
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestorySpacing
 import com.example.nestory.ui.theme.NestoryTextStyles
@@ -92,7 +92,7 @@ fun DocumentKitCreateScreen(
 
     val validateAndSubmit: () -> Unit = {
         val isNameValid = name.isNotBlank()
-        val isDateValid = date.isNotBlank() && parseExpirationDate(date) != null
+        val isDateValid = date.isNotBlank() && DocumentStatusCalculator.parseExpirationDate(date) != null
         showNameError = !isNameValid
         showDateError = !isDateValid
         if (isNameValid && isDateValid) {
@@ -368,7 +368,7 @@ private fun KitDatePickerDialog(
 private val kitDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
 
 private fun parseDateToMillis(date: String): Long? =
-    parseExpirationDate(date)?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli()
+    DocumentStatusCalculator.parseExpirationDate(date)?.atStartOfDay(ZoneOffset.UTC)?.toInstant()?.toEpochMilli()
 
 private fun millisToDate(millis: Long): String =
     Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().format(kitDateFormatter)

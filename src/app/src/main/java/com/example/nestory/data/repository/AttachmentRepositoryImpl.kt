@@ -8,6 +8,9 @@ import kotlinx.coroutines.flow.Flow
 class AttachmentRepositoryImpl(
     private val attachmentDao: AttachmentDao,
 ) : AttachmentRepository {
+    override fun observeAllAttachments(): Flow<List<AttachmentEntity>> =
+        attachmentDao.observeAllAttachments()
+
     override fun observeAttachmentsByDocumentId(documentId: Long): Flow<List<AttachmentEntity>> =
         attachmentDao.observeByDocumentId(documentId)
 

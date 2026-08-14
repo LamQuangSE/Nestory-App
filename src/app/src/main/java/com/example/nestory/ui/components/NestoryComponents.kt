@@ -247,7 +247,7 @@ fun PrimaryActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     @DrawableRes leadingIcon: Int? = null,
-    enabled: Boolean = true,
+    enabled: Boolean = true
 ) {
     Button(
         onClick = onClick,
@@ -258,7 +258,9 @@ fun PrimaryActionButton(
         shape = NestoryRadius.R16,
         colors = ButtonDefaults.buttonColors(
             containerColor = GeneratedColor.Figma1a60e2,
-            contentColor = Color.White
+            contentColor = Color.White,
+            disabledContainerColor = GeneratedColor.Figma919191,
+            disabledContentColor = Color.White.copy(alpha = 0.5f)
         )
     ) {
         if (leadingIcon != null) {

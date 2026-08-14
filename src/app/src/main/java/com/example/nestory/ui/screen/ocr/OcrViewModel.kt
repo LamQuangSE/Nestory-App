@@ -110,32 +110,33 @@ class OcrViewModel(
         viewModelScope.launch {
             val containerId = draft.containerId ?: return@launch
             
-            // ĐÃ CẬP NHẬT: Dùng categoryId thay vì category để khớp với DB mới
             val document = DocumentEntity(
                 title = draft.title,
                 categoryId = "", // OCR chưa có chọn danh mục động, tạm lưu rỗng
                 expirationDate = draft.expiryDate,
                 notes = draft.notes,
                 containerId = containerId,
+                issueDate = draft.issueDate,
+                holderName = draft.holderName,
+                documentNumber = draft.documentNumber,
+                ocrText = draft.ocrText,
             )
 
             documentRepository.createDocument(document).fold(
                 onSuccess = { documentId ->
                     var saveError: Throwable? = null
-                    bitmaps.forEachIndexed { index, bitmap ->
-                        imageStorageManager.saveBitmap(bitmap).fold(
-                            onSuccess = { filePath ->
-                                attachmentRepository.addAttachmentMetadata(
-                                    AttachmentEntity(
-                                        fileUri = filePath,
-                                        documentId = documentId,
-                                        displayOrder = index,
-                                    ),
-                                ).onFailure { error -> saveError = error }
-                            },
-                            onFailure = { error -> saveError = error },
-                        )
-                    }
+                    imageStorageManager.saveBitmapsAsPdf(bitmaps).fold(
+                        onSuccess = { filePath ->
+                            attachmentRepository.addAttachmentMetadata(
+                                AttachmentEntity(
+                                    fileUri = filePath,
+                                    documentId = documentId,
+                                    displayOrder = 0,
+                                ),
+                            ).onFailure { error -> saveError = error }
+                        },
+                        onFailure = { error -> saveError = error },
+                    )
 
                     if (saveError == null) {
                         pendingKitLinkItemId?.let { itemId ->

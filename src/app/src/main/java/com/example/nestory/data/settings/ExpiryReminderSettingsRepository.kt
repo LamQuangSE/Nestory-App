@@ -34,8 +34,9 @@ class ExpiryReminderSettingsRepository(
                 leadTimeDays = preferences[Keys.LeadTimeDays] ?: 7,
                 repeatDaily = preferences[Keys.RepeatDaily] ?: true,
                 inAppEnabled = preferences[Keys.InAppEnabled] ?: true,
-                emailEnabled = preferences[Keys.EmailEnabled] ?: false,
                 pushEnabled = preferences[Keys.PushEnabled] ?: true,
+                hour = preferences[Keys.Hour] ?: 12,
+                minute = preferences[Keys.Minute] ?: 0,
             )
         }
 
@@ -45,8 +46,9 @@ class ExpiryReminderSettingsRepository(
             preferences[Keys.LeadTimeDays] = settings.leadTimeDays
             preferences[Keys.RepeatDaily] = settings.repeatDaily
             preferences[Keys.InAppEnabled] = settings.inAppEnabled
-            preferences[Keys.EmailEnabled] = settings.emailEnabled
             preferences[Keys.PushEnabled] = settings.pushEnabled
+            preferences[Keys.Hour] = settings.hour
+            preferences[Keys.Minute] = settings.minute
         }
     }
 
@@ -55,7 +57,8 @@ class ExpiryReminderSettingsRepository(
         val LeadTimeDays = intPreferencesKey("lead_time_days")
         val RepeatDaily = booleanPreferencesKey("repeat_daily")
         val InAppEnabled = booleanPreferencesKey("in_app_enabled")
-        val EmailEnabled = booleanPreferencesKey("email_enabled")
         val PushEnabled = booleanPreferencesKey("push_enabled")
+        val Hour = intPreferencesKey("hour")
+        val Minute = intPreferencesKey("minute")
     }
 }

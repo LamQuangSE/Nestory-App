@@ -3,7 +3,6 @@ package com.example.nestory.ui.screen.container
 import androidx.compose.runtime.*
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.room.Room
 import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.local.entity.ContainerEntity
 import com.example.nestory.data.repository.ContainerRepositoryImpl
@@ -15,18 +14,7 @@ fun ContainerRoute(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
-    val db = remember {
-        Room.databaseBuilder(
-            context.applicationContext,
-            AppDatabase::class.java,
-            "nestory_database"
-        ).addMigrations(
-            AppDatabase.MIGRATION_1_2,
-            AppDatabase.MIGRATION_2_3,
-            AppDatabase.MIGRATION_3_4,
-            AppDatabase.MIGRATION_4_5,
-        ).build()
-    }
+    val db = remember { AppDatabase.getDatabase(context.applicationContext) }
     val repository = remember { ContainerRepositoryImpl(db.containerDao()) }
     val factory = remember { ContainerViewModelFactory(repository) }
     val viewModel: ContainerViewModel = viewModel(factory = factory)

@@ -187,6 +187,7 @@ private fun KitDetailHeaderCard(kit: KitWithItems) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(110.dp)
             .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(14.dp))
             .padding(horizontal = NestorySpacing.S10),
         verticalAlignment = Alignment.CenterVertically,
@@ -197,14 +198,13 @@ private fun KitDetailHeaderCard(kit: KitWithItems) {
                 .size(width = 77.dp, height = 100.dp)
                 .clip(RoundedCornerShape(NestorySpacing.S10))
                 .background(categoryVisual.boxColor, RoundedCornerShape(NestorySpacing.S10))
-                .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10))
-                .padding(10.dp),
+                .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(id = categoryVisual.iconRes),
                 contentDescription = null,
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(44.dp),
                 tint = categoryVisual.iconTint
             )
         }

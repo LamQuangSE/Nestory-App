@@ -72,6 +72,51 @@ fun DocumentSelectionScreen(
     }
 }
 
+@Preview(showBackground = true)
+@Composable
+fun DocumentSelectionPreview() {
+    DocumentSelectionScreen(
+        uiState = DocumentUiState(
+            documents = listOf(
+                DocumentUiModel(
+                    id = "1",
+                    name = "Hợp đồng thuê nhà 2026",
+                    category = "Hợp đồng, Pháp lý",
+                    containerPath = "Tủ tài liệu > Ngăn 4",
+                    containerId = 1L,
+                    status = DocumentStatus.Active,
+                    expiryDate = "20/08/2026",
+                    categoryColor = Color(0xFF1855EE)
+                ),
+                DocumentUiModel(
+                    id = "2",
+                    name = "Giấy xác nhận sinh viên",
+                    category = "Chứng từ",
+                    containerPath = "Tủ tài liệu > Ngăn 2",
+                    containerId = 2L,
+                    status = DocumentStatus.ExpiringSoon,
+                    expiryDate = "18/07/2026",
+                    categoryColor = Color(0xFFEB6E00)
+                )
+            )
+        ),
+        onAddDocument = {},
+        onDocumentClick = {},
+        onFilterClick = {}
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+fun DocumentEmptyPreview() {
+    DocumentSelectionScreen(
+        uiState = DocumentUiState(),
+        onAddDocument = {},
+        onDocumentClick = {},
+        onFilterClick = {}
+    )
+}
+
 @Composable
 fun DocumentNotFoundState(modifier: Modifier = Modifier) {
     Column(

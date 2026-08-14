@@ -21,7 +21,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -54,12 +56,14 @@ fun DocumentKitItemFormScreen(
     initialNote: String = "",
     initialRequiredDocuments: String = "",
     isEdit: Boolean = false,
+    editLeaveRequested: Boolean = false,
     onEditBack: (name: String, description: String, note: String, requiredDocuments: Int?) -> Unit = { _, _, _, _ -> },
     linkedDocumentCount: Int = 0,
     linkedDocumentTitle: String? = null,
     onAddLinkedDocumentClick: () -> Unit = {},
     onLinkedDocumentClick: () -> Unit = {},
     onRemoveLinkedDocumentClick: () -> Unit = {},
+    itemStatus: String? = null,
 ) {
     var name by remember { mutableStateOf(initialName) }
     var description by remember { mutableStateOf(initialDescription) }
@@ -68,11 +72,24 @@ fun DocumentKitItemFormScreen(
     var showNameError by remember { mutableStateOf(false) }
     var showRequiredDocsError by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
+
+    val itemVisual = itemStatus?.let { kitStatusVisual(it) }
 
     val hasContent = name.isNotBlank() ||
         description.isNotBlank() ||
         note.isNotBlank() ||
         requiredDocs.isNotBlank()
+
+    BackHandler(enabled = isEdit) {
+        onEditBack(name, description, note, requiredDocs.toIntOrNull())
+    }
+
+    LaunchedEffect(editLeaveRequested) {
+        if (editLeaveRequested && isEdit) {
+            onEditBack(name, description, note, requiredDocs.toIntOrNull())
+        }
+    }
 
     Column(
         modifier = modifier
@@ -115,7 +132,8 @@ fun DocumentKitItemFormScreen(
                 description = description,
                 onDescriptionChange = { description = it },
                 note = note,
-                onNoteChange = { note = it }
+                onNoteChange = { note = it },
+                itemVisual = itemVisual
             )
 
             if (isEdit) {
@@ -124,7 +142,8 @@ fun DocumentKitItemFormScreen(
                     linkedDocumentTitle = if (linkedDocumentCount > 0) linkedDocumentTitle else null,
                     onAddClick = onAddLinkedDocumentClick,
                     onLinkedDocClick = onLinkedDocumentClick,
-                    onRemoveClick = onRemoveLinkedDocumentClick
+                    onRemoveClick = onRemoveLinkedDocumentClick,
+                    itemVisual = itemVisual
                 )
             } else {
                 ItemRequiredDocsCard(
@@ -160,7 +179,7 @@ fun DocumentKitItemFormScreen(
                 horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
             ) {
                 ItemDeleteButton(
-                    onClick = onDelete,
+                    onClick = { showDeleteConfirm = true },
                     modifier = Modifier.weight(1f)
                 )
                 ItemPrimaryButton(
@@ -188,6 +207,16 @@ fun DocumentKitItemFormScreen(
                 onBackClick()
             },
             onDismiss = { showDiscardDialog = false }
+        )
+    }
+
+    if (showDeleteConfirm) {
+        ConfirmDeleteItemDialog(
+            onConfirm = {
+                showDeleteConfirm = false
+                onDelete?.invoke()
+            },
+            onDismiss = { showDeleteConfirm = false }
         )
     }
 }
@@ -242,6 +271,7 @@ private fun ItemDescriptionNoteCard(
     onDescriptionChange: (String) -> Unit,
     note: String,
     onNoteChange: (String) -> Unit,
+    itemVisual: KitStatusVisual? = null,
 ) {
     Column(
         modifier = Modifier
@@ -251,8 +281,10 @@ private fun ItemDescriptionNoteCard(
         verticalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
     ) {
         KitSectionHeader(
-            title = "Mô tả",
-            iconRes = AppIcons.KitAlignLeft
+            title = "Mục đích",
+            iconRes = AppIcons.KitTarget,
+            iconBoxColor = itemVisual?.bgColor ?: GeneratedColor.FigmaF3eeff,
+            iconTint = itemVisual?.iconTint ?: GeneratedColor.Figma522ec8
         )
         KitTextField(
             value = description,
@@ -261,7 +293,9 @@ private fun ItemDescriptionNoteCard(
         )
         KitSectionHeader(
             title = "Ghi chú",
-            iconRes = AppIcons.NestoryNote
+            iconRes = AppIcons.NestoryNote,
+            iconBoxColor = itemVisual?.bgColor ?: GeneratedColor.FigmaF3eeff,
+            iconTint = itemVisual?.iconTint ?: GeneratedColor.Figma522ec8
         )
         KitTextField(
             value = note,
@@ -340,6 +374,7 @@ private fun ItemLinkedDocsCard(
     onAddClick: () -> Unit,
     onLinkedDocClick: () -> Unit,
     onRemoveClick: () -> Unit,
+    itemVisual: KitStatusVisual? = null,
 ) {
     Column(
         modifier = Modifier
@@ -355,7 +390,10 @@ private fun ItemLinkedDocsCard(
             Box(
                 modifier = Modifier
                     .size(30.dp)
-                    .background(GeneratedColor.FigmaF3eeff, RoundedCornerShape(NestorySpacing.S10))
+                    .background(
+                        itemVisual?.bgColor ?: GeneratedColor.FigmaF3eeff,
+                        RoundedCornerShape(NestorySpacing.S10),
+                    )
                     .padding(3.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -363,7 +401,7 @@ private fun ItemLinkedDocsCard(
                     painter = painterResource(id = AppIcons.KitFile),
                     contentDescription = null,
                     modifier = Modifier.size(20.dp),
-                    tint = GeneratedColor.Figma522ec8
+                    tint = itemVisual?.iconTint ?: GeneratedColor.Figma522ec8
                 )
             }
             Spacer(modifier = Modifier.width(NestorySpacing.S10))

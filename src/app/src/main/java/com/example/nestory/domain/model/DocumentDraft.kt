@@ -14,6 +14,7 @@ data class DocumentDraft(
     val documentNumber: String? = null,
     val holderName: String? = null,
     val notes: String? = null,
+    val ocrText: String = "",
     val containerId: Long? = null,
     val attachmentId: Long? = null,
 )

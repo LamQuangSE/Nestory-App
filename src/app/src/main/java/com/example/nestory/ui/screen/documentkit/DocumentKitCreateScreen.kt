@@ -28,7 +28,9 @@ import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -68,6 +70,7 @@ fun DocumentKitCreateScreen(
     initialNote: String = "",
     submitLabel: String = "Tạo bộ hồ sơ mới",
     isEdit: Boolean = false,
+    editLeaveRequested: Boolean = false,
     onDelete: (() -> Unit)? = null,
     onEditBack: (name: String, date: String, category: String?, description: String?, note: String?) -> Unit = { _, _, _, _, _ -> },
 ) {
@@ -94,6 +97,16 @@ fun DocumentKitCreateScreen(
         showDateError = !isDateValid
         if (isNameValid && isDateValid) {
             onSubmit(name, date, category, description, note)
+        }
+    }
+
+    BackHandler(enabled = isEdit) {
+        onEditBack(name, date, category, description, note)
+    }
+
+    LaunchedEffect(editLeaveRequested) {
+        if (editLeaveRequested && isEdit) {
+            onEditBack(name, date, category, description, note)
         }
     }
 
@@ -419,8 +432,8 @@ private fun KitDescriptionNoteCard(
         verticalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
     ) {
         KitSectionHeader(
-            title = "Mô tả",
-            iconRes = AppIcons.KitAlignLeft
+            title = "Mục đích",
+            iconRes = AppIcons.KitTarget
         )
         KitTextField(
             value = description,

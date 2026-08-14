@@ -31,7 +31,8 @@ import com.example.nestory.ui.theme.GeneratedColor
 
 @Composable
 fun CategoryRoute(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onConfirmSelection: ((CategoryUiModel) -> Unit)? = null
 ) {
     val context = LocalContext.current
     
@@ -51,7 +52,16 @@ fun CategoryRoute(
 
     CategoryScreen(
         uiState = uiState,
-        onEvent = viewModel::onEvent,
+        onEvent = { event ->
+            if (event == CategoryEvent.OnConfirmSelection && onConfirmSelection != null) {
+                val selected = uiState.categories.find { it.id == uiState.selectedCategoryId }
+                if (selected != null) {
+                    onConfirmSelection(selected)
+                }
+            } else {
+                viewModel.onEvent(event)
+            }
+        },
         onBack = onBack
     )
 }

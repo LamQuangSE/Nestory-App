@@ -46,4 +46,10 @@ data class ReminderEntity(
 
     @ColumnInfo(name = "is_enabled")
     val isEnabled: Boolean = true,
+
+    @ColumnInfo(name = "reminder_date")
+    val reminderDate: String? = null,
+
+    @ColumnInfo(name = "reminder_time")
+    val reminderTime: String? = null,
 )

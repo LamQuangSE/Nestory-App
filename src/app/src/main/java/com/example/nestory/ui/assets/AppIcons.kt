@@ -47,8 +47,6 @@ object AppIcons {
     val DocumentFileScan = R.drawable.ic_document_file_scan
     val DocumentEdit = R.drawable.ic_document_edit
     val DocumentStarred = R.drawable.ic_document_starred
-    val KitStarred = R.drawable.ic_starred
-    val KitUnstarred = R.drawable.ic_unstarred
     val DocumentFilterExpired = R.drawable.ic_document_filter_expired
     val DocumentFilterExpiring = R.drawable.ic_document_filter_expiring
     val DocumentCamera = R.drawable.ic_camera
@@ -67,24 +65,21 @@ object AppIcons {
     val IcMoreInfor = R.drawable.ic_more_infor
     val IcMinus = R.drawable.ic_minus
     val IcPlus = R.drawable.ic_plus
-    val MdiExport = R.drawable.ic_mdi_export
-    val MdiImport = R.drawable.ic_mdi_import
-    val WeuiFolderOutlined = R.drawable.ic_weui_folder_outlined
 
-    // SCRUM-112 Document Kit Icons (vector, tinted at render)
-    val KitCalendar = R.drawable.ic_kit_calendar
-    val KitGlobe = R.drawable.ic_kit_globe
-    val KitHome = R.drawable.ic_kit_home
-    val KitGraduate = R.drawable.ic_kit_graduate
-    val KitBus = R.drawable.ic_kit_bus
-    val KitMotorbike = R.drawable.ic_kit_motorbike
+    // Kit Icons
+    val KitCheckCircle = R.drawable.ic_kit_check_circle
     val KitAlert = R.drawable.ic_kit_alert
     val KitClose = R.drawable.ic_kit_close
+    val KitHome = R.drawable.ic_kit_home
+    val KitMotorbike = R.drawable.ic_kit_motorbike
+    val KitGraduate = R.drawable.ic_kit_graduate
+    val KitBus = R.drawable.ic_kit_bus
+    val KitGlobe = R.drawable.ic_kit_globe
+    val KitCalendar = R.drawable.ic_kit_calendar
+    val KitAlignLeft = R.drawable.ic_kit_align_left
     val KitCategory = R.drawable.ic_kit_category
     val KitFile = R.drawable.ic_kit_file
     val KitTarget = R.drawable.ic_kit_target
-    val KitAlignLeft = R.drawable.ic_kit_align_left
-    val KitCheckCircle = R.drawable.ic_kit_check_circle
     val KitCameraOutline = R.drawable.ic_kit_camera_outline
 
     // New icon for Filter screen
@@ -99,4 +94,12 @@ object AppIcons {
     val IcFilterWallet = R.drawable.ic_filter_wallet
     val IcFilterWarranty = R.drawable.ic_filter_warranty
     val IcFilter = R.drawable.ic_filter
+
+    val KitStarred = R.drawable.ic_starred
+    val KitUnstarred = R.drawable.ic_unstarred
+
+    // Setting Icons
+    val WeuiFolderOutlined = R.drawable.ic_weui_folder_outlined
+    val MdiExport = R.drawable.ic_mdi_export
+    val MdiImport = R.drawable.ic_mdi_import
 }

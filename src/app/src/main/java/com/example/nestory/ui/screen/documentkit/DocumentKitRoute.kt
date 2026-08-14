@@ -1,6 +1,7 @@
 package com.example.nestory.ui.screen.documentkit
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -9,7 +10,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.room.Room
 import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.local.entity.DocumentEntity
 import com.example.nestory.data.local.entity.DocumentKitEntity
@@ -39,20 +39,13 @@ enum class DocumentKitSubScreen {
 fun DocumentKitRoute(
     onBack: () -> Unit,
     onScanDocument: (Long?) -> Unit = {},
+    editLeaveRequested: Boolean = false,
+    onEditLeaveComplete: () -> Unit = {},
+    onEditLeaveDismiss: () -> Unit = {},
+    onEditModeChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
-    val db = remember {
-        Room.databaseBuilder(
-            context.applicationContext,
-            AppDatabase::class.java,
-            "nestory_database"
-        ).addMigrations(
-            AppDatabase.MIGRATION_1_2,
-            AppDatabase.MIGRATION_2_3,
-            AppDatabase.MIGRATION_3_4,
-            AppDatabase.MIGRATION_4_5,
-        ).build()
-    }
+    val db = remember { AppDatabase.getDatabase(context.applicationContext) }
     val documentKitRepository = remember { DocumentKitRepositoryImpl(db.documentKitDao()) }
     val kitItemRepository = remember { KitItemRepositoryImpl(db.kitItemDao()) }
     val documentRepository = remember { DocumentRepositoryImpl(db.documentDao()) }
@@ -86,6 +79,25 @@ fun DocumentKitRoute(
     var viewingDocumentId by remember { mutableStateOf<Long?>(null) }
     var linkedDocReturnSubScreen by remember { mutableStateOf(DocumentKitSubScreen.ItemDetail) }
 
+    val isKitEditActive = editingKit != null || editingItem != null
+
+    LaunchedEffect(isKitEditActive) {
+        onEditModeChange(isKitEditActive)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { onEditModeChange(false) }
+    }
+
+    LaunchedEffect(editLeaveRequested) {
+        if (editLeaveRequested &&
+            subScreen != DocumentKitSubScreen.Create &&
+            subScreen != DocumentKitSubScreen.ItemCreate
+        ) {
+            onEditLeaveDismiss()
+        }
+    }
+
     val selectedKit = selectedKitId?.let { id -> uiState.kits.find { it.kit.id == id } }
     val kitItems = selectedKit?.items ?: emptyList()
     val selectedItem = selectedItemId?.let { id -> kitItems.find { it.id == id } }
@@ -107,18 +119,18 @@ fun DocumentKitRoute(
 
     val viewingDocument = viewingDocumentId?.let { id -> allDocuments.find { it.id == id } }
     val viewingDocumentUi = viewingDocument?.let { doc ->
-        DocumentUiModel(
-            id = doc.id.toString(),
-            name = doc.title,
-            category = "Chưa phân loại",
-            containerPath = buildContainerPath(doc.containerId, containers),
-            status = DocumentStatusCalculator.calculate(doc.expirationDate, ExpiryReminderSettings()),
-            expiryDate = doc.expirationDate ?: "Chưa có hạn",
-            categoryColor = Color(0xFF717171),
-            isFavorite = doc.isFavorite
-        )
-    }
-
+            DocumentUiModel(
+                id = doc.id.toString(),
+                name = doc.title,
+                category = "Chưa phân loại",
+                containerPath = buildContainerPath(doc.containerId, containers),
+                containerId = doc.containerId,
+                status = DocumentStatusCalculator.calculate(doc.expirationDate, ExpiryReminderSettings()),
+                expiryDate = doc.expirationDate ?: "Chưa có hạn",
+                categoryColor = Color(0xFF717171),
+                isFavorite = doc.isFavorite,
+            )
+        }
     when (subScreen) {
         DocumentKitSubScreen.List -> {
             DocumentKitListScreen(
@@ -181,6 +193,7 @@ fun DocumentKitRoute(
                 initialNote = editingKit?.note.orEmpty(),
                 submitLabel = if (editingKit == null) "Tạo bộ hồ sơ mới" else "Lưu thay đổi",
                 isEdit = editingKit != null,
+                editLeaveRequested = editLeaveRequested,
                 onDelete = editingKit?.let { kit ->
                     {
                         viewModel.deleteKit(kit)
@@ -276,6 +289,8 @@ fun DocumentKitRoute(
                 initialNote = editingItem?.note.orEmpty(),
                 initialRequiredDocuments = editingItem?.requiredDocuments?.toString().orEmpty(),
                 isEdit = editingItem != null,
+                editLeaveRequested = editLeaveRequested,
+                itemStatus = editingItem?.status,
                 linkedDocumentCount = if (freshEditingItem?.linkedDocumentId == null) 0 else 1,
                 linkedDocumentTitle = freshEditingItem?.linkedDocumentId?.let { id ->
                     allDocuments.find { it.id == id }?.title
@@ -358,14 +373,17 @@ fun DocumentKitRoute(
                 )
                 showConfirmDialog = false
                 pendingForm = null
-                editingKit = null
-                subScreen = DocumentKitSubScreen.Detail
+                if (editLeaveRequested) {
+                    onEditLeaveComplete()
+                } else {
+                    editingKit = null
+                    subScreen = DocumentKitSubScreen.Detail
+                }
             },
             onDismiss = {
                 showConfirmDialog = false
                 pendingForm = null
-                editingKit = null
-                subScreen = DocumentKitSubScreen.Detail
+                if (editLeaveRequested) onEditLeaveDismiss()
             }
         )
     }
@@ -398,14 +416,17 @@ fun DocumentKitRoute(
                     )
                     showItemConfirmDialog = false
                     pendingItemForm = null
-                    editingItem = null
-                    subScreen = DocumentKitSubScreen.ItemDetail
+                    if (editLeaveRequested) {
+                        onEditLeaveComplete()
+                    } else {
+                        editingItem = null
+                        subScreen = DocumentKitSubScreen.ItemDetail
+                    }
                 },
                 onDismiss = {
                     showItemConfirmDialog = false
                     pendingItemForm = null
-                    editingItem = null
-                    subScreen = DocumentKitSubScreen.ItemDetail
+                    if (editLeaveRequested) onEditLeaveDismiss()
                 }
             )
         }

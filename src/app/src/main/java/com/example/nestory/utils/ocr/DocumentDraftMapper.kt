@@ -22,6 +22,7 @@ class DocumentDraftMapper(
             documentNumber = result.documentNumber,
             holderName = result.holderName,
             notes = null,
+            ocrText = result.rawText,
             containerId = null,
             attachmentId = null,
         )

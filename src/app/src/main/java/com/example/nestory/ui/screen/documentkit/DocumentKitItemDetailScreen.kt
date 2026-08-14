@@ -102,6 +102,7 @@ private fun KitItemHeaderCard(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .height(110.dp)
             .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(14.dp))
             .padding(horizontal = NestorySpacing.S10),
         verticalAlignment = Alignment.CenterVertically,
@@ -112,8 +113,7 @@ private fun KitItemHeaderCard(
                 .size(width = 77.dp, height = 100.dp)
                 .clip(RoundedCornerShape(NestorySpacing.S10))
                 .background(visual.bgColor, RoundedCornerShape(NestorySpacing.S10))
-                .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10))
-                .padding(6.dp),
+                .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10)),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -153,8 +153,8 @@ private fun KitItemInfoCard(
         verticalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
     ) {
         KitSectionHeader(
-            title = "Mô tả",
-            iconRes = AppIcons.KitAlignLeft,
+            title = "Mục đích",
+            iconRes = AppIcons.KitTarget,
             iconBoxColor = visual.bgColor,
             iconTint = visual.iconTint
         )

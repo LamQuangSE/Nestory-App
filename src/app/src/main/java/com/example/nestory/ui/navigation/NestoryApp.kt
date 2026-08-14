@@ -34,7 +34,7 @@ import com.example.nestory.ui.screen.category.CategoryRoute
 import com.example.nestory.ui.screen.container.ContainerRoute
 import com.example.nestory.ui.screen.document.DocumentRoute
 import com.example.nestory.ui.screen.documentkit.DocumentKitRoute
-import com.example.nestory.ui.screen.home.HomeDashboardScreen
+import com.example.nestory.ui.screen.home.HomeDashboardRoute
 import com.example.nestory.ui.screen.start.StartVaultScreen
 import com.example.nestory.ui.screen.unlock.UnlockRoute
 import com.example.nestory.ui.screen.unlock.UnlockSuccessScreen
@@ -83,19 +83,74 @@ fun NestoryApp(initialDocumentId: String? = null) {
     var vaultCreationSession by remember { mutableIntStateOf(0) }
     var isEditingMode by remember { mutableStateOf(false) }
 
+    // Edit-leave guard: while editing (Kit/Item/Document), any navigation away via the
+    // bottom bar (tab or Scan) must first run the edit confirmation. The request is passed
+    // down into the edit screen, which shows the dialog. Yes -> completeEditLeave, No -> dismissEditLeave.
+    var editLeaveRequested by remember { mutableStateOf(false) }
+    var pendingLeaveDestination by remember { mutableStateOf<NestoryDestination?>(null) }
+    var pendingScanLinkItemId by remember { mutableStateOf<Long?>(null) }
+
+    val dismissEditLeave: () -> Unit = {
+        editLeaveRequested = false
+        pendingLeaveDestination = null
+        pendingScanLinkItemId = null
+    }
+
+    val completeEditLeave: () -> Unit = {
+        editLeaveRequested = false
+        val target = pendingLeaveDestination
+        val scanItemId = pendingScanLinkItemId
+        pendingLeaveDestination = null
+        pendingScanLinkItemId = null
+        isEditingMode = false
+        if (target == NestoryDestination.Scan) {
+            ocrReturnDestination = destination
+            pendingKitLinkItemId = scanItemId
+            destination = NestoryDestination.Scan
+        } else if (target != null) {
+            destination = target
+        }
+    }
+
+    val onEditModeChange: (Boolean) -> Unit = { editing ->
+        isEditingMode = editing
+    }
+
     // Gom lại logic "mở màn hình Scan" đang bị lặp ở 3 nơi (bottom bar, Home, DocumentSelection)
     val goToScan: () -> Unit = {
-        isEditingMode = false
-        ocrReturnDestination = destination
-        pendingKitLinkItemId = null
-        destination = NestoryDestination.Scan
+        if (isEditingMode) {
+            pendingLeaveDestination = NestoryDestination.Scan
+            pendingScanLinkItemId = null
+            editLeaveRequested = true
+        } else {
+            isEditingMode = false
+            ocrReturnDestination = destination
+            pendingKitLinkItemId = null
+            destination = NestoryDestination.Scan
+        }
     }
 
     val goToScanForKitLink: (Long?) -> Unit = { itemId ->
-        isEditingMode = false
-        ocrReturnDestination = destination
-        pendingKitLinkItemId = itemId
-        destination = NestoryDestination.Scan
+        if (isEditingMode) {
+            pendingLeaveDestination = NestoryDestination.Scan
+            pendingScanLinkItemId = itemId
+            editLeaveRequested = true
+        } else {
+            isEditingMode = false
+            ocrReturnDestination = destination
+            pendingKitLinkItemId = itemId
+            destination = NestoryDestination.Scan
+        }
+    }
+
+    val onBottomNavNavigate: (NestoryDestination) -> Unit = { target ->
+        if (isEditingMode) {
+            pendingLeaveDestination = target
+            pendingScanLinkItemId = null
+            editLeaveRequested = true
+        } else {
+            destination = target
+        }
     }
 
     DisposableEffect(lifecycleOwner, context) {
@@ -135,7 +190,7 @@ fun NestoryApp(initialDocumentId: String? = null) {
                 if (showBottomBar) {
                     NestoryBottomBar(
                             currentDestination = destination,
-                            onNavigate = { destination = it },
+                            onNavigate = onBottomNavNavigate,
                             onScanClick = goToScan
                     )
                 }
@@ -213,9 +268,13 @@ fun NestoryApp(initialDocumentId: String? = null) {
                                     },
                             )
                     NestoryDestination.Home ->
-                            HomeDashboardScreen(
+                            HomeDashboardRoute(
                                     onOpenAll = { destination = NestoryDestination.Container },
                                     onAddDocument = goToScan,
+                                    onRecentDocumentClick = { documentId ->
+                                        pendingDocumentId = documentId.toString()
+                                        destination = NestoryDestination.DocumentDetail
+                                    },
                             )
                     NestoryDestination.Category ->
                             CategoryRoute(onBack = { destination = NestoryDestination.Home })
@@ -244,24 +303,40 @@ fun NestoryApp(initialDocumentId: String? = null) {
                             DocumentRoute(
                                 onAddDocument = goToScan,
                                 initialDocumentId = pendingDocumentId,
-                                onClearInitialId = { pendingDocumentId = null }
+                                onClearInitialId = { pendingDocumentId = null },
+                                editLeaveRequested = editLeaveRequested,
+                                onEditLeaveComplete = completeEditLeave,
+                                onEditLeaveDismiss = dismissEditLeave,
+                                onEditModeChange = onEditModeChange,
                             )
                     NestoryDestination.DocumentKit ->
                             DocumentKitRoute(
                                 onBack = { destination = NestoryDestination.Home },
-                                onScanDocument = goToScanForKitLink
+                                onScanDocument = goToScanForKitLink,
+                                editLeaveRequested = editLeaveRequested,
+                                onEditLeaveComplete = completeEditLeave,
+                                onEditLeaveDismiss = dismissEditLeave,
+                                onEditModeChange = onEditModeChange,
                             )
                     NestoryDestination.DocumentDetail ->
                             DocumentRoute(
                                 onAddDocument = goToScan,
                                 initialDocumentId = pendingDocumentId,
-                                onClearInitialId = { pendingDocumentId = null }
+                                onClearInitialId = { pendingDocumentId = null },
+                                editLeaveRequested = editLeaveRequested,
+                                onEditLeaveComplete = completeEditLeave,
+                                onEditLeaveDismiss = dismissEditLeave,
+                                onEditModeChange = onEditModeChange,
                             )
                     NestoryDestination.FilterSelection ->
                             DocumentRoute(
                                 onAddDocument = goToScan,
                                 initialDocumentId = pendingDocumentId,
-                                onClearInitialId = { pendingDocumentId = null }
+                                onClearInitialId = { pendingDocumentId = null },
+                                editLeaveRequested = editLeaveRequested,
+                                onEditLeaveComplete = completeEditLeave,
+                                onEditLeaveDismiss = dismissEditLeave,
+                                onEditModeChange = onEditModeChange,
                             )
                     NestoryDestination.Scan ->
                             OcrRoute(

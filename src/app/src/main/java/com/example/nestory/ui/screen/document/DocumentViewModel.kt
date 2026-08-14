@@ -8,6 +8,7 @@ import com.example.nestory.data.local.entity.ContainerEntity
 import com.example.nestory.data.local.entity.DocumentEntity
 import com.example.nestory.domain.model.DocumentCategory
 import com.example.nestory.domain.model.ExpiryReminderSettings
+import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentRepository
 import kotlinx.coroutines.flow.Flow
@@ -24,6 +25,7 @@ import java.time.LocalDate
 class DocumentViewModel(
     private val documentRepository: DocumentRepository,
     containerRepository: ContainerRepository,
+    private val attachmentRepository: AttachmentRepository,
     expiryReminderSettings: Flow<ExpiryReminderSettings>,
     private val todayProvider: () -> LocalDate = { LocalDate.now() },
 ) : ViewModel() {
@@ -33,9 +35,11 @@ class DocumentViewModel(
     val uiState: StateFlow<DocumentUiState> = combine(
         documentRepository.observeAllDocuments(),
         containerRepository.observeAllContainers(),
+        attachmentRepository.observeAllAttachments(),
         expiryReminderSettings,
         localState,
-    ) { documents, containers, settings, state ->
+    ) { documents, containers, attachments, settings, state ->
+        val attachmentsByDocumentId = attachments.groupBy { it.documentId }
         val visibleDocuments = documents
             .filter { document ->
                 state.searchQuery.isBlank() ||
@@ -48,6 +52,7 @@ class DocumentViewModel(
                     containers = containers,
                     settings = settings,
                     today = todayProvider(),
+                    attachmentUris = attachmentsByDocumentId[document.id].orEmpty().map { it.fileUri },
                 )
             }
 
@@ -81,6 +86,63 @@ class DocumentViewModel(
 
     fun clearSelection() {
         localState.update { it.copy(selectedDocumentId = null) }
+    }
+
+    fun updateDocumentDetails(
+        title: String,
+        categoryLabelValue: String,
+        expirationDate: String,
+    ) {
+        val selected = uiState.value.selectedDocument ?: return
+        val documentId = selected.id.toLongOrNull() ?: return
+
+        viewModelScope.launch {
+            documentRepository.getDocumentById(documentId).fold(
+                onSuccess = { document ->
+                    if (document != null) {
+                        documentRepository.updateDocument(
+                            document.copy(
+                                title = title.ifBlank { document.title },
+                                category = DocumentCategory.entries.firstOrNull {
+                                    categoryLabel(it) == categoryLabelValue.trim()
+                                } ?: document.category,
+                                expirationDate = expirationDate.takeUnless {
+                                    it.isBlank() || it == "Chưa có hạn"
+                                },
+                            ),
+                        ).onFailure { error ->
+                            setError(error.localizedMessage ?: "Không thể lưu thay đổi")
+                        }
+                    }
+                },
+                onFailure = { error ->
+                    setError(error.localizedMessage ?: "Không thể tải giấy tờ")
+                },
+            )
+        }
+    }
+
+    fun toggleFavorite() {
+        val selected = uiState.value.selectedDocument ?: return
+        val documentId = selected.id.toLongOrNull() ?: return
+
+        viewModelScope.launch {
+            documentRepository.getDocumentById(documentId).fold(
+                onSuccess = { document ->
+                    if (document != null) {
+                        documentRepository.updateFavoriteStatus(
+                            documentId = document.id,
+                            isFavorite = !document.isFavorite,
+                        ).onFailure { error ->
+                            setError(error.localizedMessage ?: "Không thể cập nhật yêu thích")
+                        }
+                    }
+                },
+                onFailure = { error ->
+                    setError(error.localizedMessage ?: "Không thể tải giấy tờ")
+                },
+            )
+        }
     }
 
     fun deleteSelectedDocument(onDeleted: () -> Unit) {
@@ -142,6 +204,7 @@ private fun DocumentEntity.toUiModel(
     containers: List<ContainerEntity>,
     settings: ExpiryReminderSettings,
     today: LocalDate,
+    attachmentUris: List<String> = emptyList(),
 ): DocumentUiModel =
     DocumentUiModel(
         id = id.toString(),
@@ -152,6 +215,8 @@ private fun DocumentEntity.toUiModel(
         status = calculateDocumentStatus(expirationDate, settings, today),
         expiryDate = expirationDate ?: "Chưa có hạn",
         categoryColor = categoryColor(category),
+        isFavorite = isFavorite,
+        attachmentUris = attachmentUris,
     )
 
 internal fun buildContainerPath(
@@ -193,6 +258,7 @@ internal fun categoryColor(category: DocumentCategory): Color =
 class DocumentViewModelFactory(
     private val documentRepository: DocumentRepository,
     private val containerRepository: ContainerRepository,
+    private val attachmentRepository: AttachmentRepository,
     private val expiryReminderSettings: Flow<ExpiryReminderSettings>,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
@@ -201,6 +267,7 @@ class DocumentViewModelFactory(
             return DocumentViewModel(
                 documentRepository = documentRepository,
                 containerRepository = containerRepository,
+                attachmentRepository = attachmentRepository,
                 expiryReminderSettings = expiryReminderSettings,
             ) as T
         }

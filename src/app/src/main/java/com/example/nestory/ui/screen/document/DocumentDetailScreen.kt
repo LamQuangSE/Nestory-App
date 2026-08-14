@@ -1,10 +1,13 @@
 package com.example.nestory.ui.screen.document
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,10 +30,37 @@ fun DocumentDetailScreen(
     document: DocumentUiModel,
     onBack: () -> Unit,
     onDelete: () -> Unit = {},
+    onSave: (name: String, categoryLabel: String, expiryDate: String) -> Unit = { _, _, _ -> },
+    onToggleFavorite: () -> Unit = {},
+    isEditMode: Boolean = false,
+    onEditModeChange: (Boolean) -> Unit = {},
+    editLeaveRequested: Boolean = false,
+    onEditLeaveComplete: () -> Unit = {},
+    onEditLeaveDismiss: () -> Unit = {},
     readOnly: Boolean = false,
 ) {
-    var isEditMode by remember { mutableStateOf(false) }
-    
+    var editedName by remember { mutableStateOf(document.name) }
+    var editedCategory by remember { mutableStateOf(document.category) }
+    var editedExpiry by remember { mutableStateOf(document.expiryDate) }
+    var showEditConfirmDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+
+    val resetEditState: () -> Unit = {
+        editedName = document.name
+        editedCategory = document.category
+        editedExpiry = document.expiryDate
+    }
+
+    BackHandler(enabled = isEditMode) {
+        showEditConfirmDialog = true
+    }
+
+    LaunchedEffect(editLeaveRequested) {
+        if (editLeaveRequested && isEditMode) {
+            showEditConfirmDialog = true
+        }
+    }
+
     NestoryScreen(
         verticalPadding = 0.dp,
         useStatusBarPadding = true,
@@ -40,11 +70,19 @@ fun DocumentDetailScreen(
             DetailHeader(
                 title = if (isEditMode) "Chỉnh sửa giấy tờ" else "Thông tin chính",
                 isEditMode = isEditMode,
+                isFavorite = document.isFavorite,
                 onBack = {
-                    if (isEditMode) isEditMode = false else onBack()
+                    if (isEditMode) showEditConfirmDialog = true else onBack()
                 },
-                onEditToggle = { if (!readOnly) isEditMode = true },
-                showEditButton = !readOnly
+                onEditToggle = {
+                    if (!readOnly) {
+                        resetEditState()
+                        onEditModeChange(true)
+                    }
+                },
+                showEditButton = !readOnly,
+                onToggleFavorite = onToggleFavorite,
+                favoriteEnabled = !readOnly
             )
             
             Column(
@@ -59,16 +97,20 @@ fun DocumentDetailScreen(
                     icon = AppIcons.DocumentMainInfo
                 ) {
                     DetailField(
-                        label = "Tên giấy tờ ", 
+                        label = "Tên giấy tờ ",
                         value = document.name,
                         isEditMode = isEditMode,
-                        hint = "Nhập tên giấy tờ "
+                        hint = "Nhập tên giấy tờ ",
+                        editableValue = if (isEditMode) editedName else null,
+                        onValueChange = { editedName = it }
                     )
                     DetailField(
-                        label = "Danh mục", 
+                        label = "Danh mục",
                         value = document.category,
                         isEditMode = isEditMode,
-                        hint = "Chọn hoặc nhập danh mục"
+                        hint = "Chọn hoặc nhập danh mục",
+                        editableValue = if (isEditMode) editedCategory else null,
+                        onValueChange = { editedCategory = it }
                     )
                 }
 
@@ -78,10 +120,12 @@ fun DocumentDetailScreen(
                     icon = AppIcons.DocumentDeadline
                 ) {
                     DetailField(
-                        label = "Ngày hết hạn", 
+                        label = "Ngày hết hạn",
                         value = document.expiryDate,
                         isEditMode = isEditMode,
-                        hint = "Chọn ngày hết hạn "
+                        hint = "Chọn ngày hết hạn ",
+                        editableValue = if (isEditMode) editedExpiry else null,
+                        onValueChange = { editedExpiry = it }
                     )
                     if (!isEditMode) {
                         DetailStatusField(label = "Trạng thái", status = document.status)
@@ -94,8 +138,8 @@ fun DocumentDetailScreen(
                     icon = AppIcons.DocumentStorage
                 ) {
                     DetailField(
-                        label = "Nơi lưu trữ hiện tại", 
-                        value = "Ngăn 4", 
+                        label = "Nơi lưu trữ hiện tại",
+                        value = "Ngăn 4",
                         isEditMode = isEditMode,
                         hint = "Chọn container"
                     )
@@ -105,33 +149,12 @@ fun DocumentDetailScreen(
                 }
 
                 if (isEditMode) {
-                    // Section 4: Tùy chọn (Only in Edit Mode)
-                    DetailSection(
-                        title = "Tùy chọn",
-                        icon = AppIcons.DocumentConfig
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "Đánh dấu là yêu thích ",
-                                style = NestoryTextStyles.Body12Semi,
-                                color = GeneratedColor.Figma000000
-                            )
-                            Spacer(modifier = Modifier.weight(1f))
-                            Image(
-                                painter = painterResource(AppIcons.DocumentStarred),
-                                contentDescription = null,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                    }
-                    
                     EditActions(
-                        onCancel = { isEditMode = false },
-                        onSave = { isEditMode = false },
-                        onDelete = {
-                            isEditMode = false
-                            onDelete()
-                        }
+                        onSave = {
+                            onSave(editedName, editedCategory, editedExpiry)
+                            onEditModeChange(false)
+                        },
+                        onDelete = { showDeleteConfirmDialog = true }
                     )
                 } else {
                     // Section 4: Tệp scan (Only in View Mode)
@@ -139,20 +162,51 @@ fun DocumentDetailScreen(
                         title = "Tệp scan",
                         icon = AppIcons.DocumentFileScan
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(64.dp)
-                                .clip(NestoryRadius.R10)
-                                .background(GeneratedColor.FigmaF3f6ff)
-                                .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Chưa có file scan",
-                                style = NestoryTextStyles.Body12Semi,
-                                color = GeneratedColor.Figma919191
-                            )
+                        if (document.attachmentUris.isEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(64.dp)
+                                    .clip(NestoryRadius.R10)
+                                    .background(GeneratedColor.FigmaF3f6ff)
+                                    .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "Chưa có file scan",
+                                    style = NestoryTextStyles.Body12Semi,
+                                    color = GeneratedColor.Figma919191
+                                )
+                            }
+                        } else {
+                            document.attachmentUris.forEach { fileUri ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(45.dp)
+                                        .clip(NestoryRadius.R10)
+                                        .background(GeneratedColor.FigmaF3f6ff)
+                                        .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
+                                        .padding(horizontal = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Image(
+                                        painter = painterResource(AppIcons.DocumentFileScan),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                        contentScale = ContentScale.Fit
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = attachmentFileName(fileUri),
+                                        style = NestoryTextStyles.Body14Medium,
+                                        color = GeneratedColor.Figma000000,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
                         }
                     }
                 }
@@ -160,6 +214,31 @@ fun DocumentDetailScreen(
                 Spacer(modifier = Modifier.height(20.dp))
             }
         }
+    }
+
+    if (showEditConfirmDialog) {
+        ConfirmEditDocumentDialog(
+            onConfirm = {
+                showEditConfirmDialog = false
+                onSave(editedName, editedCategory, editedExpiry)
+                onEditModeChange(false)
+                if (editLeaveRequested) onEditLeaveComplete()
+            },
+            onDismiss = {
+                showEditConfirmDialog = false
+                if (editLeaveRequested) onEditLeaveDismiss()
+            }
+        )
+    }
+
+    if (showDeleteConfirmDialog) {
+        ConfirmDeleteDocumentDialog(
+            onConfirm = {
+                showDeleteConfirmDialog = false
+                onDelete()
+            },
+            onDismiss = { showDeleteConfirmDialog = false }
+        )
     }
 }
 
@@ -169,7 +248,10 @@ private fun DetailHeader(
     isEditMode: Boolean,
     onBack: () -> Unit,
     onEditToggle: () -> Unit,
-    showEditButton: Boolean = true
+    showEditButton: Boolean = true,
+    isFavorite: Boolean = false,
+    onToggleFavorite: () -> Unit = {},
+    favoriteEnabled: Boolean = true,
 ) {
     Row(
         modifier = Modifier
@@ -214,9 +296,13 @@ private fun DetailHeader(
             Spacer(modifier = Modifier.width(10.dp))
             // Star Button
             Image(
-                painter = painterResource(AppIcons.DocumentStarred),
+                painter = painterResource(
+                    if (isFavorite) AppIcons.DocumentStarred else AppIcons.KitUnstarred
+                ),
                 contentDescription = null,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable(enabled = favoriteEnabled) { onToggleFavorite() },
                 contentScale = ContentScale.Fit
             )
         }
@@ -272,7 +358,9 @@ private fun DetailField(
     label: String,
     value: String,
     isEditMode: Boolean = false,
-    hint: String = ""
+    hint: String = "",
+    editableValue: String? = null,
+    onValueChange: (String) -> Unit = {},
 ) {
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
         Text(
@@ -291,11 +379,32 @@ private fun DetailField(
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
-            Text(
-                text = if (isEditMode) hint else value,
-                style = NestoryTextStyles.Body14Medium,
-                color = if (isEditMode) GeneratedColor.Figma919191 else GeneratedColor.Figma000000
-            )
+            if (isEditMode && editableValue != null) {
+                BasicTextField(
+                    value = editableValue,
+                    onValueChange = onValueChange,
+                    singleLine = true,
+                    textStyle = NestoryTextStyles.Body14Medium.copy(
+                        color = GeneratedColor.Figma000000
+                    ),
+                    decorationBox = { innerTextField ->
+                        if (editableValue.isEmpty()) {
+                            Text(
+                                text = hint,
+                                style = NestoryTextStyles.Body14Medium,
+                                color = GeneratedColor.Figma919191
+                            )
+                        }
+                        innerTextField()
+                    }
+                )
+            } else {
+                Text(
+                    text = if (isEditMode) hint else value,
+                    style = NestoryTextStyles.Body14Medium,
+                    color = if (isEditMode) GeneratedColor.Figma919191 else GeneratedColor.Figma000000
+                )
+            }
         }
     }
 }
@@ -342,57 +451,18 @@ private fun DetailStatusField(
 
 @Composable
 private fun EditActions(
-    onCancel: () -> Unit,
     onSave: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
 ) {
-    Column(
+    Row(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(15.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
+        horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp),
-            horizontalArrangement = Arrangement.spacedBy(15.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(NestoryRadius.R10)
-                    .background(GeneratedColor.FigmaEdebff)
-                    .clickable { onCancel() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Hủy",
-                    style = NestoryTextStyles.Body15Semi,
-                    color = GeneratedColor.Figma6d28d9
-                )
-            }
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .clip(NestoryRadius.R10)
-                    .background(GeneratedColor.Figma1a60e2)
-                    .clickable { onSave() },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Lưu",
-                    style = NestoryTextStyles.Body15Semi,
-                    color = GeneratedColor.FigmaFfffff
-                )
-            }
-        }
-        
         Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(42.dp)
+                .weight(1f)
+                .height(36.dp)
+                .border(1.dp, GeneratedColor.FigmaFf0000, RoundedCornerShape(NestorySpacing.S10))
                 .clickable { onDelete() },
             contentAlignment = Alignment.Center
         ) {
@@ -402,8 +472,25 @@ private fun EditActions(
                 color = GeneratedColor.FigmaFf0000
             )
         }
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .height(36.dp)
+                .background(GeneratedColor.Figma522ec8, RoundedCornerShape(NestorySpacing.S10))
+                .clickable { onSave() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Lưu",
+                style = NestoryTextStyles.Body15Semi,
+                color = GeneratedColor.FigmaFfffff
+            )
+        }
     }
 }
+
+internal fun attachmentFileName(filePath: String): String =
+    filePath.substringAfterLast('/').ifBlank { filePath }
 
 @Preview(showBackground = true)
 @Composable

@@ -1,7 +1,6 @@
 package com.example.nestory.data.filesystem
 
 import android.content.Context
-import androidx.room.Room
 import com.example.nestory.data.local.database.AppDatabase
 import java.io.File
 import kotlinx.coroutines.Dispatchers
@@ -63,22 +62,8 @@ class FileSystemManager(private val context: Context) {
         completedSteps += VaultCreationStep.Preferences
 
         val databaseReady = runCatching {
-            val db = Room.databaseBuilder(
-                context.applicationContext,
-                AppDatabase::class.java,
-                "nestory_database",
-            ).addMigrations(
-                AppDatabase.MIGRATION_1_2,
-                AppDatabase.MIGRATION_2_3,
-                AppDatabase.MIGRATION_3_4,
-                AppDatabase.MIGRATION_4_5,
-            ).build()
-
-            try {
-                db.openHelper.writableDatabase
-            } finally {
-                db.close()
-            }
+            val db = AppDatabase.getDatabase(context.applicationContext)
+            db.openHelper.writableDatabase
         }.isSuccess
         if (!databaseReady) {
             return@withContext VaultCreationResult(

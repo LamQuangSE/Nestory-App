@@ -20,6 +20,7 @@ data class DocumentUiModel(
     val status: DocumentStatus,
     val expiryDate: String,
     val categoryColor: Color,
+    val isFavorite: Boolean = false,
     val attachmentUris: List<String> = emptyList(),
     val customReminder: CustomReminderUiModel? = null
 )

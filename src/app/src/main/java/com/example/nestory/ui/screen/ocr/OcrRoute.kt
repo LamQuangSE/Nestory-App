@@ -32,7 +32,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.room.Room
 import com.example.nestory.R
 import com.example.nestory.data.filesystem.ImageStorageManager
 import com.example.nestory.data.local.database.AppDatabase
@@ -76,13 +75,7 @@ fun OcrRoute(
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
     val coroutineScope = rememberCoroutineScope()
-    val db = remember {
-        Room.databaseBuilder(
-            context.applicationContext,
-            AppDatabase::class.java,
-            "nestory_database",
-        ).addMigrations(AppDatabase.MIGRATION_1_2).build()
-    }
+    val db = remember { AppDatabase.getDatabase(context.applicationContext) }
 
     val ocrRepository = remember { MlKitOcrRepository() }
     val categoryDetector = remember { CategoryDetector() }
@@ -114,6 +107,7 @@ fun OcrRoute(
     }
     val uiState by viewModel.uiState.collectAsState()
     val containers by viewModel.containers.collectAsState()
+    val fieldErrors by viewModel.fieldErrors.collectAsState()
 
     var scannerUiState by remember { mutableStateOf(ScannerUiState()) }
     var hasRequestedInitialScan by remember { mutableStateOf(false) }
@@ -424,6 +418,7 @@ fun OcrRoute(
                 onSave = {
                     viewModel.saveDocument(onSaved = { onSaved() })
                 },
+                fieldErrors = fieldErrors,
             )
         }
     }

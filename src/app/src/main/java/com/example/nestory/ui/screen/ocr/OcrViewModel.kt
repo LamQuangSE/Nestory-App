@@ -119,25 +119,27 @@ class OcrViewModel(
                 expirationDate = draft.expiryDate,
                 notes = draft.notes,
                 containerId = containerId,
+                issueDate = draft.issueDate,
+                holderName = draft.holderName,
+                documentNumber = draft.documentNumber,
+                ocrText = draft.ocrText,
             )
 
             documentRepository.createDocument(document).fold(
                 onSuccess = { documentId ->
                     var saveError: Throwable? = null
-                    bitmaps.forEachIndexed { index, bitmap ->
-                        imageStorageManager.saveBitmap(bitmap).fold(
-                            onSuccess = { filePath ->
-                                attachmentRepository.addAttachmentMetadata(
-                                    AttachmentEntity(
-                                        fileUri = filePath,
-                                        documentId = documentId,
-                                        displayOrder = index,
-                                    ),
-                                ).onFailure { error -> saveError = error }
-                            },
-                            onFailure = { error -> saveError = error },
-                        )
-                    }
+                    imageStorageManager.saveBitmapsAsPdf(bitmaps).fold(
+                        onSuccess = { filePath ->
+                            attachmentRepository.addAttachmentMetadata(
+                                AttachmentEntity(
+                                    fileUri = filePath,
+                                    documentId = documentId,
+                                    displayOrder = 0,
+                                ),
+                            ).onFailure { error -> saveError = error }
+                        },
+                        onFailure = { error -> saveError = error },
+                    )
 
                     if (saveError == null) {
                         pendingKitLinkItemId?.let { itemId ->
@@ -191,13 +193,12 @@ class OcrViewModel(
         }
     }
 
-    private fun validateDraft(draft: DocumentDraft): OcrFieldErrors {        val issueDate = draft.issueDate.orEmpty()
+    private fun validateDraft(draft: DocumentDraft): OcrFieldErrors {
         val expiryDate = draft.expiryDate.orEmpty()
         return OcrFieldErrors(
             title = draft.title.isBlank(),
             category = draft.category == null,
-            issueDate = issueDate.isNotBlank() && parseExpirationDate(issueDate) == null,
-            expiryDate = expiryDate.isNotBlank() && parseExpirationDate(expiryDate) == null,
+            expiryDate = expiryDate.isBlank() || parseExpirationDate(expiryDate) == null,
             container = draft.containerId == null,
         )
     }
@@ -206,11 +207,10 @@ class OcrViewModel(
 data class OcrFieldErrors(
     val title: Boolean = false,
     val category: Boolean = false,
-    val issueDate: Boolean = false,
     val expiryDate: Boolean = false,
     val container: Boolean = false,
 ) {
-    val hasErrors: Boolean get() = title || category || issueDate || expiryDate || container
+    val hasErrors: Boolean get() = title || category || expiryDate || container
 }
 
 class OcrViewModelFactory(

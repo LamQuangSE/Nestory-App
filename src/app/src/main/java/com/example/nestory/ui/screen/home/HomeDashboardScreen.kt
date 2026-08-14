@@ -1,7 +1,7 @@
 package com.example.nestory.ui.screen.home
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,12 +31,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.example.nestory.data.local.entity.ContainerEntity
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryLogo
 import com.example.nestory.ui.components.SectionHeader
-import com.example.nestory.ui.navigation.NestoryDestination
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestorySpacing
@@ -44,8 +44,10 @@ import com.example.nestory.ui.theme.NestoryTextStyles
 
 @Composable
 fun HomeDashboardScreen(
+    uiState: HomeDashboardUiState,
     onOpenAll: () -> Unit,
-    onAddDocument: () -> Unit
+    onAddDocument: () -> Unit,
+    onRecentDocumentClick: (Long) -> Unit = {},
 ) {
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -81,20 +83,66 @@ fun HomeDashboardScreen(
             Spacer(modifier = Modifier.height(NestorySpacing.S24))
             SectionHeader(title = "Gần đây", action = "Xem tất cả", onAction = onOpenAll)
             Spacer(modifier = Modifier.height(NestorySpacing.S14))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
-            ) {
-                EmptyRecentCard(Modifier.weight(1f))
-                EmptyRecentCard(Modifier.weight(1f))
-                EmptyRecentCard(Modifier.weight(1f))
-                EmptyRecentCard(Modifier.weight(1f))
-            }
+            RecentSection(
+                documents = uiState.recentDocuments,
+                onDocumentClick = onRecentDocumentClick,
+            )
             Spacer(modifier = Modifier.height(NestorySpacing.S24))
             SectionHeader(title = "Container của bạn", action = "Xem tất cả", onAction = onOpenAll)
             Spacer(modifier = Modifier.height(NestorySpacing.S14))
-            SectionCard {
-                EmptyStateLine()
+            ContainerSection(
+                containers = uiState.rootContainers,
+                onContainerClick = onOpenAll,
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecentSection(
+    documents: List<RecentDocumentUi>,
+    onDocumentClick: (Long) -> Unit,
+) {
+    if (documents.isEmpty()) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
+        ) {
+            EmptyRecentCard(Modifier.weight(1f))
+            EmptyRecentCard(Modifier.weight(1f))
+            EmptyRecentCard(Modifier.weight(1f))
+            EmptyRecentCard(Modifier.weight(1f))
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
+        ) {
+            documents.forEach { document ->
+                RecentDocumentCard(
+                    document = document,
+                    onClick = { onDocumentClick(document.id) },
+                    modifier = Modifier.weight(1f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ContainerSection(
+    containers: List<ContainerEntity>,
+    onContainerClick: () -> Unit,
+) {
+    SectionCard {
+        if (containers.isEmpty()) {
+            EmptyStateLine()
+        } else {
+            containers.forEach { container ->
+                ContainerRow(
+                    container = container,
+                    onClick = onContainerClick,
+                )
             }
         }
     }
@@ -128,6 +176,94 @@ private fun SectionCard(content: @Composable ColumnScope.() -> Unit) {
         border = BorderStroke(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f))
     ) {
         Column(modifier = Modifier.padding(NestorySpacing.S16), content = content)
+    }
+}
+
+@Composable
+private fun RecentDocumentCard(
+    document: RecentDocumentUi,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .height(106.dp)
+            .clip(NestoryRadius.R14)
+            .background(GeneratedColor.FigmaFfffff)
+            .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R14)
+            .padding(NestorySpacing.S8)
+            .clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Box(
+            modifier = Modifier
+                .size(50.dp)
+                .clip(NestoryRadius.R10)
+                .background(GeneratedColor.FigmaEdebff)
+                .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R10),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = document.categoryLabel.take(1),
+                style = NestoryTextStyles.Body14Semi,
+                color = GeneratedColor.Figma522ec8
+            )
+        }
+        Spacer(modifier = Modifier.height(NestorySpacing.S8))
+        Text(
+            text = document.title,
+            style = NestoryTextStyles.Body12Semi,
+            color = GeneratedColor.Figma000000,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        Spacer(modifier = Modifier.height(NestorySpacing.S4))
+        Text(
+            text = document.expiryDate,
+            style = NestoryTextStyles.Body11Semi,
+            color = GeneratedColor.Figma919191,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+    }
+}
+
+@Composable
+private fun ContainerRow(
+    container: ContainerEntity,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(NestoryRadius.R10)
+                .background(GeneratedColor.FigmaF3f6ff)
+                .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R10),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(AppIcons.FigmaNavFolder),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+        Spacer(modifier = Modifier.width(NestorySpacing.S14))
+        Text(
+            text = container.name,
+            style = NestoryTextStyles.Body14Semi,
+            color = GeneratedColor.Figma000000,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -210,4 +346,3 @@ private fun EmptyStateLine() {
         )
     }
 }
-

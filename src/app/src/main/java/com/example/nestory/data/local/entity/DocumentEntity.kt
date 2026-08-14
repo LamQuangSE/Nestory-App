@@ -41,6 +41,18 @@ data class DocumentEntity(
     @ColumnInfo(name = "notes")
     val notes: String? = null,
 
+    @ColumnInfo(name = "issue_date")
+    val issueDate: String? = null,
+
+    @ColumnInfo(name = "holder_name")
+    val holderName: String? = null,
+
+    @ColumnInfo(name = "document_number")
+    val documentNumber: String? = null,
+
+    @ColumnInfo(name = "ocr_text")
+    val ocrText: String? = null,
+
     @ColumnInfo(name = "is_favorite")
     val isFavorite: Boolean = false,
 

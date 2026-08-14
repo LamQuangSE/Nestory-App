@@ -6,8 +6,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -16,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.nestory.ui.assets.AppIcons
@@ -30,7 +31,9 @@ fun DocumentSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     onFilterClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isFilterActive: Boolean = false
+
 ) {
     Row(
         modifier = modifier
@@ -71,14 +74,30 @@ fun DocumentSearchBar(
             )
         }
         Spacer(modifier = Modifier.width(NestorySpacing.S8))
-        Image(
-            painter = painterResource(AppIcons.DocumentConfig),
-            contentDescription = null,
+        
+        // Thêm cục chấm báo hiệu đang có bộ lọc Active
+        Box(
             modifier = Modifier
-                .size(20.dp)
+                .size(24.dp)
                 .clickable(onClick = onFilterClick),
-            contentScale = ContentScale.Fit
-        )
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(AppIcons.DocumentConfig),
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                contentScale = ContentScale.Fit
+            )
+            if (isFilterActive) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .align(Alignment.TopEnd)
+                        .clip(CircleShape)
+                        .background(Color.Red)
+                )
+            }
+        }
     }
 }
 
@@ -99,7 +118,7 @@ fun DocumentListItem(
             .padding(NestorySpacing.S12),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon box (Node 220:292)
+        // Icon box
         Box(
             modifier = Modifier
                 .size(60.dp)
@@ -165,5 +184,173 @@ fun DocumentListItem(
             color = GeneratedColor.Figma919191,
             modifier = Modifier.align(Alignment.Bottom)
         )
+    }
+}
+
+@Composable
+fun NestoryCheckboxRow(
+    label: String,
+    isChecked: Boolean,
+    onCheckedChange: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(24.dp)
+            .clickable { onCheckedChange() },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier.size(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isChecked) {
+                Image(
+                    painter = painterResource(AppIcons.NestoryTickCircle),
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .border(2.dp, Color(0xFFD9D9D9), RoundedCornerShape(2.dp))
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = label,
+            style = NestoryTextStyles.Body14Semi.copy(fontWeight = FontWeight.W400),
+            color = GeneratedColor.Figma000000
+        )
+    }
+}
+
+@Composable
+fun SelectionListItem(
+    label: String,
+    icon: Int? = null,           // Cho phép null
+    categoryColor: Color? = null, // Thêm màu sắc danh mục
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+            .clip(NestoryRadius.R10)
+            .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
+            .clickable { onClick() }
+            .padding(10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Hộp chứa Icon hoặc Chấm màu
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .background(
+                    color = if (categoryColor != null) Color.Transparent else GeneratedColor.FigmaEdebff, 
+                    shape = NestoryRadius.R10
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (categoryColor != null) {
+                // Nếu là Danh mục -> Hiển thị chấm màu giống CategoryListItem của bạn
+                Box(
+                    modifier = Modifier
+                        .size(29.dp)
+                        .clip(CircleShape)
+                        .background(categoryColor)
+                )
+            } else if (icon != null) {
+                // Nếu là Container -> Hiển thị Icon
+                Image(
+                    painter = painterResource(icon),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(GeneratedColor.Figma1a60e2)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = label,
+            style = NestoryTextStyles.Body16Semi,
+            color = GeneratedColor.Figma000000,
+            modifier = Modifier.weight(1f)
+        )
+        
+        if (isSelected) {
+            Image(
+                painter = painterResource(AppIcons.NestoryTickCircle),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(20.dp)
+                    .border(4.dp, GeneratedColor.FigmaD0cfd1, CircleShape)
+            )
+        }
+    }
+}
+
+@Composable
+fun SelectionRadioItem(
+    label: String,
+    icon: Int,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+            .clip(NestoryRadius.R10)
+            .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
+            .clickable { onClick() }
+            .padding(horizontal = 16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Icon bên trái
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .background(GeneratedColor.FigmaF3f6ff, NestoryRadius.R10),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(icon),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(GeneratedColor.Figma1a60e2)
+            )
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        
+        // Tên
+        Text(
+            text = label,
+            style = NestoryTextStyles.Body16Semi,
+            color = GeneratedColor.Figma000000,
+            modifier = Modifier.weight(1f)
+        )
+        
+        // Radio Button bên phải
+        if (isSelected) {
+            Image(
+                painter = painterResource(AppIcons.NestoryTickCircle),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp)
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .border(1.5.dp, GeneratedColor.FigmaD0cfd1, CircleShape)
+            )
+        }
     }
 }

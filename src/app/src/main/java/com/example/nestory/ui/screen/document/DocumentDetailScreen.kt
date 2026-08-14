@@ -421,7 +421,8 @@ fun DocumentDetailViewPreview() {
             containerPath = "Tủ tài liệu > Ngăn 4",
             status = DocumentStatus.Active,
             expiryDate = "20/08/2026",
-            categoryColor = Color(0xFF1855EE)
+            categoryColor = Color(0xFF1855EE),
+            isFavorite = false
         ),
         onBack = {}
     )

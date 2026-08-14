@@ -4,12 +4,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.nestory.data.local.entity.CategoryEntity
 import com.example.nestory.data.local.entity.ContainerEntity
 import com.example.nestory.data.local.entity.DocumentEntity
-import com.example.nestory.domain.model.DocumentCategory
 import com.example.nestory.domain.model.ExpiryReminderSettings
+import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentRepository
+import com.example.nestory.ui.assets.AppIcons
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -23,7 +25,8 @@ import java.time.LocalDate
 
 class DocumentViewModel(
     private val documentRepository: DocumentRepository,
-    containerRepository: ContainerRepository,
+    private val containerRepository: ContainerRepository,
+    private val categoryRepository: CategoryRepository,
     expiryReminderSettings: Flow<ExpiryReminderSettings>,
     private val todayProvider: () -> LocalDate = { LocalDate.now() },
 ) : ViewModel() {
@@ -33,35 +36,64 @@ class DocumentViewModel(
     val uiState: StateFlow<DocumentUiState> = combine(
         documentRepository.observeAllDocuments(),
         containerRepository.observeAllContainers(),
+        categoryRepository.getAllCategories(),
         expiryReminderSettings,
         localState,
-    ) { documents, containers, settings, state ->
-        val visibleDocuments = documents
-            .filter { document ->
-                state.searchQuery.isBlank() ||
+    ) { documents, containers, categories, settings, state ->
+        
+        val containerUiModels = containers.map { container ->
+            ContainerUiModel(
+                id = container.id,
+                name = container.name,
+                fullPath = buildContainerPath(container.id, containers),
+                parentId = container.parentId,
+                hasChildren = containers.any { it.parentId == container.id },
+                childFolderCount = containers.count { it.parentId == container.id },
+                documentCount = documents.count { it.containerId == container.id }
+            )
+        }
+
+        val categoryUiModels = categories.map { category ->
+            DocCategoryUiModel(
+                id = category.id,
+                name = category.name,
+                color = Color(category.colorValue.toULong())
+            )
+        }
+
+        val filteredDocuments = documents.filter { document ->
+            val catName = categories.find { it.id == document.categoryId }?.name ?: "Khác"
+            val matchesSearch = state.searchQuery.isBlank() ||
                     document.title.contains(state.searchQuery, ignoreCase = true) ||
                     document.notes.orEmpty().contains(state.searchQuery, ignoreCase = true) ||
-                    categoryLabel(document.category).contains(state.searchQuery, ignoreCase = true)
-            }
-            .map { document ->
-                document.toUiModel(
-                    containers = containers,
-                    settings = settings,
-                    today = todayProvider(),
-                )
-            }
+                    catName.contains(state.searchQuery, ignoreCase = true)
+
+            val matchesCategory = state.activeFilter.selectedCategoryId == null || document.categoryId == state.activeFilter.selectedCategoryId
+            val matchesContainer = state.activeFilter.selectedContainerId == null || document.containerId == state.activeFilter.selectedContainerId
+            val matchesFav = state.activeFilter.isFavorite == null || document.isFavorite == state.activeFilter.isFavorite
+
+            matchesSearch && matchesCategory && matchesContainer && matchesFav
+        }.map { document ->
+            document.toUiModel(containers, categories, settings, todayProvider())
+        }.filter { uiModel ->
+            state.activeFilter.statuses.isEmpty() || state.activeFilter.statuses.contains(uiModel.status)
+        }
 
         state.toUiState(
-            documents = visibleDocuments,
-            selectedDocument = visibleDocuments.firstOrNull { it.id == state.selectedDocumentId },
+            documents = filteredDocuments,
+            availableContainers = containerUiModels,
+            availableCategories = categoryUiModels,
+            selectedDocument = filteredDocuments.firstOrNull { it.id == state.selectedDocumentId },
         )
     }
         .catch { error ->
             emit(
                 localState.value.toUiState(
                     documents = emptyList(),
+                    availableContainers = emptyList(),
+                    availableCategories = emptyList(),
                     selectedDocument = null,
-                    errorMessage = error.localizedMessage ?: "Không thể tải danh sách giấy tờ",
+                    errorMessage = error.localizedMessage ?: "Lỗi",
                 ),
             )
         }
@@ -83,56 +115,81 @@ class DocumentViewModel(
         localState.update { it.copy(selectedDocumentId = null) }
     }
 
+    fun updateDraftCategory(categoryId: String?) {
+        localState.update { it.copy(draftFilter = it.draftFilter.copy(selectedCategoryId = categoryId)) }
+    }
+
+    fun updateDraftContainer(containerId: Long?) {
+        localState.update { it.copy(draftFilter = it.draftFilter.copy(selectedContainerId = containerId)) }
+    }
+
+    fun updateDraftFavorite(isFavorite: Boolean?) {
+        localState.update { it.copy(draftFilter = it.draftFilter.copy(isFavorite = isFavorite)) }
+    }
+
+    fun toggleDraftStatus(status: DocumentStatus) {
+        localState.update { state ->
+            val currentStatuses = state.draftFilter.statuses.toMutableSet()
+            if (currentStatuses.contains(status)) currentStatuses.remove(status) else currentStatuses.add(status)
+            state.copy(draftFilter = state.draftFilter.copy(statuses = currentStatuses))
+        }
+    }
+
+    fun applyFilter() {
+        localState.update { it.copy(activeFilter = it.draftFilter) }
+    }
+
+    fun resetFilter() {
+        val emptyFilter = DocumentFilterState()
+        localState.update { it.copy(draftFilter = emptyFilter, activeFilter = emptyFilter) }
+    }
+
+    fun syncDraftWithActiveFilter() {
+        localState.update { it.copy(draftFilter = it.activeFilter) }
+    }
+
     fun deleteSelectedDocument(onDeleted: () -> Unit) {
         val selected = uiState.value.selectedDocument ?: return
         val documentId = selected.id.toLongOrNull() ?: return
-
         viewModelScope.launch {
             documentRepository.getDocumentById(documentId).fold(
                 onSuccess = { document ->
                     if (document != null) {
                         documentRepository.deleteDocument(document).fold(
-                            onSuccess = {
-                                clearSelection()
-                                onDeleted()
-                            },
-                            onFailure = { error ->
-                                setError(error.localizedMessage ?: "Không thể xóa giấy tờ")
-                            },
+                            onSuccess = { clearSelection(); onDeleted() },
+                            onFailure = { error -> setError(error.localizedMessage ?: "Lỗi xóa") },
                         )
-                    } else {
-                        clearSelection()
-                        onDeleted()
-                    }
+                    } else { clearSelection(); onDeleted() }
                 },
-                onFailure = { error ->
-                    setError(error.localizedMessage ?: "Không thể tải giấy tờ")
-                },
+                onFailure = { error -> setError(error.localizedMessage ?: "Lỗi tải") },
             )
         }
     }
 
-    fun clearError() {
-        localState.update { it.copy(errorMessage = null) }
-    }
-
-    private fun setError(message: String) {
-        localState.update { it.copy(errorMessage = message) }
-    }
+    fun clearError() { localState.update { it.copy(errorMessage = null) } }
+    private fun setError(message: String) { localState.update { it.copy(errorMessage = message) } }
 
     private data class DocumentLocalState(
         val selectedDocumentId: String? = null,
         val searchQuery: String = "",
+        val activeFilter: DocumentFilterState = DocumentFilterState(),
+        val draftFilter: DocumentFilterState = DocumentFilterState(),
         val errorMessage: String? = null,
     ) {
         fun toUiState(
             documents: List<DocumentUiModel>,
+            availableContainers: List<ContainerUiModel>,
+            availableCategories: List<DocCategoryUiModel>,
             selectedDocument: DocumentUiModel?,
             errorMessage: String? = this.errorMessage,
         ) = DocumentUiState(
             documents = documents,
+            availableContainers = availableContainers,
+            availableCategories = availableCategories,
             selectedDocument = selectedDocument,
             searchQuery = searchQuery,
+            activeFilter = activeFilter,
+            draftFilter = draftFilter,
             errorMessage = errorMessage,
         )
     }
@@ -140,23 +197,25 @@ class DocumentViewModel(
 
 private fun DocumentEntity.toUiModel(
     containers: List<ContainerEntity>,
+    categories: List<CategoryEntity>,
     settings: ExpiryReminderSettings,
     today: LocalDate,
-): DocumentUiModel =
-    DocumentUiModel(
+): DocumentUiModel {
+    val categoryEntity = categories.find { it.id == this.categoryId }
+    return DocumentUiModel(
         id = id.toString(),
         name = title,
-        category = categoryLabel(category),
+        category = categoryEntity?.name ?: "Khác",
         containerPath = buildContainerPath(containerId, containers),
-        status = calculateDocumentStatus(expirationDate, settings, today),
+        // Gọi Object Calculator vừa được tách ra
+        status = DocumentStatusCalculator.calculate(expirationDate, settings, today),
         expiryDate = expirationDate ?: "Chưa có hạn",
-        categoryColor = categoryColor(category),
+        categoryColor = categoryEntity?.let { Color(it.colorValue.toULong()) } ?: Color(0xFF717171),
+        isFavorite = isFavorite
     )
+}
 
-fun buildContainerPath(
-    containerId: Long,
-    containers: List<ContainerEntity>,
-): String {
+fun buildContainerPath(containerId: Long, containers: List<ContainerEntity>): String {
     val path = mutableListOf<String>()
     var currentId: Long? = containerId
     while (currentId != null) {
@@ -167,31 +226,10 @@ fun buildContainerPath(
     return path.takeIf { it.isNotEmpty() }?.joinToString(" > ") ?: "Chưa chọn container"
 }
 
-fun categoryLabel(category: DocumentCategory): String =
-    when (category) {
-        DocumentCategory.IDENTITY -> "Nhân thân"
-        DocumentCategory.EDUCATION -> "Học vấn"
-        DocumentCategory.FINANCE -> "Tài chính"
-        DocumentCategory.PROPERTY -> "Bất động sản"
-        DocumentCategory.VEHICLE -> "Phương tiện"
-        DocumentCategory.HEALTH -> "Sức khỏe"
-        DocumentCategory.OTHER -> "Khác"
-    }
-
-fun categoryColor(category: DocumentCategory): Color =
-    when (category) {
-        DocumentCategory.IDENTITY -> Color(0xFF1855EE)
-        DocumentCategory.EDUCATION -> Color(0xFF6D28D9)
-        DocumentCategory.FINANCE -> Color(0xFF07BC67)
-        DocumentCategory.PROPERTY -> Color(0xFFEB6E00)
-        DocumentCategory.VEHICLE -> Color(0xFF0F766E)
-        DocumentCategory.HEALTH -> Color(0xFFCF1111)
-        DocumentCategory.OTHER -> Color(0xFF717171)
-    }
-
 class DocumentViewModelFactory(
     private val documentRepository: DocumentRepository,
     private val containerRepository: ContainerRepository,
+    private val categoryRepository: CategoryRepository,
     private val expiryReminderSettings: Flow<ExpiryReminderSettings>,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
@@ -200,6 +238,7 @@ class DocumentViewModelFactory(
             return DocumentViewModel(
                 documentRepository = documentRepository,
                 containerRepository = containerRepository,
+                categoryRepository = categoryRepository,
                 expiryReminderSettings = expiryReminderSettings,
             ) as T
         }

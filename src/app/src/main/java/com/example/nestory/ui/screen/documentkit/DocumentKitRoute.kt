@@ -22,9 +22,8 @@ import com.example.nestory.domain.model.ExpiryReminderSettings
 import com.example.nestory.ui.screen.document.DocumentDetailScreen
 import com.example.nestory.ui.screen.document.DocumentUiModel
 import com.example.nestory.ui.screen.document.buildContainerPath
-import com.example.nestory.ui.screen.document.calculateDocumentStatus
-import com.example.nestory.ui.screen.document.categoryColor
-import com.example.nestory.ui.screen.document.categoryLabel
+import com.example.nestory.ui.screen.document.DocumentStatusCalculator
+import androidx.compose.ui.graphics.Color
 
 enum class DocumentKitSubScreen {
     List,
@@ -111,11 +110,12 @@ fun DocumentKitRoute(
         DocumentUiModel(
             id = doc.id.toString(),
             name = doc.title,
-            category = categoryLabel(doc.category),
+            category = "Chưa phân loại",
             containerPath = buildContainerPath(doc.containerId, containers),
-            status = calculateDocumentStatus(doc.expirationDate, ExpiryReminderSettings()),
+            status = DocumentStatusCalculator.calculate(doc.expirationDate, ExpiryReminderSettings()),
             expiryDate = doc.expirationDate ?: "Chưa có hạn",
-            categoryColor = categoryColor(doc.category),
+            categoryColor = Color(0xFF717171),
+            isFavorite = doc.isFavorite
         )
     }
 

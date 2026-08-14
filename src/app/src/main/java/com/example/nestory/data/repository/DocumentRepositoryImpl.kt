@@ -32,7 +32,7 @@ class DocumentRepositoryImpl(
 
     override fun filterDocuments(filter: DocumentFilter): Flow<List<DocumentEntity>> =
         documentDao.filterDocuments(
-            category = filter.category,
+            categoryId = filter.categoryId,
             isFavorite = filter.isFavorite,
             containerId = filter.containerId,
         )

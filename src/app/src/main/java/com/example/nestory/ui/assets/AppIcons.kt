@@ -53,7 +53,6 @@ object AppIcons {
     val DocumentFilterExpiring = R.drawable.ic_document_filter_expiring
     val DocumentCamera = R.drawable.ic_camera
 
-
     val IcRotateLeft = R.drawable.ic_rotate_left
     val IcRotateRight = R.drawable.ic_rotate_right
     val IcCrop = R.drawable.ic_crop
@@ -87,4 +86,17 @@ object AppIcons {
     val KitAlignLeft = R.drawable.ic_kit_align_left
     val KitCheckCircle = R.drawable.ic_kit_check_circle
     val KitCameraOutline = R.drawable.ic_kit_camera_outline
+
+    // New icon for Filter screen
+    val IcFilterBill = R.drawable.ic_filter_bill
+    val IcFilterCalendar = R.drawable.ic_filter_calendar
+    val IcFilterContract = R.drawable.ic_filter_contract
+    val IcFilterDocument = R.drawable.ic_filter_document
+    val IcFilterFolder = R.drawable.ic_filter_folder
+    val IcFilterInsurance = R.drawable.ic_filter_insurance
+    val IcFilterMedical = R.drawable.ic_filter_medical
+    val IcFilterPdf = R.drawable.ic_filter_pdf
+    val IcFilterWallet = R.drawable.ic_filter_wallet
+    val IcFilterWarranty = R.drawable.ic_filter_warranty
+    val IcFilter = R.drawable.ic_filter
 }

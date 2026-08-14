@@ -22,6 +22,7 @@ fun HomeDashboardRoute(
         HomeDashboardViewModelFactory(
             documentRepository = DocumentRepositoryImpl(db.documentDao()),
             containerRepository = ContainerRepositoryImpl(db.containerDao()),
+            categoryRepository = com.example.nestory.data.repository.CategoryRepositoryImpl(db.categoryDao())
         )
     }
     val viewModel: HomeDashboardViewModel = viewModel(factory = factory)

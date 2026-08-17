@@ -6,8 +6,10 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -15,31 +17,43 @@ import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.local.entity.DocumentEntity
 import com.example.nestory.data.local.entity.DocumentKitEntity
 import com.example.nestory.data.local.entity.KitItemEntity
+import com.example.nestory.data.local.entity.ReminderEntity
 import com.example.nestory.data.repository.ContainerRepositoryImpl
 import com.example.nestory.data.repository.DocumentKitRepositoryImpl
 import com.example.nestory.data.repository.DocumentRepositoryImpl
 import com.example.nestory.data.repository.KitItemRepositoryImpl
-import com.example.nestory.domain.model.ExpiryReminderSettings
+import com.example.nestory.data.repository.ReminderRepositoryImpl
 import com.example.nestory.ui.screen.document.DocumentDetailScreen
 import com.example.nestory.ui.screen.document.DocumentUiModel
 import com.example.nestory.ui.screen.document.buildContainerPath
 import com.example.nestory.ui.screen.document.DocumentStatusCalculator
+import com.example.nestory.ui.screen.setting.ExpiryReminderSettingScreen
+import com.example.nestory.ui.screen.setting.ExpiryReminderUiState
+import com.example.nestory.ui.screen.setting.toExpiryReminderUiState
+import com.example.nestory.ui.screen.setting.toReminderEntity
 import androidx.compose.ui.graphics.Color
+import com.example.nestory.ui.theme.CategoryFallbackColor
+import kotlinx.coroutines.launch
 
 enum class DocumentKitSubScreen {
     List,
     Create,
     Detail,
+    Reminder,
     ItemList,
     ItemCreate,
     ItemDetail,
     LinkedDocDetail,
+    Filter,
+    FilterCategory,
 }
 
 @Composable
 fun DocumentKitRoute(
     onBack: () -> Unit,
     onScanDocument: (Long?) -> Unit = {},
+    initialKitId: Long? = null,
+    onClearInitialKitId: () -> Unit = {},
     editLeaveRequested: Boolean = false,
     onEditLeaveComplete: () -> Unit = {},
     onEditLeaveDismiss: () -> Unit = {},
@@ -51,6 +65,10 @@ fun DocumentKitRoute(
     val kitItemRepository = remember { KitItemRepositoryImpl(db.kitItemDao()) }
     val documentRepository = remember { DocumentRepositoryImpl(db.documentDao()) }
     val containerRepository = remember { ContainerRepositoryImpl(db.containerDao()) }
+    val reminderRepository = remember {
+        ReminderRepositoryImpl(db.reminderDao(), context.applicationContext)
+    }
+    val coroutineScope = rememberCoroutineScope()
     val factory = remember {
         DocumentKitViewModelFactory(documentKitRepository, kitItemRepository)
     }
@@ -78,9 +96,23 @@ fun DocumentKitRoute(
     var showDocumentPicker by remember { mutableStateOf(false) }
     var linkingItemId by remember { mutableStateOf<Long?>(null) }
     var viewingDocumentId by remember { mutableStateOf<Long?>(null) }
+    var reminderKitId by remember { mutableStateOf<Long?>(null) }
     var linkedDocReturnSubScreen by remember { mutableStateOf(DocumentKitSubScreen.ItemDetail) }
 
-    val isKitEditActive = editingKit != null || editingItem != null
+    val isKitEditActive = editingKit != null ||
+        editingItem != null ||
+        subScreen == DocumentKitSubScreen.Create ||
+        subScreen == DocumentKitSubScreen.ItemCreate
+
+    // Handle navigation straight into a specific Kit's Detail (e.g. from Home).
+    LaunchedEffect(initialKitId) {
+        if (initialKitId != null) {
+            selectedKitId = initialKitId
+            viewModel.selectKit(initialKitId)
+            subScreen = DocumentKitSubScreen.Detail
+            onClearInitialKitId()
+        }
+    }
 
     LaunchedEffect(isKitEditActive) {
         onEditModeChange(isKitEditActive)
@@ -126,9 +158,9 @@ fun DocumentKitRoute(
                 category = "Chưa phân loại",
                 containerPath = buildContainerPath(doc.containerId, containers),
                 containerId = doc.containerId,
-                status = DocumentStatusCalculator.calculate(doc.expirationDate, ExpiryReminderSettings()),
+                status = DocumentStatusCalculator.calculate(doc.expirationDate),
                 expiryDate = doc.expirationDate ?: "Chưa có hạn",
-                categoryColor = Color(0xFF717171),
+                categoryColor = CategoryFallbackColor,
                 isFavorite = doc.isFavorite,
             )
         }
@@ -156,9 +188,12 @@ fun DocumentKitRoute(
             subScreen == DocumentKitSubScreen.List -> onBack()
             subScreen == DocumentKitSubScreen.Create -> subScreen = DocumentKitSubScreen.List
             subScreen == DocumentKitSubScreen.Detail -> subScreen = DocumentKitSubScreen.List
+            subScreen == DocumentKitSubScreen.Reminder -> subScreen = DocumentKitSubScreen.Detail
             subScreen == DocumentKitSubScreen.ItemList -> subScreen = DocumentKitSubScreen.Detail
             subScreen == DocumentKitSubScreen.ItemCreate -> subScreen = DocumentKitSubScreen.ItemList
             subScreen == DocumentKitSubScreen.ItemDetail -> subScreen = DocumentKitSubScreen.ItemList
+            subScreen == DocumentKitSubScreen.Filter -> subScreen = DocumentKitSubScreen.List
+            subScreen == DocumentKitSubScreen.FilterCategory -> subScreen = DocumentKitSubScreen.Filter
             subScreen == DocumentKitSubScreen.LinkedDocDetail -> {
                 viewingDocumentId = null
                 subScreen = linkedDocReturnSubScreen
@@ -183,6 +218,37 @@ fun DocumentKitRoute(
                 onCreateKitClick = {
                     editingKit = null
                     subScreen = DocumentKitSubScreen.Create
+                },
+                onFilterClick = {
+                    viewModel.syncDraftWithActiveFilter()
+                    subScreen = DocumentKitSubScreen.Filter
+                },
+                isFilterActive = uiState.activeFilter.isActive,
+            )
+        }
+
+        DocumentKitSubScreen.Filter -> {
+            KitFilterSelectionScreen(
+                uiState = uiState,
+                onBack = { subScreen = DocumentKitSubScreen.List },
+                onApply = {
+                    viewModel.applyFilter()
+                    subScreen = DocumentKitSubScreen.List
+                },
+                onReset = { viewModel.resetFilter() },
+                onCategoryClick = { subScreen = DocumentKitSubScreen.FilterCategory },
+                onFavoriteToggle = { viewModel.updateDraftFavorite(it) },
+                onStatusToggle = { viewModel.toggleDraftStatus(it) }
+            )
+        }
+
+        DocumentKitSubScreen.FilterCategory -> {
+            KitFilterCategoryScreen(
+                uiState = uiState,
+                onBack = { subScreen = DocumentKitSubScreen.Filter },
+                onCategorySelected = { category ->
+                    viewModel.updateDraftCategory(category)
+                    subScreen = DocumentKitSubScreen.Filter
                 }
             )
         }
@@ -190,7 +256,11 @@ fun DocumentKitRoute(
         DocumentKitSubScreen.Create -> {
             DocumentKitCreateScreen(
                 onBackClick = {
-                    subScreen = DocumentKitSubScreen.List
+                    if (editLeaveRequested) {
+                        onEditLeaveComplete()
+                    } else {
+                        subScreen = DocumentKitSubScreen.List
+                    }
                 },
                 onSubmit = { name, date, category, description, note ->
                     if (editingKit == null) {
@@ -228,6 +298,10 @@ fun DocumentKitRoute(
                 initialNote = editingKit?.note.orEmpty(),
                 submitLabel = if (editingKit == null) "Tạo bộ hồ sơ mới" else "Lưu thay đổi",
                 isEdit = editingKit != null,
+                isSaving = uiState.isLoading,
+                existingNames = uiState.kits
+                    .map { it.kit.name }
+                    .filter { editingKit == null || it != editingKit!!.name },
                 editLeaveRequested = editLeaveRequested,
                 onDelete = editingKit?.let { kit ->
                     {
@@ -251,7 +325,50 @@ fun DocumentKitRoute(
                     onViewAllItemsClick = {
                         subScreen = DocumentKitSubScreen.ItemList
                     },
-                    onRetry = { viewModel.clearError() }
+                    onRetry = { viewModel.clearError() },
+                    onReminderClick = {
+                        reminderKitId = selectedKit.kit.id
+                        subScreen = DocumentKitSubScreen.Reminder
+                    },
+                )
+            }
+        }
+
+        DocumentKitSubScreen.Reminder -> {
+            val kitId = reminderKitId
+            if (kitId == null) {
+                LaunchedEffect(Unit) { subScreen = DocumentKitSubScreen.Detail }
+            } else {
+                val reminder by reminderRepository
+                    .observeReminderByDocumentKitId(kitId)
+                    .collectAsState(initial = null)
+                var savedReminderId by remember { mutableLongStateOf(0L) }
+                LaunchedEffect(reminder) { savedReminderId = reminder?.id ?: 0L }
+                val expiryDate = uiState.kits
+                    .firstOrNull { it.kit.id == kitId }
+                    ?.kit
+                    ?.targetCompletionDate
+
+                ExpiryReminderSettingScreen(
+                    state = (reminder ?: ReminderEntity(documentKitId = kitId))
+                        .toExpiryReminderUiState(expiryDate),
+                    onStateChange = { ui: ExpiryReminderUiState ->
+                        val id = savedReminderId
+                        val entity = ui.toReminderEntity(
+                            documentKitId = kitId,
+                            expiryDate = expiryDate,
+                            id = id,
+                        )
+                        coroutineScope.launch {
+                            if (id == 0L) {
+                                reminderRepository.createReminder(entity)
+                                    .onSuccess { newId -> savedReminderId = newId }
+                            } else {
+                                reminderRepository.updateReminder(entity)
+                            }
+                        }
+                    },
+                    onBack = { subScreen = DocumentKitSubScreen.Detail },
                 )
             }
         }
@@ -276,10 +393,14 @@ fun DocumentKitRoute(
         DocumentKitSubScreen.ItemCreate -> {
             DocumentKitItemFormScreen(
                 onBackClick = {
-                    subScreen = if (editingItem == null) {
-                        DocumentKitSubScreen.ItemList
+                    if (editLeaveRequested) {
+                        onEditLeaveComplete()
                     } else {
-                        DocumentKitSubScreen.ItemDetail
+                        subScreen = if (editingItem == null) {
+                            DocumentKitSubScreen.ItemList
+                        } else {
+                            DocumentKitSubScreen.ItemDetail
+                        }
                     }
                 },
                 onSubmit = { name, description, note, requiredDocuments ->
@@ -324,6 +445,10 @@ fun DocumentKitRoute(
                 initialNote = editingItem?.note.orEmpty(),
                 initialRequiredDocuments = editingItem?.requiredDocuments?.toString().orEmpty(),
                 isEdit = editingItem != null,
+                isSaving = uiState.isLoading,
+                existingNames = kitItems
+                    .map { it.name.orEmpty() }
+                    .filter { editingItem == null || it != editingItem!!.name },
                 editLeaveRequested = editLeaveRequested,
                 itemStatus = editingItem?.status,
                 linkedDocumentCount = if (freshEditingItem?.linkedDocumentId == null) 0 else 1,

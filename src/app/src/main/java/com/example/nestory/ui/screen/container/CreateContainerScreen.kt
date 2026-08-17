@@ -104,7 +104,8 @@ fun CreateContainerScreen(
                     showNameError = false
                     onDismissError()
                 },
-                placeholder = "Nhập tên container"
+                placeholder = "Nhập tên container",
+                isError = showNameError
             )
 
             // Error message when tapping Create with an empty name

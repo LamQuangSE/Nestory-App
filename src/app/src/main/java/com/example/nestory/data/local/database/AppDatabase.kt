@@ -171,6 +171,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // documents gained a timestamp for "recently opened" tracking so the
+                // Home screen can list the documents the user actually opened recently.
+                db.execSQL("ALTER TABLE documents ADD COLUMN last_opened_at INTEGER")
+            }
+        }
+
         private val ALL_MIGRATIONS: List<Migration> = listOf(
             MIGRATION_1_2,
             MIGRATION_2_3,
@@ -178,6 +186,7 @@ abstract class AppDatabase : RoomDatabase() {
             MIGRATION_4_5,
             MIGRATION_5_6,
             MIGRATION_6_7,
+            MIGRATION_7_8,
         )
 
         /**

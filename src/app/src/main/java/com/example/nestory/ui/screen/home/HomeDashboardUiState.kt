@@ -2,7 +2,9 @@ package com.example.nestory.ui.screen.home
 
 data class HomeDashboardUiState(
     val recentDocuments: List<RecentDocumentUi> = emptyList(),
+    val attentionDocuments: List<RecentDocumentUi> = emptyList(),
     val documentKits: List<HomeDocumentKitUi> = emptyList(),
+    val containers: List<HomeContainerUi> = emptyList(),
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
@@ -13,6 +15,7 @@ data class RecentDocumentUi(
     val categoryLabel: String,
     val expiryDate: String,
     val attachmentUris: List<String> = emptyList(),
+    val daysRemaining: Long? = null,
 )
 
 data class HomeDocumentKitUi(
@@ -26,3 +29,9 @@ data class HomeDocumentKitUi(
     val progressPercent: Int
         get() = if (totalItems == 0) 0 else (readyItems * 100) / totalItems
 }
+
+data class HomeContainerUi(
+    val id: Long,
+    val name: String,
+    val documentCount: Int,
+)

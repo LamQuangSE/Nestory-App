@@ -57,4 +57,7 @@ data class DocumentEntity(
 
     @ColumnInfo(name = "last_notified_status")
     val lastNotifiedStatus: String? = null,
+
+    @ColumnInfo(name = "last_opened_at")
+    val lastOpenedAt: Long? = null,
 )

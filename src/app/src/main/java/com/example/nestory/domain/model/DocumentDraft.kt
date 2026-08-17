@@ -13,7 +13,7 @@ data class DocumentDraft(
     val categoryName: String? = null,
     val issueDate: String? = null,
     val expiryDate: String? = null,
-    val documentNumber: String? = null,
+    val fileName: String = "",
     val holderName: String? = null,
     val notes: String? = null,
     val ocrText: String = "",

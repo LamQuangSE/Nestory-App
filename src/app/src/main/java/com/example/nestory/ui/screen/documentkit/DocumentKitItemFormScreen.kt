@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
@@ -56,6 +57,8 @@ fun DocumentKitItemFormScreen(
     initialNote: String = "",
     initialRequiredDocuments: String = "",
     isEdit: Boolean = false,
+    isSaving: Boolean = false,
+    existingNames: List<String> = emptyList(),
     editLeaveRequested: Boolean = false,
     onEditBack: (name: String, description: String, note: String, requiredDocuments: Int?) -> Unit = { _, _, _, _ -> },
     linkedDocumentCount: Int = 0,
@@ -71,23 +74,35 @@ fun DocumentKitItemFormScreen(
     var requiredDocs by remember { mutableStateOf(initialRequiredDocuments) }
     var showNameError by remember { mutableStateOf(false) }
     var showRequiredDocsError by remember { mutableStateOf(false) }
+    var showDuplicateError by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
     val itemVisual = itemStatus?.let { kitStatusVisual(it) }
+
+    fun checkDuplicate(name: String): Boolean =
+        name.isNotBlank() && existingNames.any { it.equals(name.trim(), ignoreCase = true) }
 
     val hasContent = name.isNotBlank() ||
         description.isNotBlank() ||
         note.isNotBlank() ||
         requiredDocs.isNotBlank()
 
-    BackHandler(enabled = isEdit) {
-        onEditBack(name, description, note, requiredDocs.toIntOrNull())
+    BackHandler(enabled = isEdit || hasContent) {
+        if (isEdit) {
+            onEditBack(name, description, note, requiredDocs.toIntOrNull())
+        } else {
+            showDiscardDialog = true
+        }
     }
 
     LaunchedEffect(editLeaveRequested) {
-        if (editLeaveRequested && isEdit) {
-            onEditBack(name, description, note, requiredDocs.toIntOrNull())
+        if (editLeaveRequested) {
+            when {
+                isEdit -> onEditBack(name, description, note, requiredDocs.toIntOrNull())
+                hasContent -> showDiscardDialog = true
+                else -> onBackClick()
+            }
         }
     }
 
@@ -124,8 +139,10 @@ fun DocumentKitItemFormScreen(
                 onNameChange = {
                     name = it
                     showNameError = false
+                    showDuplicateError = false
                 },
-                showError = showNameError
+                showError = showNameError,
+                showDuplicateError = showDuplicateError
             )
 
             ItemDescriptionNoteCard(
@@ -160,15 +177,20 @@ fun DocumentKitItemFormScreen(
         if (onDelete == null) {
             ItemPrimaryButton(
                 text = "Tạo Item mới",
+                isSaving = isSaving,
                 onClick = {
-                    validateAndSubmit(
-                        name = name,
-                        requiredDocs = requiredDocs,
-                        validateRequiredDocs = !isEdit,
-                        onShowNameError = { showNameError = true },
-                        onShowRequiredDocsError = { showRequiredDocsError = true },
-                        onValid = { onSubmit(name, description, note, requiredDocs.toIntOrNull()) }
-                    )
+                    if (checkDuplicate(name)) {
+                        showDuplicateError = true
+                    } else {
+                        validateAndSubmit(
+                            name = name,
+                            requiredDocs = requiredDocs,
+                            validateRequiredDocs = !isEdit,
+                            onShowNameError = { showNameError = true },
+                            onShowRequiredDocsError = { showRequiredDocsError = true },
+                            onValid = { onSubmit(name, description, note, requiredDocs.toIntOrNull()) }
+                        )
+                    }
                 }
             )
         } else {
@@ -180,19 +202,25 @@ fun DocumentKitItemFormScreen(
             ) {
                 ItemDeleteButton(
                     onClick = { showDeleteConfirm = true },
+                    isSaving = isSaving,
                     modifier = Modifier.weight(1f)
                 )
                 ItemPrimaryButton(
                     text = "Cập nhật Item",
+                    isSaving = isSaving,
                     onClick = {
-                        validateAndSubmit(
-                            name = name,
-                            requiredDocs = requiredDocs,
-                            validateRequiredDocs = !isEdit,
-                            onShowNameError = { showNameError = true },
-                            onShowRequiredDocsError = { showRequiredDocsError = true },
-                            onValid = { onSubmit(name, description, note, requiredDocs.toIntOrNull()) }
-                        )
+                        if (checkDuplicate(name)) {
+                            showDuplicateError = true
+                        } else {
+                            validateAndSubmit(
+                                name = name,
+                                requiredDocs = requiredDocs,
+                                validateRequiredDocs = !isEdit,
+                                onShowNameError = { showNameError = true },
+                                onShowRequiredDocsError = { showRequiredDocsError = true },
+                                onValid = { onSubmit(name, description, note, requiredDocs.toIntOrNull()) }
+                            )
+                        }
                     },
                     modifier = Modifier.weight(1f)
                 )
@@ -241,6 +269,7 @@ private fun ItemNameCard(
     name: String,
     onNameChange: (String) -> Unit,
     showError: Boolean,
+    showDuplicateError: Boolean = false,
 ) {
     Column(
         modifier = Modifier
@@ -253,9 +282,16 @@ private fun ItemNameCard(
         KitTextField(
             value = name,
             onValueChange = onNameChange,
-            placeholder = "Nhập tên Item"
+            placeholder = "Nhập tên Item",
+            isError = showError || showDuplicateError
         )
-        if (showError) {
+        if (showDuplicateError) {
+            Text(
+                text = "Tên item đã tồn tại trong bộ hồ sơ này",
+                style = NestoryTextStyles.Body12Semi,
+                color = GeneratedColor.FigmaFf0000
+            )
+        } else if (showError) {
             Text(
                 text = "Tên item không được để trống",
                 style = NestoryTextStyles.Body12Semi,
@@ -355,7 +391,8 @@ private fun ItemRequiredDocsCard(
             onValueChange = onRequiredDocsChange,
             placeholder = "Nhập số lượng giấy tờ cần liên kết",
             height = 34.dp,
-            keyboardType = KeyboardType.Number
+            keyboardType = KeyboardType.Number,
+            isError = showError
         )
         if (showError) {
             Text(
@@ -493,20 +530,29 @@ private fun ItemPrimaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isSaving: Boolean = false,
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(36.dp)
             .background(GeneratedColor.Figma522ec8, RoundedCornerShape(NestorySpacing.S10))
-            .clickable(onClick = onClick),
+            .clickable(enabled = !isSaving, onClick = onClick),
         contentAlignment = Alignment.Center
     ) {
-        Text(
-            text = text,
-            style = NestoryTextStyles.Body15Semi,
-            color = GeneratedColor.FigmaFfffff
-        )
+        if (isSaving) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+                color = GeneratedColor.FigmaFfffff
+            )
+        } else {
+            Text(
+                text = text,
+                style = NestoryTextStyles.Body15Semi,
+                color = GeneratedColor.FigmaFfffff
+            )
+        }
     }
 }
 
@@ -514,6 +560,7 @@ private fun ItemPrimaryButton(
 private fun ItemDeleteButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    isSaving: Boolean = false,
 ) {
     Row(
         modifier = modifier
@@ -521,7 +568,7 @@ private fun ItemDeleteButton(
             .height(42.dp)
             .background(GeneratedColor.FigmaFef2f2, RoundedCornerShape(NestorySpacing.S10))
             .border(1.dp, GeneratedColor.FigmaEf4444, RoundedCornerShape(NestorySpacing.S10))
-            .clickable(onClick = onClick),
+            .clickable(enabled = !isSaving, onClick = onClick),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {

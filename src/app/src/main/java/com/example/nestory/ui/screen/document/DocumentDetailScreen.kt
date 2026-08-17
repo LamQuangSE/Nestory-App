@@ -13,14 +13,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.nestory.data.filesystem.FileOpener
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryScreen
 import com.example.nestory.ui.screen.category.CategoryRoute
@@ -42,25 +47,43 @@ fun DocumentDetailScreen(
     document: DocumentUiModel,
     onBack: () -> Unit,
     onDelete: () -> Unit = {},
-    onSave: (name: String, categoryLabel: String, expiryDate: String, containerId: Long?) -> Unit = { _, _, _, _ -> },
-    onToggleFavorite: () -> Unit = {},
+    onSave: (name: String, categoryLabel: String, expiryDate: String, containerId: Long?, pdfFileName: String?) -> Unit = { _, _, _, _, _ -> },
+    onOpenPdf: (String) -> Unit = {},
+    onEditScan: (String) -> Unit = {},
     isEditMode: Boolean = false,
     onEditModeChange: (Boolean) -> Unit = {},
+    isSaving: Boolean = false,
+    existingTitles: List<String> = emptyList(),
     editLeaveRequested: Boolean = false,
     onEditLeaveComplete: () -> Unit = {},
     onEditLeaveDismiss: () -> Unit = {},
     readOnly: Boolean = false,
+    onReminderClick: () -> Unit = {},
+    resolveContainerPath: (containerId: Long) -> String = { "" },
 ) {
+    val context = LocalContext.current
     var subScreen by remember { mutableStateOf(DocumentDetailSubScreen.Main) }
     var editedName by remember { mutableStateOf(document.name) }
     var editedCategory by remember { mutableStateOf(document.category) }
     var editedExpiry by remember { mutableStateOf(document.expiryDate) }
     var editedContainerId by remember { mutableStateOf<Long?>(document.containerId) }
     var editedContainerPath by remember { mutableStateOf(document.containerPath) }
+    val pdfFileUri = document.attachmentUris.firstOrNull { it.endsWith(".pdf", ignoreCase = true) }
+    val hasPdf = pdfFileUri != null
+    var editedFileName by remember(document.id) { mutableStateOf(pdfFileUri?.let { pdfBaseName(it) }.orEmpty()) }
 
     var showEditConfirmDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
+    var showDuplicateTitleError by remember { mutableStateOf(false) }
+    var showNameRequiredError by remember { mutableStateOf(false) }
+    var showFileNameRequiredError by remember { mutableStateOf(false) }
+
+    val duplicateTitle = editedName.isNotBlank() &&
+        existingTitles.any { it.equals(editedName.trim(), ignoreCase = true) }
+
+    val canSave = editedName.isNotBlank() && !duplicateTitle &&
+        (!hasPdf || editedFileName.isNotBlank())
 
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = editedExpiry.takeUnless { it == "Chưa có hạn" }?.let { dateStr ->
@@ -80,6 +103,10 @@ fun DocumentDetailScreen(
         editedExpiry = document.expiryDate
         editedContainerId = document.containerId
         editedContainerPath = document.containerPath
+        editedFileName = pdfFileUri?.let { pdfBaseName(it) }.orEmpty()
+        showNameRequiredError = false
+        showDuplicateTitleError = false
+        showFileNameRequiredError = false
     }
 
     BackHandler {
@@ -102,13 +129,53 @@ fun DocumentDetailScreen(
         }
     }
 
+    // The edit-leave confirmation must stay reachable even while the Category or
+    // Container selection UI is open on top of the edit form. Without this, tapping
+    // another bottom-navigation destination while a selection is pending would be
+    // silently ignored because the early returns below skip the dialog.
+    if (showEditConfirmDialog) {
+        ConfirmEditDocumentDialog(
+            onConfirm = {
+                showEditConfirmDialog = false
+                if (canSave) {
+                    onSave(editedName, editedCategory, editedExpiry, editedContainerId, editedFileName)
+                    onEditModeChange(false)
+                    if (editLeaveRequested) onEditLeaveComplete()
+                } else {
+                    showNameRequiredError = editedName.isBlank()
+                    showDuplicateTitleError = duplicateTitle
+                    showFileNameRequiredError = hasPdf && editedFileName.isBlank()
+                    if (editLeaveRequested) onEditLeaveDismiss()
+                }
+            },
+            onDismiss = {
+                showEditConfirmDialog = false
+                if (editLeaveRequested) onEditLeaveDismiss()
+            }
+        )
+    }
+
+    if (showDeleteConfirmDialog) {
+        ConfirmDeleteDocumentDialog(
+            onConfirm = {
+                showDeleteConfirmDialog = false
+                onDelete()
+            },
+            onDismiss = { showDeleteConfirmDialog = false }
+        )
+    }
+
     if (subScreen == DocumentDetailSubScreen.CategorySelection) {
         CategoryRoute(
             onBack = { subScreen = DocumentDetailSubScreen.Main },
             onConfirmSelection = { category ->
                 editedCategory = category.name
                 subScreen = DocumentDetailSubScreen.Main
-            }
+            },
+            selectionOnly = true,
+            allowCreate = false,
+            showPresetCategories = true,
+            initialSelectedName = editedCategory
         )
         return
     }
@@ -118,9 +185,11 @@ fun DocumentDetailScreen(
             onBack = { subScreen = DocumentDetailSubScreen.Main },
             onConfirmSelection = { container ->
                 editedContainerId = container.id
-                editedContainerPath = container.name // Simplified for now
+                editedContainerPath = resolveContainerPath(container.id).ifBlank { container.name }
                 subScreen = DocumentDetailSubScreen.Main
-            }
+            },
+            selectionOnly = true,
+            allowCreate = false
         )
         return
     }
@@ -160,7 +229,6 @@ fun DocumentDetailScreen(
             DetailHeader(
                 title = if (isEditMode) "Chỉnh sửa giấy tờ" else "Thông tin chính",
                 isEditMode = isEditMode,
-                isFavorite = document.isFavorite,
                 onBack = {
                     if (isEditMode) showEditConfirmDialog = true else onBack()
                 },
@@ -171,61 +239,14 @@ fun DocumentDetailScreen(
                     }
                 },
                 showEditButton = !readOnly,
-                onToggleFavorite = onToggleFavorite,
-                favoriteEnabled = !readOnly
+                onReminderClick = onReminderClick,
+                showReminderButton = !readOnly
             )
             
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(24.dp)
             ) {
-                // Top Image Carousel - Always try to show if available
-                if (document.attachmentUris.isNotEmpty()) {
-                    LazyRow(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(250.dp)
-                            .background(GeneratedColor.FigmaF3f6ff.copy(alpha = 0.5f)),
-                        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(document.attachmentUris) { fileUri ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .width(180.dp)
-                                    .clip(NestoryRadius.R15)
-                                    .background(GeneratedColor.FigmaFfffff)
-                                    .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R15),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (fileUri.endsWith(".pdf", ignoreCase = true)) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Image(
-                                            painter = painterResource(AppIcons.DocumentFileScan),
-                                            contentDescription = null,
-                                            modifier = Modifier.size(60.dp),
-                                            contentScale = ContentScale.Fit
-                                        )
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(text = "PDF", style = NestoryTextStyles.Body12Semi)
-                                    }
-                                } else {
-                                    AsyncImage(
-                                        model = fileUri,
-                                        contentDescription = "Document Preview",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop,
-                                        error = painterResource(AppIcons.FigmaDocument)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(7.dp))
-                
                 // Section 1: Thông tin chính
                 DetailSection(
                     title = "Thông tin chính",
@@ -237,14 +258,29 @@ fun DocumentDetailScreen(
                         isEditMode = isEditMode,
                         hint = "Nhập tên giấy tờ ",
                         editableValue = if (isEditMode) editedName else null,
-                        onValueChange = { editedName = it }
+                        onValueChange = {
+                            editedName = it
+                            showDuplicateTitleError = false
+                            showNameRequiredError = false
+                        },
+                        required = true,
+                        errorText = if (isEditMode && showNameRequiredError) "Vui lòng nhập tên giấy tờ" else null,
                     )
+                    if (isEditMode && showDuplicateTitleError) {
+                        Text(
+                            text = "Tên giấy tờ đã tồn tại",
+                            style = NestoryTextStyles.Body12Semi,
+                            color = GeneratedColor.FigmaFf0000,
+                            modifier = Modifier.padding(top = 0.dp, bottom = 12.dp)
+                        )
+                    }
                     DetailField(
                         label = "Danh mục",
                         value = if (isEditMode) editedCategory else document.category,
                         isEditMode = isEditMode,
                         hint = "Chọn danh mục",
-                        onClick = if (isEditMode) { { subScreen = DocumentDetailSubScreen.CategorySelection } } else null
+                        onClick = if (isEditMode) { { subScreen = DocumentDetailSubScreen.CategorySelection } } else null,
+                        required = true,
                     )
                 }
 
@@ -259,7 +295,8 @@ fun DocumentDetailScreen(
                         isEditMode = isEditMode,
                         hint = "Chọn ngày hết hạn ",
                         onClick = if (isEditMode) { { showDatePicker = true } } else null,
-                        trailingIcon = if (isEditMode) AppIcons.KitCalendar else null
+                        trailingIcon = if (isEditMode) AppIcons.KitCalendar else null,
+                        required = true,
                     )
                     if (!isEditMode) {
                         DetailStatusField(label = "Trạng thái", status = document.status)
@@ -276,34 +313,46 @@ fun DocumentDetailScreen(
                         value = if (isEditMode) editedContainerPath else currentContainerName(document.containerPath),
                         isEditMode = isEditMode,
                         hint = "Chọn container",
-                        onClick = if (isEditMode) { { subScreen = DocumentDetailSubScreen.ContainerSelection } } else null
+                        onClick = if (isEditMode) { { subScreen = DocumentDetailSubScreen.ContainerSelection } } else null,
+                        required = true,
                     )
                     if (!isEditMode) {
                         DetailField(label = "Đường dẫn nơi lưu trữ", value = document.containerPath)
                     }
                 }
 
-                if (isEditMode) {
-                    EditActions(
-                        onSave = {
-                            onSave(editedName, editedCategory, editedExpiry, editedContainerId)
-                            onEditModeChange(false)
-                        },
-                        onDelete = { showDeleteConfirmDialog = true }
-                    )
-                } else {
-                    // Section 4: Tệp scan (Only in View Mode)
-                    DetailSection(
-                        title = "Tệp scan",
-                        icon = AppIcons.DocumentFileScan
-                    ) {
-                        if (document.attachmentUris.isEmpty()) {
+                // Section 4: Tệp scan (shown in both view and edit mode)
+                DetailSection(
+                    title = "Tệp scan",
+                    icon = AppIcons.DocumentFileScan
+                ) {
+                        if (isEditMode && hasPdf) {
+                            DetailField(
+                                label = "Tên file PDF ",
+                                value = pdfBaseName(pdfFileUri.orEmpty()),
+                                isEditMode = isEditMode,
+                                hint = "Nhập tên file PDF",
+                                editableValue = if (isEditMode) editedFileName else null,
+                                onValueChange = {
+                                    editedFileName = it
+                                    showFileNameRequiredError = false
+                                },
+                                required = true,
+                                errorText = if (isEditMode && showFileNameRequiredError) "Vui lòng nhập tên file PDF" else null,
+                            )
+                        }
+                        // The PDF is the actual scanned file; fall back to all
+                        // attachments for legacy image-only documents.
+                        val scannedFiles = document.attachmentUris
+                            .filter { it.endsWith(".pdf", ignoreCase = true) }
+                            .ifEmpty { document.attachmentUris }
+                        if (scannedFiles.isEmpty()) {
                             Box(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(64.dp)
                                     .clip(NestoryRadius.R10)
-                                    .background(GeneratedColor.FigmaF3f6ff)
+                                    .background(GeneratedColor.FigmaFfffff)
                                     .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10),
                                 contentAlignment = Alignment.Center
                             ) {
@@ -318,15 +367,22 @@ fun DocumentDetailScreen(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                document.attachmentUris.forEach { fileUri ->
+                                scannedFiles.forEach { fileUri ->
                                     val fileName = attachmentFileName(fileUri)
                                     Box(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .heightIn(min = 100.dp, max = 500.dp)
-                                            .clip(NestoryRadius.R10)
-                                            .background(GeneratedColor.FigmaF3f6ff)
-                                            .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10),
+                                    .heightIn(min = 100.dp, max = 500.dp)
+                                    .clip(NestoryRadius.R10)
+                                    .background(GeneratedColor.FigmaFfffff)
+                                    .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
+                                            .clickable {
+                                            if (fileUri.endsWith(".pdf", ignoreCase = true)) {
+                                                if (isEditMode) onEditScan(fileUri) else onOpenPdf(fileUri)
+                                            } else {
+                                                FileOpener.open(context, fileUri)
+                                            }
+                                        },
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (fileUri.endsWith(".pdf", ignoreCase = true)) {
@@ -365,39 +421,32 @@ fun DocumentDetailScreen(
                                         }
                                     }
                                 }
-                            }
                         }
                     }
+                }
+
+                if (isEditMode) {
+                    EditActions(
+                        isSaving = isSaving,
+                        onSave = {
+                            if (!isSaving) {
+                                if (canSave) {
+                                    onSave(editedName, editedCategory, editedExpiry, editedContainerId, editedFileName)
+                                    onEditModeChange(false)
+                                } else {
+                                    showNameRequiredError = editedName.isBlank()
+                                    showDuplicateTitleError = duplicateTitle
+                                    showFileNameRequiredError = hasPdf && editedFileName.isBlank()
+                                }
+                            }
+                        },
+                        onDelete = { if (!isSaving) showDeleteConfirmDialog = true }
+                    )
                 }
                 
                 Spacer(modifier = Modifier.height(20.dp))
             }
         }
-    }
-
-    if (showEditConfirmDialog) {
-        ConfirmEditDocumentDialog(
-            onConfirm = {
-                showEditConfirmDialog = false
-                onSave(editedName, editedCategory, editedExpiry, editedContainerId)
-                onEditModeChange(false)
-                if (editLeaveRequested) onEditLeaveComplete()
-            },
-            onDismiss = {
-                showEditConfirmDialog = false
-                if (editLeaveRequested) onEditLeaveDismiss()
-            }
-        )
-    }
-
-    if (showDeleteConfirmDialog) {
-        ConfirmDeleteDocumentDialog(
-            onConfirm = {
-                showDeleteConfirmDialog = false
-                onDelete()
-            },
-            onDismiss = { showDeleteConfirmDialog = false }
-        )
     }
 }
 
@@ -408,9 +457,8 @@ private fun DetailHeader(
     onBack: () -> Unit,
     onEditToggle: () -> Unit,
     showEditButton: Boolean = true,
-    isFavorite: Boolean = false,
-    onToggleFavorite: () -> Unit = {},
-    favoriteEnabled: Boolean = true,
+    onReminderClick: () -> Unit = {},
+    showReminderButton: Boolean = true,
 ) {
     Row(
         modifier = Modifier
@@ -453,17 +501,18 @@ private fun DetailHeader(
                 )
             }
             Spacer(modifier = Modifier.width(10.dp))
-            // Star Button
-            Image(
-                painter = painterResource(
-                    if (isFavorite) AppIcons.DocumentStarred else AppIcons.KitUnstarred
-                ),
-                contentDescription = null,
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable(enabled = favoriteEnabled) { onToggleFavorite() },
-                contentScale = ContentScale.Fit
-            )
+            if (showReminderButton) {
+                // Reminder (bell) button
+                Image(
+                    painter = painterResource(AppIcons.NestoryNotification),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clickable { onReminderClick() },
+                    contentScale = ContentScale.Fit
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+            }
         }
     }
 }
@@ -522,10 +571,18 @@ private fun DetailField(
     onValueChange: (String) -> Unit = {},
     onClick: (() -> Unit)? = null,
     trailingIcon: Int? = null,
+    required: Boolean = false,
+    errorText: String? = null,
 ) {
+    val focusRequester = remember { FocusRequester() }
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
         Text(
-            text = label,
+            text = buildAnnotatedString {
+                append(label)
+                if (required && isEditMode) {
+                    withStyle(SpanStyle(color = Color.Red)) { append(" *") }
+                }
+            },
             style = NestoryTextStyles.Body12Semi,
             color = if (isEditMode) GeneratedColor.Figma000000 else GeneratedColor.Figma919191
         )
@@ -535,9 +592,19 @@ private fun DetailField(
                 .fillMaxWidth()
                 .height(45.dp)
                 .clip(NestoryRadius.R10)
-                .background(GeneratedColor.FigmaF3f6ff)
-                .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
-                .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier)
+                .background(GeneratedColor.FigmaFfffff)
+                .border(
+                    1.dp,
+                    if (errorText != null) Color.Red else GeneratedColor.FigmaE5e7eb,
+                    NestoryRadius.R10
+                )
+                .then(
+                    when {
+                        onClick != null -> Modifier.clickable { onClick() }
+                        isEditMode && editableValue != null -> Modifier.clickable { focusRequester.requestFocus() }
+                        else -> Modifier
+                    }
+                )
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -549,6 +616,7 @@ private fun DetailField(
                     textStyle = NestoryTextStyles.Body14Medium.copy(
                         color = GeneratedColor.Figma000000
                     ),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                     decorationBox = { innerTextField ->
                         if (editableValue.isEmpty()) {
                             Text(
@@ -580,6 +648,15 @@ private fun DetailField(
                 )
             }
         }
+        if (errorText != null) {
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = errorText,
+                style = NestoryTextStyles.Body12Semi,
+                color = GeneratedColor.FigmaFf0000,
+                modifier = Modifier.padding(start = 4.dp)
+            )
+        }
     }
 }
 
@@ -605,7 +682,7 @@ private fun DetailStatusField(
                 .fillMaxWidth()
                 .height(45.dp)
                 .clip(NestoryRadius.R10)
-                .background(GeneratedColor.FigmaF3f6ff)
+                .background(GeneratedColor.FigmaFfffff)
                 .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
@@ -625,6 +702,7 @@ private fun DetailStatusField(
 
 @Composable
 private fun EditActions(
+    isSaving: Boolean = false,
     onSave: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -637,7 +715,7 @@ private fun EditActions(
                 .weight(1f)
                 .height(36.dp)
                 .border(1.dp, GeneratedColor.FigmaFf0000, RoundedCornerShape(NestorySpacing.S10))
-                .clickable { onDelete() },
+                .clickable(enabled = !isSaving) { onDelete() },
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -651,20 +729,31 @@ private fun EditActions(
                 .weight(1f)
                 .height(36.dp)
                 .background(GeneratedColor.Figma522ec8, RoundedCornerShape(NestorySpacing.S10))
-                .clickable { onSave() },
+                .clickable(enabled = !isSaving) { onSave() },
             contentAlignment = Alignment.Center
         ) {
-            Text(
-                text = "Lưu",
-                style = NestoryTextStyles.Body15Semi,
-                color = GeneratedColor.FigmaFfffff
-            )
+            if (isSaving) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = GeneratedColor.FigmaFfffff
+                )
+            } else {
+                Text(
+                    text = "Lưu",
+                    style = NestoryTextStyles.Body15Semi,
+                    color = GeneratedColor.FigmaFfffff
+                )
+            }
         }
     }
 }
 
 internal fun attachmentFileName(filePath: String): String =
     filePath.substringAfterLast('/').ifBlank { filePath }
+
+internal fun pdfBaseName(filePath: String): String =
+    attachmentFileName(filePath).removeSuffix(".pdf").removeSuffix(".PDF")
 
 internal fun currentContainerName(containerPath: String): String =
     containerPath.substringAfterLast(" > ").ifBlank { containerPath }

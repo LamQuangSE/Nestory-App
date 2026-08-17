@@ -26,16 +26,18 @@ class ReminderReceiver : BroadcastReceiver() {
                 
                 if (reminder != null && reminder.isEnabled) {
                     val doc = reminder.documentId?.let { db.documentDao().getById(it) }
-                    if (doc != null) {
+                    val kit = reminder.documentKitId?.let { db.documentKitDao().getKitById(it) }
+                    val title = doc?.title ?: kit?.name
+                    if (title != null) {
                         val notificationHelper = NotificationHelper(context)
                         notificationHelper.showExpiryNotification(
                             id = reminderId.toInt(),
                             title = "Nhắc nhở giấy tờ",
-                            message = "Đã đến hạn nhắc nhở cho \"${doc.title}\"",
-                            documentId = doc.id
+                            message = "Đã đến hạn nhắc nhở cho \"$title\"",
+                            documentId = doc?.id
                         )
                     } else {
-                        Log.d("ReminderReceiver", "Document not found for reminder $reminderId, skipping notification")
+                        Log.d("ReminderReceiver", "Document/Kit not found for reminder $reminderId, skipping notification")
                     }
                 } else {
                     Log.d("ReminderReceiver", "Reminder $reminderId is disabled or not found, skipping notification")

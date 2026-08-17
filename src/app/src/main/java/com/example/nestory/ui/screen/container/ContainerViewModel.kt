@@ -92,14 +92,23 @@ class ContainerViewModel(
         return path
     }
 
-    fun createContainer(name: String, parentId: Long?) {
+    fun createContainer(name: String, parentId: Long?, onCreated: ((Long) -> Unit)? = null) {
         viewModelScope.launch {
             clearError()
+            _uiState.update { it.copy(isCreating = true) }
             val container = ContainerEntity(name = name, parentId = parentId)
             containerRepository.createContainer(container).fold(
-                onSuccess = { },
+                onSuccess = { newId ->
+                    _uiState.update { it.copy(isCreating = false) }
+                    onCreated?.invoke(newId)
+                },
                 onFailure = { error ->
-                    _uiState.update { it.copy(errorMessage = getErrorMessage(error)) }
+                    _uiState.update {
+                        it.copy(
+                            errorMessage = getErrorMessage(error),
+                            isCreating = false,
+                        )
+                    }
                 }
             )
         }

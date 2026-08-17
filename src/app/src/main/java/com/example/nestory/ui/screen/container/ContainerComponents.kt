@@ -36,75 +36,85 @@ fun ContainerItem(
     isExpanded: Boolean = false,
     hasChildren: Boolean = false,
     level: Int = 0,
+    isLastChild: Boolean = false,
+    showDelete: Boolean = false,
     onToggle: () -> Unit = {},
     onItemClick: () -> Unit,
     onDeleteClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = if (isSelected) GeneratedColor.FigmaF3f6ff else Color.Transparent,
-        border = BorderStroke(1.dp, GeneratedColor.FigmaE5e7eb),
-        shape = RoundedCornerShape(NestorySpacing.S10)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(
+                if (isSelected) GeneratedColor.FigmaF3f6ff.copy(alpha = 0.5f)
+                else Color.Transparent
+            )
+            .padding(horizontal = NestorySpacing.S15, vertical = NestorySpacing.S10),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = NestorySpacing.S15, vertical = NestorySpacing.S10),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Spacer(modifier = Modifier.width((level * 30).dp))
+        Spacer(modifier = Modifier.width((level * 30).dp))
 
-            if (hasChildren) {
-                Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .clickable { onToggle() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            id = if (isExpanded) AppIcons.LsiconDownFilled
-                            else AppIcons.LsiconRightFilled
-                        ),
-                        contentDescription = if (isExpanded) "Collapse" else "Expand",
-                        modifier = Modifier.size(16.dp),
-                        tint = GeneratedColor.Figma919191
-                    )
-                }
-                Spacer(modifier = Modifier.width(NestorySpacing.S4))
-            } else {
-                Spacer(modifier = Modifier.width(20.dp))
-            }
+        if (level > 0) {
+            Text(
+                text = if (isLastChild) "└──" else "├──",
+                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium),
+                color = GeneratedColor.Figma919191,
+                maxLines = 1,
+            )
+            Spacer(modifier = Modifier.width(NestorySpacing.S4))
+        }
 
-            Row(
+        if (hasChildren) {
+            Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .clickable { onItemClick() },
-                verticalAlignment = Alignment.CenterVertically
+                    .size(20.dp)
+                    .clickable { onToggle() },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = AppIcons.FigmaNavFolder),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
+                    painter = painterResource(
+                        id = if (isExpanded) AppIcons.LsiconDownFilled
+                        else AppIcons.LsiconRightFilled
+                    ),
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    modifier = Modifier.size(16.dp),
                     tint = GeneratedColor.Figma919191
                 )
-                Spacer(modifier = Modifier.width(NestorySpacing.S10))
-                Text(
-                    text = name,
-                    style = NestoryTextStyles.Body15Medium,
-                    color = GeneratedColor.Figma000000,
-                )
             }
+            Spacer(modifier = Modifier.width(NestorySpacing.S4))
+        } else {
+            Spacer(modifier = Modifier.width(20.dp))
+        }
 
-            if (onDeleteClick != null) {
-                IconButton(onClick = onDeleteClick) {
-                    Icon(
-                        painter = painterResource(id = AppIcons.MageTrash),
-                        contentDescription = "Delete",
-                        modifier = Modifier.size(24.dp),
-                        tint = GeneratedColor.FigmaCf1111
-                    )
-                }
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onItemClick() },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = painterResource(id = AppIcons.FigmaNavFolder),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = GeneratedColor.Figma1855ee
+            )
+            Spacer(modifier = Modifier.width(NestorySpacing.S10))
+            Text(
+                text = name,
+                style = NestoryTextStyles.Body15Medium,
+                color = GeneratedColor.Figma000000,
+            )
+        }
+
+        if (showDelete && onDeleteClick != null) {
+            IconButton(onClick = onDeleteClick) {
+                Icon(
+                    painter = painterResource(id = AppIcons.MageTrash),
+                    contentDescription = "Delete",
+                    modifier = Modifier.size(24.dp),
+                    tint = GeneratedColor.FigmaCf1111
+                )
             }
         }
     }
@@ -323,13 +333,14 @@ fun ContainerFormField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isError: Boolean = false,
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(48.dp)
-            .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(12.dp))
+            .border(1.dp, if (isError) GeneratedColor.FigmaFf0000 else GeneratedColor.FigmaE5e7eb, RoundedCornerShape(12.dp))
             .padding(horizontal = NestorySpacing.S15),
         contentAlignment = Alignment.CenterStart
     ) {

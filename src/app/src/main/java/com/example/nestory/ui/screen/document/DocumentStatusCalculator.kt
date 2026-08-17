@@ -1,11 +1,14 @@
 package com.example.nestory.ui.screen.document
 
-import com.example.nestory.domain.model.ExpiryReminderSettings
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
 object DocumentStatusCalculator {
+
+    /** Logic ngầm: giấy tờ tự chuyển sang "sắp hết hạn" 60 ngày trước hạn. */
+    const val EXPIRING_SOON_LEAD_DAYS = 60L
+
     private val supportedDateFormats = listOf(
         DateTimeFormatter.ofPattern("dd/MM/yyyy"),
         DateTimeFormatter.ISO_LOCAL_DATE,
@@ -13,7 +16,6 @@ object DocumentStatusCalculator {
 
     fun calculate(
         expirationDate: String?,
-        settings: ExpiryReminderSettings,
         today: LocalDate = LocalDate.now()
     ): DocumentStatus {
         val expiryDate = parseExpirationDate(expirationDate) ?: return DocumentStatus.Active
@@ -22,8 +24,8 @@ object DocumentStatusCalculator {
             return DocumentStatus.Expired
         }
 
-        val reminderLimit = today.plusDays(settings.leadTimeDays.toLong())
-        return if (settings.enabled && !expiryDate.isAfter(reminderLimit)) {
+        val reminderLimit = today.plusDays(EXPIRING_SOON_LEAD_DAYS)
+        return if (!expiryDate.isAfter(reminderLimit)) {
             DocumentStatus.ExpiringSoon
         } else {
             DocumentStatus.Active

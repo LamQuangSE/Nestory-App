@@ -40,12 +40,16 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import com.example.nestory.data.local.entity.ReminderEntity
 import com.example.nestory.domain.model.ExpiryReminderSettings
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryScreen
+import com.example.nestory.ui.screen.document.DocumentStatusCalculator
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestoryTextStyles
+import java.time.format.DateTimeFormatter
+import java.time.temporal.ChronoUnit
 
 @Immutable
 data class ExpiryReminderUiState(
@@ -80,10 +84,52 @@ fun ExpiryReminderUiState.toSettings(): ExpiryReminderSettings =
         minute = minute,
     )
 
+private val reminderDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+
+/** Ánh xạ UI reminder sang ReminderEntity cho riêng 1 giấy tờ hoặc 1 bộ hồ sơ. */
+fun ExpiryReminderUiState.toReminderEntity(
+    documentId: Long? = null,
+    documentKitId: Long? = null,
+    expiryDate: String?,
+    id: Long = 0,
+): ReminderEntity {
+    val reminderDate = expiryDate
+        ?.let(DocumentStatusCalculator::parseExpirationDate)
+        ?.minusDays(leadTimeDays.toLong())
+        ?.format(reminderDateFormatter)
+    return ReminderEntity(
+        id = id,
+        documentId = documentId,
+        documentKitId = documentKitId,
+        isEnabled = enabled,
+        reminderDate = reminderDate,
+        reminderTime = "%02d:%02d".format(hour, minute),
+    )
+}
+
+/** Ánh xạ ngược ReminderEntity (của 1 giấy tờ/bộ hồ sơ) sang UI state. */
+fun ReminderEntity.toExpiryReminderUiState(expiryDate: String?): ExpiryReminderUiState {
+    val reminderDate = reminderDate?.let(DocumentStatusCalculator::parseExpirationDate)
+    val expiry = expiryDate?.let(DocumentStatusCalculator::parseExpirationDate)
+    val leadDays = if (reminderDate != null && expiry != null) {
+        ChronoUnit.DAYS.between(reminderDate, expiry).toInt().coerceAtLeast(1)
+    } else {
+        7
+    }
+    val parts = reminderTime?.split(":") ?: emptyList()
+    val parsedHour = parts.getOrNull(0)?.toIntOrNull()
+    val parsedMinute = parts.getOrNull(1)?.toIntOrNull()
+    return ExpiryReminderUiState(
+        enabled = isEnabled,
+        leadTimeDays = leadDays,
+        hour = parsedHour ?: 12,
+        minute = parsedMinute ?: 0,
+    )
+}
+
 @Composable
 fun SettingScreen(
     onBack: () -> Unit,
-    onExpiryReminderClick: () -> Unit,
     onCategoryClick: () -> Unit,
     onContainerClick: () -> Unit,
     onExportBackupClick: () -> Unit = {},
@@ -105,11 +151,6 @@ fun SettingScreen(
                 .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
                 .background(GeneratedColor.FigmaFfffff),
         ) {
-            SettingMenuItem(
-                title = "Thông báo nhắc hạn",
-                icon = AppIcons.NestoryNotification,
-                onClick = onExpiryReminderClick,
-            )
             SettingMenuItem(
                 title = "Danh mục",
                 icon = AppIcons.FigmaCategory,
@@ -859,7 +900,6 @@ private fun HorizontalDivider() {
 private fun SettingScreenPreview() {
     SettingScreen(
         onBack = {},
-        onExpiryReminderClick = {},
         onCategoryClick = {},
         onContainerClick = {},
     )

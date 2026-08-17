@@ -37,6 +37,7 @@ data class DocumentUiState(
     val activeFilter: DocumentFilterState = DocumentFilterState(),
     val draftFilter: DocumentFilterState = DocumentFilterState(),
     val isLoading: Boolean = false,
+    val isSaving: Boolean = false,
     val errorMessage: String? = null,
 )
 

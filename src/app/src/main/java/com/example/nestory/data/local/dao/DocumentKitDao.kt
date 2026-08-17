@@ -42,6 +42,14 @@ interface DocumentKitDao {
     @Query("SELECT * FROM document_kits WHERE id = :kitId")
     suspend fun getKitById(kitId: Long): DocumentKitEntity?
 
+    @Query(
+        """
+        SELECT COUNT(*) FROM document_kits
+        WHERE name = :name COLLATE NOCASE AND id != :excludeId
+        """
+    )
+    suspend fun countByName(name: String, excludeId: Long): Int
+
     @Query("UPDATE document_kits SET is_favorite = :isFavorite WHERE id = :kitId")
     suspend fun updateFavoriteStatus(kitId: Long, isFavorite: Boolean)
 }

@@ -13,7 +13,9 @@ enum class ContainerSubScreen { Selection, Create, Edit }
 @Composable
 fun ContainerRoute(
     onBack: () -> Unit,
-    onConfirmSelection: ((ContainerEntity) -> Unit)? = null
+    onConfirmSelection: ((ContainerEntity) -> Unit)? = null,
+    selectionOnly: Boolean = false,
+    allowCreate: Boolean = true
 ) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getDatabase(context.applicationContext) }
@@ -58,14 +60,18 @@ fun ContainerRoute(
                     }
                 },
                 onDeleteClick = { id ->
-                    val container = uiState.allContainers.find { it.id == id }
-                    deleteTarget = container
-                    showDeleteDialog = true
+                    if (!selectionOnly) {
+                        val container = uiState.allContainers.find { it.id == id }
+                        deleteTarget = container
+                        showDeleteDialog = true
+                    }
                 },
                 onCloseBreadcrumb = { viewModel.clearSelection() },
                 onBackClick = onBack,
                 errorMessage = uiState.errorMessage,
-                onDismissError = { viewModel.clearError() }
+                onDismissError = { viewModel.clearError() },
+                selectionOnly = selectionOnly,
+                allowCreate = allowCreate
             )
         }
 
@@ -74,8 +80,24 @@ fun ContainerRoute(
                 parentContainerName = uiState.containerPath.lastOrNull()?.name ?: "",
                 onBackClick = { subScreen = ContainerSubScreen.Selection },
                 onCreate = { name ->
-                    viewModel.createContainer(name, uiState.selectedContainerId)
-                    subScreen = ContainerSubScreen.Selection
+                    if (selectionOnly && onConfirmSelection != null) {
+                        viewModel.createContainer(
+                            name,
+                            uiState.selectedContainerId,
+                            onCreated = { newId ->
+                                onConfirmSelection(
+                                    ContainerEntity(
+                                        id = newId,
+                                        name = name.trim(),
+                                        parentId = uiState.selectedContainerId,
+                                    ),
+                                )
+                            },
+                        )
+                    } else {
+                        viewModel.createContainer(name, uiState.selectedContainerId)
+                        subScreen = ContainerSubScreen.Selection
+                    }
                 },
                 errorMessage = uiState.errorMessage,
                 onDismissError = { viewModel.clearError() }

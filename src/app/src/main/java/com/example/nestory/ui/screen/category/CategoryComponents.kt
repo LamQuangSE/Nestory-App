@@ -39,6 +39,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.assets.AppImages
+import com.example.nestory.ui.theme.CategoryEducationColor
+import com.example.nestory.ui.theme.CategoryFinanceColor
+import com.example.nestory.ui.theme.CategoryHealthColor
+import com.example.nestory.ui.theme.CategoryIdentityColor
+import com.example.nestory.ui.theme.CategoryPropertyColor
+import com.example.nestory.ui.theme.CategoryVehicleColor
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryTextStyles
 
@@ -146,7 +152,7 @@ fun CategoryListItem(
     category: CategoryUiModel,
     isSelected: Boolean,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
+    onDelete: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -191,6 +197,15 @@ fun CategoryListItem(
             )
         }
         if (isSelected) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Image(
+                painter = painterResource(id = AppIcons.KitCheckCircle),
+                contentDescription = "Đã chọn",
+                modifier = Modifier.size(22.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+        if (isSelected && onDelete != null) {
             Box(
                 modifier = Modifier
                     .size(width = 45.dp, height = 60.dp)
@@ -321,7 +336,7 @@ fun CategoryNameField(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(49.dp)
-                        .border(1.dp, GeneratedColor.FigmaE5e7eb, CategoryRadius)
+                        .border(1.dp, if (error != null) GeneratedColor.FigmaFf0000 else GeneratedColor.FigmaE5e7eb, CategoryRadius)
                         .padding(horizontal = 17.5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -641,12 +656,12 @@ private fun DialogPrimaryButton(
 }
 
 fun defaultCategoryColors(): List<Color> = listOf(
-    Color(0xFFFCA5A5),
-    Color(0xFFFDBA74),
-    Color(0xFFFDE68A),
-    Color(0xFFBEF264),
-    Color(0xFF86EFAC),
-    Color(0xFF6EE7B7),
+    CategoryIdentityColor,
+    CategoryEducationColor,
+    CategoryFinanceColor,
+    CategoryPropertyColor,
+    CategoryVehicleColor,
+    CategoryHealthColor,
     Color(0xFF5EEAD4),
     Color(0xFF67E8F9),
     Color(0xFF7DD3FC),

@@ -4,15 +4,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.example.nestory.data.filesystem.ImageStorageManager
 import com.example.nestory.data.local.entity.CategoryEntity
 import com.example.nestory.data.local.entity.ContainerEntity
 import com.example.nestory.data.local.entity.DocumentEntity
-import com.example.nestory.domain.model.ExpiryReminderSettings
 import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentRepository
-import kotlinx.coroutines.flow.Flow
+import com.example.nestory.ui.theme.CategoryFallbackColor
+import com.example.nestory.ui.theme.predefinedCategoryColor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -28,23 +29,19 @@ class DocumentViewModel(
     private val containerRepository: ContainerRepository,
     private val categoryRepository: CategoryRepository,
     private val attachmentRepository: AttachmentRepository,
-    expiryReminderSettings: Flow<ExpiryReminderSettings>,
+    private val imageStorageManager: ImageStorageManager,
     private val todayProvider: () -> LocalDate = { LocalDate.now() },
 ) : ViewModel() {
 
     private val localState = MutableStateFlow(DocumentLocalState())
-
-    // Gộp settings và localState lại thành 1 Pair để vượt qua giới hạn 5 param của hàm combine trong Kotlin
-    private val settingsAndStateFlow = combine(expiryReminderSettings, localState) { settings, state -> Pair(settings, state) }
 
     val uiState: StateFlow<DocumentUiState> = combine(
         documentRepository.observeAllDocuments(),
         containerRepository.observeAllContainers(),
         categoryRepository.getAllCategories(),
         attachmentRepository.observeAllAttachments(),
-        settingsAndStateFlow,
-    ) { documents, containers, categories, attachments, settingsAndState ->
-        val (settings, state) = settingsAndState
+        localState,
+    ) { documents, containers, categories, attachments, state ->
 
         val attachmentsByDocumentId = attachments.groupBy { it.documentId }
 
@@ -64,7 +61,7 @@ class DocumentViewModel(
             DocCategoryUiModel(
                 id = category.id,
                 name = category.name,
-                color = Color(category.colorValue.toULong())
+                color = predefinedCategoryColor(category.name) ?: Color(category.colorValue.toULong())
             )
         }
 
@@ -84,7 +81,6 @@ class DocumentViewModel(
             document.toUiModel(
                 containers = containers,
                 categories = categories,
-                settings = settings,
                 today = todayProvider(),
                 attachmentUris = attachmentsByDocumentId[document.id].orEmpty().map { it.fileUri }
             )
@@ -122,6 +118,11 @@ class DocumentViewModel(
 
     fun selectDocument(documentId: String) {
         localState.update { it.copy(selectedDocumentId = documentId) }
+        documentId.toLongOrNull()?.let { id ->
+            viewModelScope.launch {
+                documentRepository.updateLastOpenedAt(id, System.currentTimeMillis())
+            }
+        }
     }
 
     fun clearSelection() {
@@ -166,14 +167,39 @@ class DocumentViewModel(
         categoryLabelValue: String,
         expirationDate: String,
         containerId: Long? = null,
+        pdfFileName: String? = null,
     ) {
+if (isSaving) return
         val selected = uiState.value.selectedDocument ?: return
         val documentId = selected.id.toLongOrNull() ?: return
 
+        setSaving(true)
         viewModelScope.launch {
             documentRepository.getDocumentById(documentId).fold(
                 onSuccess = { document ->
                     if (document != null) {
+                        // Rename the stored PDF file (content unchanged) and update
+                        // its stored file URI when the user changed the PDF name.
+                        if (pdfFileName != null && pdfFileName.isNotBlank()) {
+                            attachmentRepository.getAttachmentsByDocumentId(documentId).fold(
+                                onSuccess = { attachments ->
+                                    val pdfAttachment = attachments.firstOrNull {
+                                        it.fileUri.endsWith(".pdf", ignoreCase = true)
+                                    }
+                                    if (pdfAttachment != null) {
+                                        val newPath = imageStorageManager
+                                            .renamePdf(pdfAttachment.fileUri, pdfFileName)
+                                            .getOrNull()
+                                        if (newPath != null && newPath != pdfAttachment.fileUri) {
+                                            attachmentRepository.updateAttachmentMetadata(
+                                                pdfAttachment.copy(fileUri = newPath),
+                                            )
+                                        }
+                                    }
+                                },
+                                onFailure = { },
+                            )
+                        }
                         // FIX LOGIC CŨ CỦA ĐỒNG ĐỘI: Tìm ID danh mục từ danh sách đang có thay vì duyệt Enum
                         val selectedCategory = uiState.value.availableCategories.firstOrNull { it.name == categoryLabelValue.trim() }
                         val newCategoryId = selectedCategory?.id ?: document.categoryId
@@ -187,12 +213,19 @@ class DocumentViewModel(
                                     it.isBlank() || it == "Chưa có hạn"
                                 },
                             ),
-                        ).onFailure { error ->
-                            setError(error.localizedMessage ?: "Không thể lưu thay đổi")
-                        }
+                        ).fold(
+                            onSuccess = { setSaving(false) },
+                            onFailure = { error ->
+                                setSaving(false)
+                                setError(error.localizedMessage ?: "Không thể lưu thay đổi")
+                            },
+                        )
+                    } else {
+                        setSaving(false)
                     }
                 },
                 onFailure = { error ->
+                    setSaving(false)
                     setError(error.localizedMessage ?: "Không thể tải giấy tờ")
                 },
             )
@@ -201,10 +234,14 @@ class DocumentViewModel(
 
     fun toggleFavorite() {
         val selected = uiState.value.selectedDocument ?: return
-        val documentId = selected.id.toLongOrNull() ?: return
+        toggleFavorite(selected.id)
+    }
+
+    fun toggleFavorite(documentId: String) {
+        val documentIdLong = documentId.toLongOrNull() ?: return
 
         viewModelScope.launch {
-            documentRepository.getDocumentById(documentId).fold(
+            documentRepository.getDocumentById(documentIdLong).fold(
                 onSuccess = { document ->
                     if (document != null) {
                         documentRepository.updateFavoriteStatus(
@@ -223,25 +260,35 @@ class DocumentViewModel(
     }
 
     fun deleteSelectedDocument(onDeleted: () -> Unit) {
+        if (isSaving) return
         val selected = uiState.value.selectedDocument ?: return
         val documentId = selected.id.toLongOrNull() ?: return
+        setSaving(true)
         viewModelScope.launch {
             documentRepository.getDocumentById(documentId).fold(
                 onSuccess = { document ->
                     if (document != null) {
                         documentRepository.deleteDocument(document).fold(
-                            onSuccess = { clearSelection(); onDeleted() },
-                            onFailure = { error -> setError(error.localizedMessage ?: "Lỗi xóa") },
+                            onSuccess = { clearSelection(); setSaving(false); onDeleted() },
+                            onFailure = { error ->
+                                setSaving(false)
+                                setError(error.localizedMessage ?: "Lỗi xóa")
+                            },
                         )
-                    } else { clearSelection(); onDeleted() }
+                    } else { clearSelection(); setSaving(false); onDeleted() }
                 },
-                onFailure = { error -> setError(error.localizedMessage ?: "Lỗi tải") },
+                onFailure = { error ->
+                    setSaving(false)
+                    setError(error.localizedMessage ?: "Lỗi tải")
+                },
             )
         }
     }
 
     fun clearError() { localState.update { it.copy(errorMessage = null) } }
     private fun setError(message: String) { localState.update { it.copy(errorMessage = message) } }
+    private fun setSaving(saving: Boolean) { localState.update { it.copy(isSaving = saving) } }
+    private val isSaving: Boolean get() = localState.value.isSaving
 
     private data class DocumentLocalState(
         val selectedDocumentId: String? = null,
@@ -249,6 +296,7 @@ class DocumentViewModel(
         val activeFilter: DocumentFilterState = DocumentFilterState(),
         val draftFilter: DocumentFilterState = DocumentFilterState(),
         val errorMessage: String? = null,
+        val isSaving: Boolean = false,
     ) {
         fun toUiState(
             documents: List<DocumentUiModel>,
@@ -265,6 +313,7 @@ class DocumentViewModel(
             activeFilter = activeFilter,
             draftFilter = draftFilter,
             errorMessage = errorMessage,
+            isSaving = isSaving,
         )
     }
 }
@@ -272,7 +321,6 @@ class DocumentViewModel(
 private fun DocumentEntity.toUiModel(
     containers: List<ContainerEntity>,
     categories: List<CategoryEntity>,
-    settings: ExpiryReminderSettings,
     today: LocalDate,
     attachmentUris: List<String> = emptyList(),
 ): DocumentUiModel {
@@ -283,9 +331,9 @@ private fun DocumentEntity.toUiModel(
         category = categoryEntity?.name ?: "Khác",
         containerPath = buildContainerPath(containerId, containers),
         containerId = containerId,
-        status = DocumentStatusCalculator.calculate(expirationDate, settings, today),
+        status = DocumentStatusCalculator.calculate(expirationDate, today),
         expiryDate = expirationDate ?: "Chưa có hạn",
-        categoryColor = categoryEntity?.let { Color(it.colorValue.toULong()) } ?: Color(0xFF717171),
+        categoryColor = categoryEntity?.let { predefinedCategoryColor(it.name) ?: Color(it.colorValue.toULong()) } ?: CategoryFallbackColor,
         isFavorite = isFavorite,
         attachmentUris = attachmentUris,
     )
@@ -310,7 +358,7 @@ class DocumentViewModelFactory(
     private val containerRepository: ContainerRepository,
     private val categoryRepository: CategoryRepository,
     private val attachmentRepository: AttachmentRepository,
-    private val expiryReminderSettings: Flow<ExpiryReminderSettings>,
+    private val imageStorageManager: ImageStorageManager,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -320,7 +368,7 @@ class DocumentViewModelFactory(
                 containerRepository = containerRepository,
                 categoryRepository = categoryRepository,
                 attachmentRepository = attachmentRepository,
-                expiryReminderSettings = expiryReminderSettings,
+                imageStorageManager = imageStorageManager,
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

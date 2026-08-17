@@ -44,6 +44,7 @@ fun DocumentKitDetailScreen(
     onEditClick: () -> Unit,
     onViewAllItemsClick: () -> Unit,
     onRetry: () -> Unit = {},
+    onReminderClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -58,6 +59,14 @@ fun DocumentKitDetailScreen(
             title = "Chi tiết kit",
             onBack = onBackClick,
             trailingContent = {
+                IconButton(onClick = onReminderClick, modifier = Modifier.size(24.dp)) {
+                    Icon(
+                        painter = painterResource(id = AppIcons.NestoryNotification),
+                        contentDescription = "Nhắc hạn",
+                        modifier = Modifier.size(20.dp),
+                        tint = GeneratedColor.Figma000000
+                    )
+                }
                 IconButton(onClick = onEditClick, modifier = Modifier.size(24.dp)) {
                     Icon(
                         painter = painterResource(id = AppIcons.DocumentEdit),

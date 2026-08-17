@@ -3,6 +3,7 @@ package com.example.nestory.ui.screen.documentkit
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -25,6 +27,9 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -32,6 +37,7 @@ import androidx.compose.ui.unit.dp
 import com.example.nestory.data.local.entity.DocumentKitEntity
 import com.example.nestory.relation.KitWithItems
 import com.example.nestory.ui.assets.AppIcons
+import com.example.nestory.ui.assets.AppImages
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestorySpacing
 import com.example.nestory.ui.theme.NestoryTextStyles
@@ -44,6 +50,8 @@ fun DocumentKitListScreen(
     onKitClick: (Long) -> Unit,
     onToggleFavorite: (Long) -> Unit,
     onCreateKitClick: () -> Unit,
+    onFilterClick: () -> Unit,
+    isFilterActive: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
     val filtered = if (searchQuery.isBlank()) {
@@ -68,32 +76,69 @@ fun DocumentKitListScreen(
         Spacer(modifier = Modifier.height(NestorySpacing.S40))
         KitSearchHeader(
             query = searchQuery,
-            onQueryChange = onSearchQueryChange
+            onQueryChange = onSearchQueryChange,
+            isFilterActive = isFilterActive,
+            onFilterClick = onFilterClick
         )
         Spacer(modifier = Modifier.height(NestorySpacing.S20))
 
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
-        ) {
-            items(filtered, key = { it.kit.id }) { kitWithItems ->
-                KitListCard(
-                    kit = kitWithItems.kit,
-                    items = kitWithItems.items,
-                    onKitClick = { onKitClick(kitWithItems.kit.id) },
-                    onToggleFavorite = { onToggleFavorite(kitWithItems.kit.id) }
-                )
-            }
-            item {
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-            item {
-                KitCreateDashedButton(onClick = onCreateKitClick)
-            }
-            item {
-                Spacer(modifier = Modifier.height(16.dp))
+        if (kits.isEmpty()) {
+            KitListEmptyState(
+                onCreateKitClick = onCreateKitClick,
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                items(filtered, key = { it.kit.id }) { kitWithItems ->
+                    KitListCard(
+                        kit = kitWithItems.kit,
+                        items = kitWithItems.items,
+                        onKitClick = { onKitClick(kitWithItems.kit.id) },
+                        onToggleFavorite = { onToggleFavorite(kitWithItems.kit.id) }
+                    )
+                }
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
+                }
+                item {
+                    KitCreateDashedButton(onClick = onCreateKitClick)
+                }
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun KitListEmptyState(
+    onCreateKitClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Image(
+            painter = painterResource(id = AppImages.ImgEmptyCategory),
+            contentDescription = null,
+            modifier = Modifier.size(width = 220.dp, height = 170.dp),
+            contentScale = ContentScale.Fit
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Text(
+            text = "Không có kit document nào",
+            style = NestoryTextStyles.Body16Semi,
+            color = GeneratedColor.Figma000000,
+            textAlign = TextAlign.Center
+        )
+        Spacer(modifier = Modifier.height(NestorySpacing.S20))
+        KitCreateDashedButton(onClick = onCreateKitClick)
     }
 }
 
@@ -101,6 +146,8 @@ fun DocumentKitListScreen(
 private fun KitSearchHeader(
     query: String,
     onQueryChange: (String) -> Unit,
+    isFilterActive: Boolean,
+    onFilterClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -142,7 +189,7 @@ private fun KitSearchHeader(
             modifier = Modifier
                 .size(45.dp)
                 .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10))
-                .clickable { },
+                .clickable { onFilterClick() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -151,6 +198,15 @@ private fun KitSearchHeader(
                 modifier = Modifier.size(20.dp),
                 tint = GeneratedColor.Figma919191
             )
+            if (isFilterActive) {
+                Box(
+                    modifier = Modifier
+                        .size(8.dp)
+                        .align(Alignment.TopEnd)
+                        .clip(CircleShape)
+                        .background(Color.Red)
+                )
+            }
         }
     }
 }
@@ -266,7 +322,7 @@ private fun KitCreateDashedButton(onClick: () -> Unit) {
         )
         Spacer(modifier = Modifier.width(8.dp))
         Text(
-            text = "Tạo kit document mới",
+            text = "Tạo Kit Document mới",
             style = NestoryTextStyles.Body15Medium,
             color = GeneratedColor.Figma000000,
             textAlign = TextAlign.Center

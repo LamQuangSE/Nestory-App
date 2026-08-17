@@ -70,4 +70,15 @@ interface DocumentDao {
         isFavorite: Boolean?,
         containerId: Long?,
     ): Flow<List<DocumentEntity>>
+
+    @Query("UPDATE documents SET last_opened_at = :timestamp WHERE id = :documentId")
+    suspend fun updateLastOpenedAt(documentId: Long, timestamp: Long)
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM documents
+        WHERE title = :title COLLATE NOCASE AND id != :excludeId
+        """
+    )
+    suspend fun countByTitle(title: String, excludeId: Long): Int
 }

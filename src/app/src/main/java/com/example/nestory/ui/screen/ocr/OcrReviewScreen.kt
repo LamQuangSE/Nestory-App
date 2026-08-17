@@ -13,31 +13,50 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.nestory.R
+import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.local.entity.ContainerEntity
+import com.example.nestory.data.repository.CategoryRepositoryImpl
 import com.example.nestory.domain.model.DocumentCategory
 import com.example.nestory.domain.model.DocumentDraft
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryScreen
 import com.example.nestory.ui.components.PrimaryActionButton
+import com.example.nestory.ui.screen.category.CategoryDivider
+import com.example.nestory.ui.screen.category.CategoryHeader
+import com.example.nestory.ui.screen.category.CategoryOutlinedActionButton
+import com.example.nestory.ui.screen.category.CategoryPrimaryActionButton
 import com.example.nestory.ui.screen.category.CategoryRoute
 import com.example.nestory.ui.screen.category.CategoryUiModel
+import com.example.nestory.ui.screen.category.CategoryViewModel
+import com.example.nestory.ui.screen.category.CategoryViewModelFactory
 import com.example.nestory.ui.screen.container.ContainerRoute
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestoryTextStyles
+import com.example.nestory.ui.theme.categoryColor
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -57,6 +76,7 @@ fun OcrReviewScreen(
     onBack: () -> Unit,
     onSave: () -> Unit,
     fieldErrors: OcrFieldErrors = OcrFieldErrors(),
+    isSaving: Boolean = false,
     categorySelectionContent: (@Composable (
         onBack: () -> Unit,
         onConfirmSelection: (CategoryUiModel) -> Unit,
@@ -68,8 +88,7 @@ fun OcrReviewScreen(
 
     val selectedContainer = containers.firstOrNull { it.id == draft.containerId }
     val selectedCategoryName = draft.categoryName
-        ?: draft.category?.toVietnameseLabel()
-        ?: "Chưa xác định"
+        ?: draft.category?.toVietnameseLabel().orEmpty()
     val onCategorySelected: (CategoryUiModel) -> Unit = { category ->
         val matchedCategory = DocumentCategory.entries.find { it.toVietnameseLabel() == category.name }
         onDraftChange(
@@ -110,7 +129,8 @@ fun OcrReviewScreen(
             onConfirmSelection = { container ->
                 onDraftChange(draft.copy(containerId = container.id))
                 subScreen = OcrReviewSubScreen.Review
-            }
+            },
+            selectionOnly = true,
         )
         return
     }
@@ -171,7 +191,7 @@ fun OcrReviewScreen(
                                 .fillMaxHeight()
                                 .width(150.dp)
                                 .clip(NestoryRadius.R15)
-                                .background(GeneratedColor.FigmaF3f6ff)
+                                .background(GeneratedColor.FigmaFfffff)
                                 .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R15),
                             contentAlignment = Alignment.Center
                         ) {
@@ -196,6 +216,7 @@ fun OcrReviewScreen(
                     hint = "Nhập tên giấy tờ",
                     onValueChange = { onDraftChange(draft.copy(title = it)) },
                     errorText = if (fieldErrors.title) "Vui lòng nhập tên giấy tờ" else null,
+                    required = true,
                 )
 
                 ReviewField(
@@ -204,6 +225,7 @@ fun OcrReviewScreen(
                     hint = "Chọn danh mục",
                     onClick = { subScreen = OcrReviewSubScreen.CategorySelection },
                     errorText = if (fieldErrors.category) "Vui lòng chọn danh mục" else null,
+                    required = true,
                 )
             }
 
@@ -216,8 +238,9 @@ fun OcrReviewScreen(
                     value = draft.expiryDate.orEmpty(),
                     hint = "Chọn ngày hết hạn",
                     onClick = { datePickerTarget = DatePickerTarget.ExpiryDate },
-                    errorText = if (fieldErrors.expiryDate) "Ngày hết hạn không hợp lệ" else null,
-                    trailingIcon = AppIcons.KitCalendar
+                    errorText = if (fieldErrors.expiryDate) "Vui lòng chọn ngày hết hạn" else null,
+                    trailingIcon = AppIcons.KitCalendar,
+                    required = true,
                 )
             }
 
@@ -231,30 +254,28 @@ fun OcrReviewScreen(
                     hint = "Chọn container",
                     onClick = { subScreen = OcrReviewSubScreen.ContainerSelection },
                     errorText = if (fieldErrors.container) "Vui lòng chọn nơi lưu trữ" else null,
+                    required = true,
                 )
             }
             
             ReviewSection(
-                title = "Thông tin bổ sung",
+                title = "Tên file",
                 icon = AppIcons.NestoryNote
             ) {
                 ReviewField(
-                    label = "Tên chủ sở hữu",
-                    value = draft.holderName.orEmpty(),
-                    hint = "Tên chủ sở hữu",
-                    onValueChange = { onDraftChange(draft.copy(holderName = it)) }
-                )
-                ReviewField(
-                    label = "Số giấy tờ",
-                    value = draft.documentNumber.orEmpty(),
-                    hint = "Số giấy tờ",
-                    onValueChange = { onDraftChange(draft.copy(documentNumber = it)) }
+                    label = "Tên file",
+                    value = draft.fileName,
+                    hint = "Nhập tên file PDF",
+                    onValueChange = { onDraftChange(draft.copy(fileName = it)) },
+                    errorText = if (fieldErrors.fileName) "Vui lòng nhập tên file PDF" else null,
+                    required = true,
                 )
             }
 
             PrimaryActionButton(
-                text = "Lưu giấy tờ",
+                text = if (isSaving) "Đang lưu..." else "Lưu giấy tờ",
                 onClick = onSave,
+                enabled = !isSaving,
             )
             
             Spacer(modifier = Modifier.height(20.dp))
@@ -325,10 +346,17 @@ private fun ReviewField(
     onClick: (() -> Unit)? = null,
     errorText: String? = null,
     trailingIcon: Int? = null,
+    required: Boolean = false,
 ) {
+    val focusRequester = remember { FocusRequester() }
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
         Text(
-            text = label,
+            text = buildAnnotatedString {
+                append(label)
+                if (required) {
+                    withStyle(SpanStyle(color = Color.Red)) { append(" *") }
+                }
+            },
             style = NestoryTextStyles.Body12Semi,
             color = GeneratedColor.Figma000000
         )
@@ -339,13 +367,19 @@ private fun ReviewField(
                 .height(45.dp)
                 .testTag("ReviewField:$label")
                 .clip(NestoryRadius.R10)
-                .background(GeneratedColor.FigmaF3f6ff)
+                .background(GeneratedColor.FigmaFfffff)
                 .border(
                     1.dp,
                     if (errorText != null) Color.Red else GeneratedColor.FigmaE5e7eb,
                     NestoryRadius.R10,
                 )
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .then(
+                    when {
+                        onClick != null -> Modifier.clickable(onClick = onClick)
+                        onValueChange != null -> Modifier.clickable { focusRequester.requestFocus() }
+                        else -> Modifier
+                    }
+                )
                 .padding(horizontal = 12.dp),
             contentAlignment = Alignment.CenterStart
         ) {
@@ -353,7 +387,7 @@ private fun ReviewField(
                 BasicTextField(
                     value = value,
                     onValueChange = onValueChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
                     textStyle = NestoryTextStyles.Body14Medium,
                     singleLine = true,
                     decorationBox = { innerTextField ->
@@ -535,5 +569,136 @@ private fun OcrDatePickerDialog(
         }
     ) {
         DatePicker(state = datePickerState)
+    }
+}
+
+@Composable
+fun DocumentCategorySelectionScreen(
+    selectedCategoryName: String?,
+    onBack: () -> Unit,
+    onConfirmSelection: (CategoryUiModel) -> Unit,
+) {
+    val context = LocalContext.current
+    val db = remember { AppDatabase.getDatabase(context.applicationContext) }
+    val repository = remember { CategoryRepositoryImpl(db.categoryDao()) }
+    val factory = remember { CategoryViewModelFactory(repository) }
+    val viewModel: CategoryViewModel = viewModel(factory = factory)
+    val uiState by viewModel.uiState.collectAsState()
+
+    val presetCategories = remember { DocumentCategory.entries }
+
+    val userCategories = uiState.categories.filter { category ->
+        presetCategories.none { it.toVietnameseLabel().equals(category.name, ignoreCase = true) }
+    }
+
+    val rows = presetCategories.map { category ->
+        category.toVietnameseLabel() to category.categoryColor
+    } + userCategories.map { it.name to it.color }
+
+    var selected by remember { mutableStateOf(selectedCategoryName) }
+    var isConfirming by remember { mutableStateOf(false) }
+    var showCreateFlow by remember { mutableStateOf(false) }
+
+    // "Tạo danh mục mới" opens the real Category creation flow (the same
+    // CategoryScreen/CategoryViewModel used by the main Category screen). After the
+    // category is actually created there, it is returned and auto-selected here.
+    if (showCreateFlow) {
+        CategoryRoute(
+            onBack = { showCreateFlow = false },
+            startInCreateMode = true,
+            selectionOnly = true,
+            onCreated = { category ->
+                showCreateFlow = false
+                onConfirmSelection(category)
+            },
+        )
+        return
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(GeneratedColor.FigmaFfffff)
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(15.dp)
+    ) {
+        CategoryHeader(title = "Chọn danh mục", onBack = onBack)
+        Spacer(modifier = Modifier.height(15.dp))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(10.dp))
+        ) {
+            LazyColumn(modifier = Modifier.fillMaxSize()) {
+                itemsIndexed(rows) { index, (label, color) ->
+                    val isSelected = label == selected
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .background(if (isSelected) GeneratedColor.FigmaF3f6ff else Color.Transparent)
+                            .clickable { selected = label }
+                            .padding(horizontal = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(29.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Text(
+                            text = label,
+                            style = NestoryTextStyles.Body15Medium,
+                            color = GeneratedColor.Figma000000,
+                        )
+                        if (isSelected) {
+                            Spacer(modifier = Modifier.weight(1f))
+                            Image(
+                                painter = painterResource(id = AppIcons.KitCheckCircle),
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+                    }
+                    if (index < rows.lastIndex) {
+                        CategoryDivider()
+                    }
+                }
+            }
+        }
+
+        CategoryOutlinedActionButton(
+            text = "Tạo danh mục mới",
+            onClick = { showCreateFlow = true },
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(15.dp))
+        CategoryPrimaryActionButton(
+            text = "Xác nhận danh mục",
+            onClick = {
+                if (isConfirming) return@CategoryPrimaryActionButton
+                val label = selected
+                val selectedUser = userCategories.firstOrNull { it.name == label }
+                val selectedPreset = presetCategories.firstOrNull { it.toVietnameseLabel() == label }
+                when {
+                    selectedUser != null -> onConfirmSelection(selectedUser)
+                    selectedPreset != null -> {
+                        isConfirming = true
+                        viewModel.ensurePresetCategory(
+                            name = selectedPreset.toVietnameseLabel(),
+                        ) { model ->
+                            isConfirming = false
+                            onConfirmSelection(model)
+                        }
+                    }
+                }
+            }
+        )
+        Spacer(modifier = Modifier.height(20.dp))
     }
 }

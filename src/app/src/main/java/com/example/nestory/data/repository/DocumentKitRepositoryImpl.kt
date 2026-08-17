@@ -24,10 +24,20 @@ class DocumentKitRepositoryImpl(
         runCatching { dao.getKitWithItemsById(kitId) }
 
     override suspend fun createKit(kit: DocumentKitEntity): Result<Long> =
-        runCatching { dao.insertKit(kit) }
+        runCatching {
+            if (dao.countByName(kit.name, 0) > 0) {
+                throw IllegalArgumentException("Tên bộ hồ sơ đã tồn tại")
+            }
+            dao.insertKit(kit)
+        }
 
     override suspend fun updateKit(kit: DocumentKitEntity): Result<Unit> =
-        runCatching { dao.updateKit(kit) }
+        runCatching {
+            if (dao.countByName(kit.name, kit.id) > 0) {
+                throw IllegalArgumentException("Tên bộ hồ sơ đã tồn tại")
+            }
+            dao.updateKit(kit)
+        }
 
     override suspend fun deleteKit(kit: DocumentKitEntity): Result<Unit> =
         runCatching { dao.deleteKit(kit) }

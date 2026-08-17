@@ -6,6 +6,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.nestory.data.local.entity.CategoryEntity
 import com.example.nestory.domain.repository.CategoryRepository
+import com.example.nestory.ui.theme.predefinedCategoryColor
+import com.example.nestory.ui.theme.isPredefinedCategoryName
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,7 +32,7 @@ class CategoryViewModel(
             CategoryUiModel(
                 id = it.id,
                 name = it.name,
-                color = Color(it.colorValue.toULong()) // Phục hồi Color từ Long
+                color = predefinedCategoryColor(it.name) ?: Color(it.colorValue.toULong())
             )
         }
         state.copy(categories = categories)
@@ -39,6 +41,30 @@ class CategoryViewModel(
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = CategoryUiState()
     )
+
+    /**
+     * Materializes one of the preset system categories into a real, user-visible
+     * category row when it is selected inside the Create Document flow. Reuses the
+     * existing row when a category with the same name already exists, so no
+     * duplicate category is ever created.
+     */
+    fun ensurePresetCategory(name: String, onReady: (CategoryUiModel) -> Unit) {
+        viewModelScope.launch {
+            val existing = uiState.value.categories.firstOrNull { it.name.equals(name, ignoreCase = true) }
+            if (existing != null) {
+                onReady(existing)
+                return@launch
+            }
+            val color = predefinedCategoryColor(name) ?: defaultCategoryColors().first()
+            val newEntity = CategoryEntity(
+                id = System.currentTimeMillis().toString(),
+                name = name,
+                colorValue = color.value.toLong(),
+            )
+            repository.insertCategory(newEntity)
+            onReady(CategoryUiModel(newEntity.id, newEntity.name, color))
+        }
+    }
 
     fun onEvent(event: CategoryEvent) {
         when (event) {
@@ -59,7 +85,8 @@ class CategoryViewModel(
             CategoryEvent.OnEditClick -> {
                 val currentState = uiState.value
                 val selected = currentState.categories.firstOrNull { it.id == currentState.selectedCategoryId }
-                if (selected != null) {
+                // Predefined (default) Categories are system-defined and locked.
+                if (selected != null && !isPredefinedCategoryName(selected.name)) {
                     _internalState.update {
                         it.copy(
                             mode = CategoryMode.Edit,
@@ -72,14 +99,21 @@ class CategoryViewModel(
                 }
             }
             is CategoryEvent.OnDeleteClick -> {
-                _internalState.update { it.copy(deleteTargetId = event.categoryId) }
+                val target = uiState.value.categories.firstOrNull { it.id == event.categoryId }
+                // Predefined (default) Categories are system-defined and locked.
+                if (target != null && !isPredefinedCategoryName(target.name)) {
+                    _internalState.update { it.copy(deleteTargetId = event.categoryId) }
+                }
             }
             CategoryEvent.OnDismissDeleteDialog -> {
                 _internalState.update { it.copy(deleteTargetId = null) }
             }
             CategoryEvent.OnConfirmDelete -> {
                 val deleteId = uiState.value.deleteTargetId
-                if (deleteId != null) {
+                val target = uiState.value.categories.firstOrNull { it.id == deleteId }
+                // Predefined (default) Categories are system-defined and locked,
+                // so refuse the deletion even if the dialog was opened earlier.
+                if (deleteId != null && (target == null || !isPredefinedCategoryName(target.name))) {
                     viewModelScope.launch {
                         repository.deleteCategory(deleteId)
                     }
@@ -89,6 +123,8 @@ class CategoryViewModel(
                             deleteTargetId = null
                         )
                     }
+                } else {
+                    _internalState.update { it.copy(deleteTargetId = null) }
                 }
             }
             is CategoryEvent.OnNameChanged -> {
@@ -118,7 +154,13 @@ class CategoryViewModel(
         }
     }
 
-    private fun submitForm() {
+    /**
+     * Creates or updates a category from the real creation form. This is the single
+     * Category creation implementation used by both the main Category screen and the
+     * Create Document flow. When called from the Create Document entry point,
+     * [onCreated] reports the newly created category back so it can be auto-selected.
+     */
+    fun submitForm(onCreated: ((CategoryUiModel) -> Unit)? = null) {
         val currentState = uiState.value
         val inputName = currentState.form.name.trim()
         val selectedColor = currentState.form.selectedColor
@@ -168,6 +210,7 @@ class CategoryViewModel(
                         query = ""
                     )
                 }
+                onCreated?.invoke(CategoryUiModel(newEntity.id, newEntity.name, selectedColor))
             } else if (currentState.mode == CategoryMode.Edit && selectedColor != null && selectedId != null) {
                 val updateEntity = CategoryEntity(
                     id = selectedId,

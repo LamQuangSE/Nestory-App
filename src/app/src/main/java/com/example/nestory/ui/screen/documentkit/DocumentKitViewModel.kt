@@ -7,23 +7,27 @@ import com.example.nestory.data.local.entity.DocumentKitEntity
 import com.example.nestory.data.local.entity.KitItemEntity
 import com.example.nestory.domain.repository.DocumentKitRepository
 import com.example.nestory.domain.repository.KitItemRepository
+import com.example.nestory.relation.KitWithItems
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 
 class DocumentKitViewModel(
     private val documentKitRepository: DocumentKitRepository,
     private val kitItemRepository: KitItemRepository,
+    private val todayProvider: () -> LocalDate = { LocalDate.now() },
 ) : ViewModel() {
 
-    private val _selectedKitId = MutableStateFlow<Long?>(null)
     private val _isLoading = MutableStateFlow(false)
     private val _error = MutableStateFlow<String?>(null)
     private val _successMessage = MutableStateFlow<String?>(null)
+    private val localState = MutableStateFlow(DocumentKitLocalState())
 
     val uiState: StateFlow<DocumentKitUiState> = combine(
         documentKitRepository.observeAllKits()
@@ -31,19 +35,31 @@ class DocumentKitViewModel(
                 _error.value = e.message ?: "Không thể tải danh sách bộ hồ sơ"
                 emit(emptyList())
             },
-        _selectedKitId,
         _isLoading,
         _error,
         _successMessage,
-    ) { kits, selectedId, isLoading, error, successMessage ->
-        val selectedKit = if (selectedId == null) null else kits.find { it.kit.id == selectedId }
+        localState,
+    ) { kits: List<KitWithItems>, isLoading: Boolean, error: String?, successMessage: String?, state: DocumentKitLocalState ->
+        val selectedKit = if (state.selectedKitId == null) null else kits.find { it.kit.id == state.selectedKitId }
+        val activeFilter = state.activeFilter
+        val filteredKits = kits.filter { kitWithItems ->
+            val kit = kitWithItems.kit
+            val matchesCategory = activeFilter.selectedCategory == null || kit.category == activeFilter.selectedCategory
+            val matchesFavorite = activeFilter.isFavorite == null || kit.isFavorite == activeFilter.isFavorite
+            val usageStatus = resolveKitUsageStatus(kit.targetCompletionDate, todayProvider())
+            val matchesUsage = activeFilter.usageStatuses.isEmpty() ||
+                (usageStatus != null && activeFilter.usageStatuses.contains(usageStatus))
+            matchesCategory && matchesFavorite && matchesUsage
+        }
         DocumentKitUiState(
-            kits = kits,
+            kits = filteredKits,
             selectedKit = selectedKit,
             kitItems = selectedKit?.items ?: emptyList(),
             isLoading = isLoading,
             error = error,
             successMessage = successMessage,
+            activeFilter = activeFilter,
+            draftFilter = state.draftFilter,
         )
     }.stateIn(
         scope = viewModelScope,
@@ -52,7 +68,7 @@ class DocumentKitViewModel(
     )
 
     fun selectKit(kitId: Long?) {
-        _selectedKitId.value = kitId
+        localState.update { it.copy(selectedKitId = kitId) }
     }
 
     fun clearError() {
@@ -63,6 +79,35 @@ class DocumentKitViewModel(
         _successMessage.value = null
     }
 
+    fun updateDraftCategory(category: String?) {
+        localState.update { it.copy(draftFilter = it.draftFilter.copy(selectedCategory = category)) }
+    }
+
+    fun updateDraftFavorite(isFavorite: Boolean?) {
+        localState.update { it.copy(draftFilter = it.draftFilter.copy(isFavorite = isFavorite)) }
+    }
+
+    fun toggleDraftStatus(status: KitUsageStatus) {
+        localState.update { state ->
+            val currentStatuses = state.draftFilter.usageStatuses.toMutableSet()
+            if (currentStatuses.contains(status)) currentStatuses.remove(status) else currentStatuses.add(status)
+            state.copy(draftFilter = state.draftFilter.copy(usageStatuses = currentStatuses))
+        }
+    }
+
+    fun applyFilter() {
+        localState.update { it.copy(activeFilter = it.draftFilter) }
+    }
+
+    fun resetFilter() {
+        val emptyFilter = DocumentKitFilterState()
+        localState.update { it.copy(draftFilter = emptyFilter, activeFilter = emptyFilter) }
+    }
+
+    fun syncDraftWithActiveFilter() {
+        localState.update { it.copy(draftFilter = it.activeFilter) }
+    }
+
     fun createKit(
         name: String,
         description: String? = null,
@@ -70,7 +115,7 @@ class DocumentKitViewModel(
         category: String? = null,
         note: String? = null,
     ) {
-        beginOperation()
+        if (!beginOperation()) return
         viewModelScope.launch {
             documentKitRepository.createKit(
                 DocumentKitEntity(
@@ -88,7 +133,7 @@ class DocumentKitViewModel(
     }
 
     fun updateKit(kit: DocumentKitEntity) {
-        beginOperation()
+        if (!beginOperation()) return
         viewModelScope.launch {
             documentKitRepository.updateKit(kit).fold(
                 onSuccess = { endOperation(successMessage = "Đã cập nhật bộ hồ sơ") },
@@ -98,12 +143,12 @@ class DocumentKitViewModel(
     }
 
     fun deleteKit(kit: DocumentKitEntity) {
-        beginOperation()
+        if (!beginOperation()) return
         viewModelScope.launch {
             documentKitRepository.deleteKit(kit).fold(
                 onSuccess = {
-                    if (_selectedKitId.value == kit.id) {
-                        _selectedKitId.value = null
+                    if (localState.value.selectedKitId == kit.id) {
+                        localState.update { it.copy(selectedKitId = null) }
                     }
                     endOperation(successMessage = "Đã xoá bộ hồ sơ")
                 },
@@ -127,7 +172,7 @@ class DocumentKitViewModel(
         note: String? = null,
         requiredDocuments: Int? = null,
     ) {
-        beginOperation()
+        if (!beginOperation()) return
         viewModelScope.launch {
             kitItemRepository.addItem(
                 KitItemEntity(
@@ -147,7 +192,7 @@ class DocumentKitViewModel(
     }
 
     fun updateItem(item: KitItemEntity) {
-        beginOperation()
+        if (!beginOperation()) return
         viewModelScope.launch {
             kitItemRepository.updateItem(item).fold(
                 onSuccess = { endOperation(successMessage = "Đã cập nhật mục") },
@@ -157,7 +202,7 @@ class DocumentKitViewModel(
     }
 
     fun removeItem(item: KitItemEntity) {
-        beginOperation()
+        if (!beginOperation()) return
         viewModelScope.launch {
             kitItemRepository.deleteItem(item).fold(
                 onSuccess = { endOperation(successMessage = "Đã xoá mục") },
@@ -167,7 +212,7 @@ class DocumentKitViewModel(
     }
 
     fun linkDocument(itemId: Long, documentId: Long) {
-        beginOperation()
+        if (!beginOperation()) return
         viewModelScope.launch {
             kitItemRepository.getItemById(itemId).fold(
                 onSuccess = { item ->
@@ -191,7 +236,7 @@ class DocumentKitViewModel(
     }
 
     fun unlinkDocument(itemId: Long) {
-        beginOperation()
+        if (!beginOperation()) return
         viewModelScope.launch {
             kitItemRepository.getItemById(itemId).fold(
                 onSuccess = { item ->
@@ -227,10 +272,12 @@ class DocumentKitViewModel(
         addItem(kitId = kitId, status = status)
     }
 
-    private fun beginOperation() {
+    private fun beginOperation(): Boolean {
+        if (_isLoading.value) return false
         _isLoading.value = true
         _error.value = null
         _successMessage.value = null
+        return true
     }
 
     private fun endOperation(successMessage: String? = null, error: Throwable? = null, fallback: String = "", errorMessage: String? = null) {
@@ -248,6 +295,12 @@ class DocumentKitViewModel(
         const val DEFAULT_ITEM_STATUS = "PENDING"
     }
 }
+
+private data class DocumentKitLocalState(
+    val selectedKitId: Long? = null,
+    val activeFilter: DocumentKitFilterState = DocumentKitFilterState(),
+    val draftFilter: DocumentKitFilterState = DocumentKitFilterState(),
+)
 
 class DocumentKitViewModelFactory(
     private val documentKitRepository: DocumentKitRepository,

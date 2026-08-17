@@ -49,6 +49,9 @@ class OcrViewModel(
     private val _fieldErrors = MutableStateFlow(OcrFieldErrors())
     val fieldErrors: StateFlow<OcrFieldErrors> = _fieldErrors.asStateFlow()
 
+    private val _isSaving = MutableStateFlow(false)
+    val isSaving: StateFlow<Boolean> = _isSaving.asStateFlow()
+
     private var capturedBitmaps: List<Bitmap> = emptyList()
     private var pendingKitLinkItemId: Long? = null
 
@@ -102,6 +105,7 @@ class OcrViewModel(
     }
 
     fun saveDocument(onSaved: (Long) -> Unit) {
+        if (_isSaving.value) return
         val draft = (_uiState.value as? OcrUiState.Success)?.draft ?: return
         val bitmaps = capturedBitmaps
         if (bitmaps.isEmpty()) return
@@ -110,65 +114,94 @@ class OcrViewModel(
         _fieldErrors.value = fieldErrors
         if (fieldErrors.hasErrors) return
 
+        _isSaving.value = true
         viewModelScope.launch {
-            val containerId = draft.containerId ?: return@launch
-            
-            val document = DocumentEntity(
-                title = draft.title,
-                categoryId = draft.categoryId ?: draft.category?.name.orEmpty(),
-                expirationDate = draft.expiryDate,
-                notes = draft.notes,
-                containerId = containerId,
-                issueDate = draft.issueDate,
-                holderName = draft.holderName,
-                documentNumber = draft.documentNumber,
-                ocrText = draft.ocrText,
-            )
+            val containerId = draft.containerId ?: run {
+                _isSaving.value = false
+                return@launch
+            }
+            val fileName = draft.fileName
 
-            documentRepository.createDocument(document).fold(
-                onSuccess = { documentId ->
-                    var saveError: Throwable? = null
-                    bitmaps.forEachIndexed { index, bitmap ->
-                        imageStorageManager.saveBitmap(bitmap).fold(
-                            onSuccess = { filePath ->
-                                attachmentRepository.addAttachmentMetadata(
-                                    AttachmentEntity(
-                                        fileUri = filePath,
-                                        documentId = documentId,
-                                        displayOrder = index,
-                                    ),
-                                ).onFailure { error -> saveError = error }
-                            },
-                            onFailure = { error -> saveError = error },
-                        )
+            val pdfResult = imageStorageManager.saveBitmapsAsPdf(bitmaps, fileName)
+            pdfResult.fold(
+                onSuccess = { pdfPath ->
+                    val pageResults = bitmaps.map { bitmap ->
+                        imageStorageManager.saveBitmap(bitmap)
                     }
 
-                    if (saveError == null) {
-                        pendingKitLinkItemId?.let { itemId ->
-                            kitItemRepository.getItemById(itemId).onSuccess { item ->
-                                if (item != null) {
-                                    kitItemRepository.updateItem(
-                                        item.copy(
-                                            linkedDocumentId = documentId,
-                                            status = completionStatus(item, linkedCount = 1),
-                                        ),
+                    val document = DocumentEntity(
+                        title = draft.title,
+                        categoryId = draft.categoryId ?: draft.category?.name.orEmpty(),
+                        expirationDate = draft.expiryDate,
+                        notes = draft.notes,
+                        containerId = containerId,
+                        issueDate = draft.issueDate,
+                        holderName = draft.holderName,
+                        ocrText = draft.ocrText,
+                    )
+
+                    documentRepository.createDocument(document).fold(
+                        onSuccess = { documentId ->
+                            var saveError: Throwable? = null
+                            pageResults.forEachIndexed { index, result ->
+                                result.fold(
+                                    onSuccess = { pagePath ->
+                                        attachmentRepository.addAttachmentMetadata(
+                                            AttachmentEntity(
+                                                fileUri = pagePath,
+                                                documentId = documentId,
+                                                displayOrder = index,
+                                            ),
+                                        ).onFailure { error -> saveError = error }
+                                    },
+                                    onFailure = { error -> saveError = error },
+                                )
+                            }
+                            attachmentRepository.addAttachmentMetadata(
+                                AttachmentEntity(
+                                    fileUri = pdfPath,
+                                    documentId = documentId,
+                                    displayOrder = pageResults.size,
+                                ),
+                            ).onFailure { error -> saveError = error }
+
+                            if (saveError == null) {
+                                pendingKitLinkItemId?.let { itemId ->
+                                    kitItemRepository.getItemById(itemId).onSuccess { item ->
+                                        if (item != null) {
+                                            kitItemRepository.updateItem(
+                                                item.copy(
+                                                    linkedDocumentId = documentId,
+                                                    status = completionStatus(item, linkedCount = 1),
+                                                ),
+                                            )
+                                        }
+                                    }
+                                }
+                                pendingKitLinkItemId = null
+                                _isSaving.value = false
+                                onSaved(documentId)
+                            } else {
+                                saveError?.let { error ->
+                                    _isSaving.value = false
+                                    _uiState.value = OcrUiState.Error(
+                                        error.message ?: "Không thể lưu ảnh đính kèm",
                                     )
                                 }
                             }
-                        }
-                        pendingKitLinkItemId = null
-                        onSaved(documentId)
-                    } else {
-                        saveError?.let { error ->
+                        },
+                        onFailure = { error ->
+                            _isSaving.value = false
                             _uiState.value = OcrUiState.Error(
-                                error.message ?: "Không thể lưu ảnh đính kèm",
+                                error.message ?: "Không thể lưu giấy tờ",
                             )
-                        }
-                    }
+                        },
+                    )
                 },
                 onFailure = { error ->
+                    _isSaving.value = false
                     _uiState.value = OcrUiState.Error(
-                        error.message ?: "Không thể lưu giấy tờ",
+                        error.message ?: "Không thể tạo file PDF",
                     )
                 },
             )
@@ -184,6 +217,19 @@ class OcrViewModel(
         _fieldErrors.value = OcrFieldErrors()
         _uiState.value = OcrUiState.Idle
         capturedBitmaps = emptyList()
+    }
+
+    /**
+     * Clears every piece of state left over from a previous scan/create-document
+     * session. Called each time a new Scan session starts so that a newly scanned
+     * document never reuses the previous document's draft, bitmaps, errors, or link.
+     */
+    fun resetForNewSession() {
+        _fieldErrors.value = OcrFieldErrors()
+        _uiState.value = OcrUiState.Idle
+        capturedBitmaps = emptyList()
+        _isSaving.value = false
+        pendingKitLinkItemId = null
     }
 
     private fun completionStatus(item: KitItemEntity, linkedCount: Int): String {
@@ -202,8 +248,9 @@ class OcrViewModel(
             title = draft.title.isBlank(),
             category = draft.categoryId.isNullOrBlank() && draft.category == null,
             issueDate = issueDate.isNotBlank() && DocumentStatusCalculator.parseExpirationDate(issueDate) == null,
-            expiryDate = expiryDate.isNotBlank() && DocumentStatusCalculator.parseExpirationDate(expiryDate) == null,
+            expiryDate = expiryDate.isBlank() || DocumentStatusCalculator.parseExpirationDate(expiryDate) == null,
             container = draft.containerId == null,
+            fileName = draft.fileName.isBlank(),
         )
     }
 }
@@ -214,8 +261,9 @@ data class OcrFieldErrors(
     val issueDate: Boolean = false,
     val expiryDate: Boolean = false,
     val container: Boolean = false,
+    val fileName: Boolean = false,
 ) {
-    val hasErrors: Boolean get() = title || category || issueDate || expiryDate || container
+    val hasErrors: Boolean get() = title || category || issueDate || expiryDate || container || fileName
 }
 
 class OcrViewModelFactory(

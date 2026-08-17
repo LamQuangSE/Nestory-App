@@ -19,9 +19,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -37,6 +39,8 @@ import coil.compose.AsyncImage
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.NestoryLogo
 import com.example.nestory.ui.components.SectionHeader
+import com.example.nestory.ui.screen.documentkit.KitProgressRing
+import com.example.nestory.ui.screen.documentkit.kitCategoryVisual
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestorySpacing
@@ -46,7 +50,8 @@ import com.example.nestory.ui.theme.NestoryTextStyles
 fun HomeDashboardScreen(
     uiState: HomeDashboardUiState,
     onOpenDocuments: () -> Unit,
-    onOpenDocumentKits: () -> Unit,
+    onOpenKits: () -> Unit,
+    onKitClick: (Long) -> Unit = {},
     onAddDocument: () -> Unit,
     onRecentDocumentClick: (Long) -> Unit = {},
 ) {
@@ -79,7 +84,14 @@ fun HomeDashboardScreen(
             SectionCard {
                 SectionHeader(title = "Cần chú ý", action = "Xem tất cả", onAction = onOpenDocuments)
                 Spacer(modifier = Modifier.height(NestorySpacing.S16))
-                EmptyStateLine()
+                if (uiState.attentionDocuments.isEmpty()) {
+                    EmptyStateLine()
+                } else {
+                    AttentionSection(
+                        documents = uiState.attentionDocuments,
+                        onDocumentClick = onRecentDocumentClick,
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(NestorySpacing.S24))
             SectionHeader(title = "Gần đây", action = "Xem tất cả", onAction = onOpenDocuments)
@@ -89,13 +101,97 @@ fun HomeDashboardScreen(
                 onDocumentClick = onRecentDocumentClick,
             )
             Spacer(modifier = Modifier.height(NestorySpacing.S24))
-            SectionHeader(title = "Bộ hồ sơ của bạn", action = "Xem tất cả", onAction = onOpenDocumentKits)
+            SectionHeader(title = "Hồ sơ của bạn", action = "Xem tất cả", onAction = onOpenKits)
             Spacer(modifier = Modifier.height(NestorySpacing.S14))
-            DocumentKitSection(
+            KitSection(
                 kits = uiState.documentKits,
-                onKitClick = onOpenDocumentKits,
+                onKitClick = onKitClick,
             )
         }
+    }
+}
+
+@Composable
+private fun AttentionSection(
+    documents: List<RecentDocumentUi>,
+    onDocumentClick: (Long) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(NestorySpacing.S12)
+    ) {
+        documents.forEach { document ->
+            AttentionDocumentRow(
+                document = document,
+                onClick = { onDocumentClick(document.id) }
+            )
+        }
+    }
+}
+
+@Composable
+private fun AttentionDocumentRow(
+    document: RecentDocumentUi,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = NestorySpacing.S4),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .clip(NestoryRadius.R10)
+                .background(GeneratedColor.FigmaF3f6ff)
+                .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R10),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(AppIcons.DocumentFileScan),
+                contentDescription = null,
+                modifier = Modifier.size(22.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+        Spacer(modifier = Modifier.width(NestorySpacing.S12))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = document.title,
+                style = NestoryTextStyles.Body14Semi,
+                color = GeneratedColor.Figma000000,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = "Hết hạn: ${document.expiryDate}",
+                style = NestoryTextStyles.Body11Semi,
+                color = GeneratedColor.Figma919191,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            val daysRemaining = document.daysRemaining
+            if (daysRemaining != null) {
+                Text(
+                    text = "Còn $daysRemaining ngày",
+                    style = NestoryTextStyles.Body11Semi,
+                    color = GeneratedColor.FigmaFf0000,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+        Spacer(modifier = Modifier.width(NestorySpacing.S8))
+        Image(
+            painter = painterResource(AppIcons.LsiconRightFilled),
+            contentDescription = null,
+            modifier = Modifier.size(16.dp),
+            contentScale = ContentScale.Fit
+        )
     }
 }
 
@@ -109,7 +205,6 @@ private fun RecentSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
         ) {
-            EmptyRecentCard(Modifier.weight(1f))
             EmptyRecentCard(Modifier.weight(1f))
             EmptyRecentCard(Modifier.weight(1f))
             EmptyRecentCard(Modifier.weight(1f))
@@ -131,21 +226,93 @@ private fun RecentSection(
 }
 
 @Composable
-private fun DocumentKitSection(
+private fun KitSection(
     kits: List<HomeDocumentKitUi>,
-    onKitClick: () -> Unit,
+    onKitClick: (Long) -> Unit,
 ) {
-    SectionCard {
-        if (kits.isEmpty()) {
+    if (kits.isEmpty()) {
+        SectionCard {
             EmptyStateLine()
-        } else {
+        }
+    } else {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(NestorySpacing.S12)
+        ) {
             kits.forEach { kit ->
-                DocumentKitRow(
+                KitRow(
                     kit = kit,
-                    onClick = onKitClick,
+                    onClick = { onKitClick(kit.id) },
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun KitRow(
+    kit: HomeDocumentKitUi,
+    onClick: () -> Unit,
+) {
+    val categoryVisual = kitCategoryVisual(kit.category)
+    val remaining = kit.totalItems - kit.readyItems
+    val remainingText = if (remaining <= 0) "Đã hoàn thành"
+    else "Còn $remaining mục chưa hoàn thành"
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(96.dp)
+            .clip(NestoryRadius.R14)
+            .background(GeneratedColor.FigmaFfffff)
+            .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R14)
+            .clickable(onClick = onClick)
+            .padding(horizontal = NestorySpacing.S12, vertical = NestorySpacing.S10),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 60.dp, height = 72.dp)
+                .clip(RoundedCornerShape(NestorySpacing.S10))
+                .background(categoryVisual.boxColor)
+                .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), RoundedCornerShape(NestorySpacing.S10)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                painter = painterResource(id = categoryVisual.iconRes),
+                contentDescription = null,
+                modifier = Modifier.size(30.dp),
+                tint = categoryVisual.iconTint
+            )
+        }
+        Spacer(modifier = Modifier.width(NestorySpacing.S12))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = kit.name,
+                style = NestoryTextStyles.Body14Semi,
+                color = GeneratedColor.Figma000000,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${kit.totalItems} mục yêu cầu",
+                style = NestoryTextStyles.Body12Semi,
+                color = GeneratedColor.Figma919191,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = remainingText,
+                style = NestoryTextStyles.Body12Semi,
+                color = GeneratedColor.Figma919191,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Spacer(modifier = Modifier.width(NestorySpacing.S10))
+        KitProgressRing(percent = kit.progressPercent)
     }
 }
 
@@ -155,16 +322,9 @@ private fun Header() {
         modifier = Modifier
             .fillMaxWidth()
             .height(42.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         NestoryLogo()
-        Image(
-            painter = painterResource(AppIcons.NestoryNotification),
-            contentDescription = null,
-            modifier = Modifier.size(30.dp),
-            contentScale = ContentScale.Fit
-        )
     }
 }
 
@@ -240,73 +400,13 @@ private fun RecentDocumentCard(
         )
         Spacer(modifier = Modifier.height(NestorySpacing.S4))
         Text(
-            text = document.expiryDate,
+            text = document.categoryLabel,
             style = NestoryTextStyles.Body11Semi,
             color = GeneratedColor.Figma919191,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
     }
-}
-
-@Composable
-private fun DocumentKitRow(
-    kit: HomeDocumentKitUi,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .clickable(onClick = onClick),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(NestoryRadius.R10)
-                .background(GeneratedColor.FigmaF3f6ff)
-                .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R10),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                painter = painterResource(AppIcons.KitCategory),
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                contentScale = ContentScale.Fit
-            )
-        }
-        Spacer(modifier = Modifier.width(NestorySpacing.S14))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = kit.name,
-                style = NestoryTextStyles.Body14Semi,
-                color = GeneratedColor.Figma000000,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = buildKitSubtitle(kit),
-                style = NestoryTextStyles.Body11Semi,
-                color = GeneratedColor.Figma919191,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-        Spacer(modifier = Modifier.width(NestorySpacing.S10))
-        Text(
-            text = "${kit.progressPercent}%",
-            style = NestoryTextStyles.Body12Semi,
-            color = GeneratedColor.Figma522ec8,
-            maxLines = 1,
-        )
-    }
-}
-
-private fun buildKitSubtitle(kit: HomeDocumentKitUi): String {
-    val category = kit.category?.takeIf { it.isNotBlank() } ?: "Chưa phân loại"
-    return "$category • ${kit.readyItems}/${kit.totalItems} mục • ${kit.targetCompletionDate}"
 }
 
 @Composable

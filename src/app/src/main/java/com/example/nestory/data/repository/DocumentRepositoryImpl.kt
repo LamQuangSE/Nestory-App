@@ -38,10 +38,20 @@ class DocumentRepositoryImpl(
         )
 
     override suspend fun createDocument(document: DocumentEntity): Result<Long> =
-        runCatching { documentDao.insert(document) }
+        runCatching {
+            if (document.title.isNotBlank() && documentDao.countByTitle(document.title, 0) > 0) {
+                throw IllegalArgumentException("Tên giấy tờ đã tồn tại")
+            }
+            documentDao.insert(document)
+        }
 
     override suspend fun updateDocument(document: DocumentEntity): Result<Unit> =
-        runCatching { documentDao.update(document) }
+        runCatching {
+            if (document.title.isNotBlank() && documentDao.countByTitle(document.title, document.id) > 0) {
+                throw IllegalArgumentException("Tên giấy tờ đã tồn tại")
+            }
+            documentDao.update(document)
+        }
 
     override suspend fun deleteDocument(document: DocumentEntity): Result<Unit> =
         runCatching { documentDao.delete(document) }
@@ -65,5 +75,12 @@ class DocumentRepositoryImpl(
         expirationDate: String?,
     ): Result<Unit> = runCatching {
         documentDao.updateDocumentExpiryDate(documentId, expirationDate)
+    }
+
+    override suspend fun updateLastOpenedAt(
+        documentId: Long,
+        timestamp: Long,
+    ): Result<Unit> = runCatching {
+        documentDao.updateLastOpenedAt(documentId, timestamp)
     }
 }

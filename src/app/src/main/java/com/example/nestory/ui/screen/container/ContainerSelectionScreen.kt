@@ -2,6 +2,7 @@ package com.example.nestory.ui.screen.container
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -10,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -42,6 +44,8 @@ fun ContainerSelectionScreen(
     onBackClick: () -> Unit,
     errorMessage: String? = null,
     onDismissError: () -> Unit = {},
+    selectionOnly: Boolean = false,
+    allowCreate: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val isEmpty = uiState.rootContainers.isEmpty()
@@ -108,36 +112,54 @@ fun ContainerSelectionScreen(
                     uiState = uiState,
                     onSelectContainer = onSelectContainer,
                     onToggleContainer = onToggleContainer,
-                    onDeleteClick = onDeleteClick
+                    onDeleteClick = onDeleteClick,
+                    selectionOnly = selectionOnly
                 )
             }
         }
 
-        Row(
-            modifier = modifier
-                .fillMaxWidth()
-                .padding(vertical = NestorySpacing.S10),
-            horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
-        ) {
+        if (!selectionOnly) {
+            Row(
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(vertical = NestorySpacing.S10),
+                horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
+            ) {
+                ContainerActionButton(
+                    text = "Tạo container mới",
+                    onClick = onCreateClick,
+                    isPrimary = false,
+                    isDashed = true,
+                    modifier = Modifier.weight(1f)
+                )
+                // Management actions only become available after the user explicitly
+                // selects/clicked a specific Container.
+                if (uiState.selectedContainerId != null) {
+                    ContainerActionButton(
+                        text = "Chỉnh sửa container",
+                        onClick = onEditClick,
+                        isPrimary = false,
+                        isDashed = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        } else if (allowCreate) {
             ContainerActionButton(
                 text = "Tạo container mới",
                 onClick = onCreateClick,
                 isPrimary = false,
                 isDashed = true,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = NestorySpacing.S10)
             )
-            if (!isEmpty) {
-                ContainerActionButton(
-                    text = "Chỉnh sửa container",
-                    onClick = onEditClick,
-                    isPrimary = false,
-                    isDashed = true,
-                    modifier = Modifier.weight(1f)
-                )
-            }
         }
 
-        if (!isEmpty) {
+        // The confirm action only has a purpose inside a picker flow (e.g. choosing
+        // the storage location for a Document). On the main Container management
+        // screen it is redundant because no explicit selection is required to leave.
+        if (!isEmpty && selectionOnly) {
             ContainerActionButton(
                 text = "Xác nhận vị trí",
                 onClick = onConfirmClick,
@@ -156,7 +178,8 @@ fun ExpandableContainerList(
     uiState: ContainerUiState,
     onSelectContainer: (Long) -> Unit,
     onToggleContainer: (Long) -> Unit,
-    onDeleteClick: (Long) -> Unit
+    onDeleteClick: (Long) -> Unit,
+    selectionOnly: Boolean = false
 ) {
     Column(
         modifier = Modifier
@@ -164,13 +187,13 @@ fun ExpandableContainerList(
             .verticalScroll(rememberScrollState())
     ) {
         uiState.rootContainers.forEach { container ->
-            ExpandableContainerNode(
+            ContainerGroup(
                 container = container,
-                level = 0,
                 uiState = uiState,
                 onSelectContainer = onSelectContainer,
                 onToggleContainer = onToggleContainer,
-                onDeleteClick = onDeleteClick
+                onDeleteClick = onDeleteClick,
+                selectionOnly = selectionOnly
             )
             Divider(color = GeneratedColor.FigmaE5e7eb, thickness = 1.dp)
         }
@@ -178,13 +201,45 @@ fun ExpandableContainerList(
 }
 
 @Composable
-fun ExpandableContainerNode(
+fun ContainerGroup(
     container: ContainerEntity,
-    level: Int,
     uiState: ContainerUiState,
     onSelectContainer: (Long) -> Unit,
     onToggleContainer: (Long) -> Unit,
-    onDeleteClick: (Long) -> Unit
+    onDeleteClick: (Long) -> Unit,
+    selectionOnly: Boolean = false
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, GeneratedColor.FigmaE5e7eb),
+        shape = RoundedCornerShape(NestorySpacing.S10)
+    ) {
+        Column {
+            EmitContainerRows(
+                container = container,
+                level = 0,
+                isLastChild = false,
+                uiState = uiState,
+                onSelectContainer = onSelectContainer,
+                onToggleContainer = onToggleContainer,
+                onDeleteClick = onDeleteClick,
+                selectionOnly = selectionOnly
+            )
+        }
+    }
+}
+
+@Composable
+private fun EmitContainerRows(
+    container: ContainerEntity,
+    level: Int,
+    isLastChild: Boolean,
+    uiState: ContainerUiState,
+    onSelectContainer: (Long) -> Unit,
+    onToggleContainer: (Long) -> Unit,
+    onDeleteClick: (Long) -> Unit,
+    selectionOnly: Boolean = false
 ) {
     val hasChildren = uiState.getChildren(container.id).isNotEmpty()
     val isExpanded = uiState.isExpanded(container.id)
@@ -195,22 +250,26 @@ fun ExpandableContainerNode(
         isExpanded = isExpanded,
         hasChildren = hasChildren,
         level = level,
+        isLastChild = isLastChild,
+        showDelete = !selectionOnly && container.id == uiState.selectedContainerId,
         onToggle = { onToggleContainer(container.id) },
         onItemClick = { onSelectContainer(container.id) },
-        onDeleteClick = { onDeleteClick(container.id) }
+        onDeleteClick = if (selectionOnly) null else ({ onDeleteClick(container.id) })
     )
 
     if (isExpanded) {
-        uiState.getChildren(container.id).forEach { child ->
-            ExpandableContainerNode(
+        val children = uiState.getChildren(container.id)
+        children.forEachIndexed { index, child ->
+            EmitContainerRows(
                 container = child,
                 level = level + 1,
+                isLastChild = index == children.lastIndex,
                 uiState = uiState,
                 onSelectContainer = onSelectContainer,
                 onToggleContainer = onToggleContainer,
-                onDeleteClick = onDeleteClick
+                onDeleteClick = onDeleteClick,
+                selectionOnly = selectionOnly
             )
-            Divider(color = GeneratedColor.FigmaE5e7eb, thickness = 1.dp)
         }
     }
 }

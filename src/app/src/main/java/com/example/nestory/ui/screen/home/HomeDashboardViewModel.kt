@@ -3,11 +3,15 @@ package com.example.nestory.ui.screen.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentKitRepository
 import com.example.nestory.domain.repository.DocumentRepository
+import com.example.nestory.ui.screen.document.DocumentStatus
+import com.example.nestory.ui.screen.document.DocumentStatusCalculator
 import com.example.nestory.ui.screen.documentkit.KitItemStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -31,22 +35,22 @@ class HomeDashboardViewModel(
 
     init {
         viewModelScope.launch {
-            // Gom thêm luồng dữ liệu của Category để map ID sang Tên danh mục
             combine(
                 documentRepository.observeAllDocuments(),
                 containerRepository.observeAllContainers(),
                 categoryRepository.getAllCategories(),
                 attachmentRepository.observeAllAttachments(),
                 documentKitRepository.observeAllKits(),
-            ) { documents, _, categories, attachments, kits ->
+            ) { documents, containers, categories, attachments, kits ->
                 val attachmentsByDocId = attachments.groupBy { it.documentId }
-                
+                val rootContainers = containers.filter { it.parentId == null }
+                val today = LocalDate.now()
+
                 HomeDashboardUiState(
                     recentDocuments = documents
-                        .sortedByDescending { it.id }
+                        .sortedByDescending { it.lastOpenedAt ?: Long.MIN_VALUE }
                         .take(recentCount)
                         .map { doc ->
-                            // Dò tìm tên danh mục từ Database, nếu không thấy thì để "Khác"
                             val catName = categories.find { it.id == doc.categoryId }?.name ?: "Khác"
                             RecentDocumentUi(
                                 id = doc.id,
@@ -54,6 +58,28 @@ class HomeDashboardViewModel(
                                 categoryLabel = catName,
                                 expiryDate = doc.expirationDate ?: "Chưa có hạn",
                                 attachmentUris = attachmentsByDocId[doc.id].orEmpty().map { it.fileUri }
+                            )
+                        },
+                    attentionDocuments = documents
+                        .mapNotNull { doc ->
+                            val expiry = DocumentStatusCalculator.parseExpirationDate(doc.expirationDate)
+                                ?: return@mapNotNull null
+                            val status = DocumentStatusCalculator.calculate(doc.expirationDate, today)
+                            if (status == DocumentStatus.Expired) return@mapNotNull null
+                            val daysRemaining = ChronoUnit.DAYS.between(today, expiry)
+                            Triple(doc, expiry, daysRemaining)
+                        }
+                        .sortedBy { it.third }
+                        .take(DEFAULT_ATTENTION_COUNT)
+                        .map { (doc, _, daysRemaining) ->
+                            val catName = categories.find { it.id == doc.categoryId }?.name ?: "Khác"
+                            RecentDocumentUi(
+                                id = doc.id,
+                                title = doc.title,
+                                categoryLabel = catName,
+                                expiryDate = doc.expirationDate ?: "Chưa có hạn",
+                                attachmentUris = attachmentsByDocId[doc.id].orEmpty().map { it.fileUri },
+                                daysRemaining = daysRemaining,
                             )
                         },
                     documentKits = kits
@@ -67,6 +93,15 @@ class HomeDashboardViewModel(
                                 targetCompletionDate = kitWithItems.kit.targetCompletionDate,
                                 totalItems = kitWithItems.items.size,
                                 readyItems = kitWithItems.items.count { it.status == KitItemStatus.READY },
+                            )
+                        },
+                    containers = rootContainers
+                        .sortedBy { it.name }
+                        .map { container ->
+                            HomeContainerUi(
+                                id = container.id,
+                                name = container.name,
+                                documentCount = documents.count { it.containerId == container.id },
                             )
                         },
                     isLoading = false,
@@ -85,8 +120,9 @@ class HomeDashboardViewModel(
     }
 
     companion object {
-        private const val DEFAULT_RECENT_COUNT = 4
+        private const val DEFAULT_RECENT_COUNT = 3
         private const val DEFAULT_KIT_COUNT = 3
+        private const val DEFAULT_ATTENTION_COUNT = 3
     }
 }
 

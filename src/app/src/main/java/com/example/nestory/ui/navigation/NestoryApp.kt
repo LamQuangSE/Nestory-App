@@ -14,12 +14,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,7 +26,6 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.nestory.data.filesystem.FileSystemManager
-import com.example.nestory.data.settings.ExpiryReminderSettingsRepository
 import com.example.nestory.security.VaultUnlockSessionProvider
 import com.example.nestory.ui.components.NestoryBottomBar
 import com.example.nestory.ui.screen.category.CategoryRoute
@@ -42,12 +39,7 @@ import com.example.nestory.ui.screen.unlock.UnlockSuccessScreen
 import com.example.nestory.ui.screen.vault.CreateVaultScreen
 import com.example.nestory.ui.screen.vault.WaitingScreen
 import com.example.nestory.ui.screen.ocr.OcrRoute
-import com.example.nestory.ui.screen.setting.ExpiryReminderSettingScreen
 import com.example.nestory.ui.screen.setting.SettingScreen
-import com.example.nestory.ui.screen.setting.toSettings
-import com.example.nestory.ui.screen.setting.toUiState
-import com.example.nestory.utils.notification.WorkManagerHelper
-import kotlinx.coroutines.launch
 import androidx.compose.runtime.LaunchedEffect
 
 @Composable
@@ -55,16 +47,6 @@ fun NestoryApp(initialDocumentId: String? = null) {
     val context = LocalContext.current.applicationContext
     val lifecycleOwner = LocalLifecycleOwner.current
     val unlockSessionManager = remember { VaultUnlockSessionProvider.manager }
-    val settingsRepository = remember { ExpiryReminderSettingsRepository(context) }
-    val expiryReminderSettings by settingsRepository.settings.collectAsState(
-        initial = com.example.nestory.domain.model.ExpiryReminderSettings(),
-    )
-    val coroutineScope = rememberCoroutineScope()
-
-    // Theo dõi thay đổi settings để cập nhật lịch nhắc
-    LaunchedEffect(expiryReminderSettings) {
-        WorkManagerHelper.schedulePeriodicReminder(context, expiryReminderSettings)
-    }
 
     val initialDestination = remember {
         if (FileSystemManager(context).isVaultInitialized()) {
@@ -79,10 +61,12 @@ fun NestoryApp(initialDocumentId: String? = null) {
     }
     var destination by remember { mutableStateOf(initialDestination) }
     var pendingDocumentId by remember { mutableStateOf(initialDocumentId) }
+    var pendingKitId by remember { mutableStateOf<Long?>(null) }
     var ocrReturnDestination by remember { mutableStateOf(NestoryDestination.Home) }
     var pendingKitLinkItemId by remember { mutableStateOf<Long?>(null) }
     var vaultCreationSession by remember { mutableIntStateOf(0) }
     var isEditingMode by remember { mutableStateOf(false) }
+    var pdfViewerActive by remember { mutableStateOf(false) }
 
     // Edit-leave guard: while editing (Kit/Item/Document), any navigation away via the
     // bottom bar (tab or Scan) must first run the edit confirmation. The request is passed
@@ -159,7 +143,6 @@ fun NestoryApp(initialDocumentId: String? = null) {
             NestoryDestination.Category,
             NestoryDestination.Container,
             NestoryDestination.Settings,
-            NestoryDestination.ExpiryReminderSettings,
             NestoryDestination.DocumentSelection,
             NestoryDestination.DocumentKit -> true
             else -> false
@@ -170,10 +153,7 @@ fun NestoryApp(initialDocumentId: String? = null) {
             pendingScanLinkItemId = null
             editLeaveRequested = true
         } else {
-            destination = when (destination) {
-                NestoryDestination.ExpiryReminderSettings -> NestoryDestination.Settings
-                else -> NestoryDestination.Home
-            }
+            destination = NestoryDestination.Home
         }
     }
 
@@ -200,7 +180,8 @@ fun NestoryApp(initialDocumentId: String? = null) {
     }
 
     val showBottomBar =
-            when (destination) {
+            if (pdfViewerActive) false
+            else when (destination) {
                 NestoryDestination.Home,
                 NestoryDestination.DocumentSelection,
                 NestoryDestination.DocumentDetail,
@@ -297,7 +278,12 @@ fun NestoryApp(initialDocumentId: String? = null) {
                                     onOpenDocuments = {
                                         destination = NestoryDestination.DocumentSelection
                                     },
-                                    onOpenDocumentKits = {
+                                    onOpenKits = {
+                                        pendingKitId = null
+                                        destination = NestoryDestination.DocumentKit
+                                    },
+                                    onKitClick = { kitId ->
+                                        pendingKitId = kitId
                                         destination = NestoryDestination.DocumentKit
                                     },
                                     onAddDocument = goToScan,
@@ -307,33 +293,24 @@ fun NestoryApp(initialDocumentId: String? = null) {
                                     },
                             )
                     NestoryDestination.Category ->
-                            CategoryRoute(onBack = { destination = NestoryDestination.Home })
+                            CategoryRoute(
+                                    onBack = { destination = NestoryDestination.Home },
+                                    showPresetCategories = true
+                            )
                     NestoryDestination.Container ->
                             ContainerRoute(onBack = { destination = NestoryDestination.Home })
                     NestoryDestination.Settings ->
                             SettingScreen(
                                     onBack = { destination = NestoryDestination.Home },
-                                    onExpiryReminderClick = {
-                                        destination = NestoryDestination.ExpiryReminderSettings
-                                    },
                                     onCategoryClick = { destination = NestoryDestination.Category },
                                     onContainerClick = { destination = NestoryDestination.Container },
-                            )
-                    NestoryDestination.ExpiryReminderSettings ->
-                            ExpiryReminderSettingScreen(
-                                    state = expiryReminderSettings.toUiState(),
-                                    onStateChange = { uiState ->
-                                        coroutineScope.launch {
-                                            settingsRepository.updateSettings(uiState.toSettings())
-                                        }
-                                    },
-                                    onBack = { destination = NestoryDestination.Settings },
                             )
                     NestoryDestination.DocumentSelection ->
                             DocumentRoute(
                                 onAddDocument = goToScan,
                                 initialDocumentId = pendingDocumentId,
                                 onClearInitialId = { pendingDocumentId = null },
+                                onPdfViewerActiveChange = { pdfViewerActive = it },
                                 editLeaveRequested = editLeaveRequested,
                                 onEditLeaveComplete = completeEditLeave,
                                 onEditLeaveDismiss = dismissEditLeave,
@@ -343,6 +320,8 @@ fun NestoryApp(initialDocumentId: String? = null) {
                             DocumentKitRoute(
                                 onBack = { destination = NestoryDestination.Home },
                                 onScanDocument = goToScanForKitLink,
+                                initialKitId = pendingKitId,
+                                onClearInitialKitId = { pendingKitId = null },
                                 editLeaveRequested = editLeaveRequested,
                                 onEditLeaveComplete = completeEditLeave,
                                 onEditLeaveDismiss = dismissEditLeave,
@@ -353,6 +332,7 @@ fun NestoryApp(initialDocumentId: String? = null) {
                                 onAddDocument = goToScan,
                                 initialDocumentId = pendingDocumentId,
                                 onClearInitialId = { pendingDocumentId = null },
+                                onPdfViewerActiveChange = { pdfViewerActive = it },
                                 editLeaveRequested = editLeaveRequested,
                                 onEditLeaveComplete = completeEditLeave,
                                 onEditLeaveDismiss = dismissEditLeave,
@@ -363,6 +343,7 @@ fun NestoryApp(initialDocumentId: String? = null) {
                                 onAddDocument = goToScan,
                                 initialDocumentId = pendingDocumentId,
                                 onClearInitialId = { pendingDocumentId = null },
+                                onPdfViewerActiveChange = { pdfViewerActive = it },
                                 editLeaveRequested = editLeaveRequested,
                                 onEditLeaveComplete = completeEditLeave,
                                 onEditLeaveDismiss = dismissEditLeave,
@@ -380,6 +361,10 @@ fun NestoryApp(initialDocumentId: String? = null) {
                                         }
                                     },
                                     linkToItemId = pendingKitLinkItemId,
+                                    editLeaveRequested = editLeaveRequested,
+                                    onEditLeaveComplete = completeEditLeave,
+                                    onEditLeaveDismiss = dismissEditLeave,
+                                    onEditModeChange = onEditModeChange,
                             )
                 }
             }

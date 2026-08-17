@@ -22,6 +22,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
@@ -70,6 +71,8 @@ fun DocumentKitCreateScreen(
     initialNote: String = "",
     submitLabel: String = "Tạo bộ hồ sơ mới",
     isEdit: Boolean = false,
+    isSaving: Boolean = false,
+    existingNames: List<String> = emptyList(),
     editLeaveRequested: Boolean = false,
     onDelete: (() -> Unit)? = null,
     onEditBack: (name: String, date: String, category: String?, description: String?, note: String?) -> Unit = { _, _, _, _, _ -> },
@@ -81,6 +84,7 @@ fun DocumentKitCreateScreen(
     var note by remember { mutableStateOf(initialNote) }
     var showNameError by remember { mutableStateOf(false) }
     var showDateError by remember { mutableStateOf(false) }
+    var showDuplicateError by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
     var showDeleteConfirm by remember { mutableStateOf(false) }
 
@@ -93,20 +97,31 @@ fun DocumentKitCreateScreen(
     val validateAndSubmit: () -> Unit = {
         val isNameValid = name.isNotBlank()
         val isDateValid = date.isNotBlank() && DocumentStatusCalculator.parseExpirationDate(date) != null
+        val isDuplicate = name.isNotBlank() &&
+            existingNames.any { it.equals(name.trim(), ignoreCase = true) }
         showNameError = !isNameValid
         showDateError = !isDateValid
-        if (isNameValid && isDateValid) {
+        showDuplicateError = isDuplicate
+        if (isNameValid && isDateValid && !isDuplicate) {
             onSubmit(name, date, category, description, note)
         }
     }
 
-    BackHandler(enabled = isEdit) {
-        onEditBack(name, date, category, description, note)
+    BackHandler(enabled = isEdit || hasContent) {
+        if (isEdit) {
+            onEditBack(name, date, category, description, note)
+        } else {
+            showDiscardDialog = true
+        }
     }
 
     LaunchedEffect(editLeaveRequested) {
-        if (editLeaveRequested && isEdit) {
-            onEditBack(name, date, category, description, note)
+        if (editLeaveRequested) {
+            when {
+                isEdit -> onEditBack(name, date, category, description, note)
+                hasContent -> showDiscardDialog = true
+                else -> onBackClick()
+            }
         }
     }
 
@@ -143,8 +158,10 @@ fun DocumentKitCreateScreen(
                 onNameChange = {
                     name = it
                     showNameError = false
+                    showDuplicateError = false
                 },
-                showError = showNameError
+                showError = showNameError,
+                showDuplicateError = showDuplicateError
             )
 
             KitDateCard(
@@ -184,7 +201,7 @@ fun DocumentKitCreateScreen(
                             .weight(1f)
                             .height(36.dp)
                             .border(1.dp, GeneratedColor.FigmaFf0000, RoundedCornerShape(NestorySpacing.S10))
-                            .clickable { showDeleteConfirm = true },
+                            .clickable(enabled = !isSaving) { showDeleteConfirm = true },
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
@@ -198,14 +215,22 @@ fun DocumentKitCreateScreen(
                             .weight(1f)
                             .height(36.dp)
                             .background(GeneratedColor.Figma522ec8, RoundedCornerShape(NestorySpacing.S10))
-                            .clickable(onClick = validateAndSubmit),
+                            .clickable(enabled = !isSaving, onClick = validateAndSubmit),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            text = "Cập nhật Kit",
-                            style = NestoryTextStyles.Body15Semi,
-                            color = GeneratedColor.FigmaFfffff
-                        )
+                        if (isSaving) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = GeneratedColor.FigmaFfffff
+                            )
+                        } else {
+                            Text(
+                                text = "Cập nhật Kit",
+                                style = NestoryTextStyles.Body15Semi,
+                                color = GeneratedColor.FigmaFfffff
+                            )
+                        }
                     }
                 }
             } else {
@@ -214,14 +239,22 @@ fun DocumentKitCreateScreen(
                         .fillMaxWidth()
                         .height(36.dp)
                         .background(GeneratedColor.Figma522ec8, RoundedCornerShape(NestorySpacing.S10))
-                        .clickable(onClick = validateAndSubmit),
+                        .clickable(enabled = !isSaving, onClick = validateAndSubmit),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = submitLabel,
-                        style = NestoryTextStyles.Body15Semi,
-                        color = GeneratedColor.FigmaFfffff
-                    )
+                    if (isSaving) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = GeneratedColor.FigmaFfffff
+                        )
+                    } else {
+                        Text(
+                            text = submitLabel,
+                            style = NestoryTextStyles.Body15Semi,
+                            color = GeneratedColor.FigmaFfffff
+                        )
+                    }
                 }
             }
         }
@@ -253,6 +286,7 @@ private fun KitNameCard(
     name: String,
     onNameChange: (String) -> Unit,
     showError: Boolean,
+    showDuplicateError: Boolean = false,
 ) {
     Column(
         modifier = Modifier
@@ -265,9 +299,16 @@ private fun KitNameCard(
         KitTextField(
             value = name,
             onValueChange = onNameChange,
-            placeholder = "Nhập tên bộ hồ sơ"
+            placeholder = "Nhập tên bộ hồ sơ",
+            isError = showError || showDuplicateError
         )
-        if (showError) {
+        if (showDuplicateError) {
+            Text(
+                text = "Tên bộ hồ sơ đã tồn tại",
+                style = NestoryTextStyles.Body12Semi,
+                color = GeneratedColor.FigmaFf0000
+            )
+        } else if (showError) {
             Text(
                 text = "Tên bộ hồ sơ không được để trống",
                 style = NestoryTextStyles.Body12Semi,
@@ -304,6 +345,7 @@ private fun KitDateCard(
             placeholder = "Chọn ngày bộ hồ sơ cần phải hoàn thành",
             readOnly = true,
             onTap = { showDatePicker = true },
+            isError = showError,
             trailingIcon = {
                 Icon(
                     painter = painterResource(id = AppIcons.KitCalendar),
@@ -486,12 +528,13 @@ internal fun KitTextField(
     keyboardType: KeyboardType = KeyboardType.Text,
     readOnly: Boolean = false,
     onTap: (() -> Unit)? = null,
+    isError: Boolean = false,
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = height)
-            .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(5.dp))
+            .border(1.dp, if (isError) GeneratedColor.FigmaFf0000 else GeneratedColor.FigmaE5e7eb, RoundedCornerShape(5.dp))
             .padding(horizontal = 12.dp),
     ) {
         Row(

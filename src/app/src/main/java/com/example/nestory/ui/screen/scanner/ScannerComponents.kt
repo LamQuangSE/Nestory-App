@@ -59,7 +59,7 @@ fun ImageThumbnailItem(bitmap: Bitmap, isSelected: Boolean, onClick: () -> Unit)
         bitmap = bitmap.asImageBitmap(),
         contentDescription = "Thumbnail",
         modifier = Modifier
-            .size(71.dp, 56.dp)
+            .size(56.dp, 44.dp)
             .clip(RoundedCornerShape(10.dp))
             .border(borderWidth, borderColor, RoundedCornerShape(10.dp))
             .clickable { onClick() },

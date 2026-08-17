@@ -10,4 +10,6 @@ data class DocumentKitUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val successMessage: String? = null,
+    val activeFilter: DocumentKitFilterState = DocumentKitFilterState(),
+    val draftFilter: DocumentKitFilterState = DocumentKitFilterState(),
 )

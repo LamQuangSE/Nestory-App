@@ -10,7 +10,6 @@ enum class NestoryDestination {
     Category,
     Container,
     Settings,
-    ExpiryReminderSettings,
     DocumentSelection,
     DocumentDetail,
     FilterSelection,

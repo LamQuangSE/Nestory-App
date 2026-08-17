@@ -106,6 +106,7 @@ fun DocumentSearchBar(
 fun DocumentListItem(
     document: DocumentUiModel,
     onClick: () -> Unit,
+    onToggleFavorite: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -207,13 +208,21 @@ fun DocumentListItem(
         }
 
         Column(
-            modifier = Modifier.fillMaxHeight(),
-            verticalArrangement = Arrangement.Bottom
+            modifier = Modifier
+                .fillMaxHeight()
+                .width(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Top
         ) {
-            Text(
-                text = document.expiryDate,
-                style = NestoryTextStyles.Body11Semi,
-                color = GeneratedColor.Figma919191
+            Icon(
+                painter = painterResource(
+                    id = if (document.isFavorite) AppIcons.KitStarred else AppIcons.KitUnstarred
+                ),
+                contentDescription = if (document.isFavorite) "Bỏ đánh dấu yêu thích" else "Đánh dấu yêu thích",
+                modifier = Modifier
+                    .size(24.dp)
+                    .clickable(onClick = onToggleFavorite),
+                tint = if (document.isFavorite) GeneratedColor.Figma1a60e2 else GeneratedColor.Figma919191
             )
         }
     }

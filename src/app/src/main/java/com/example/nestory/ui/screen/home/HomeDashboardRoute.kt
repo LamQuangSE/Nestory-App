@@ -15,7 +15,8 @@ import com.example.nestory.data.repository.DocumentRepositoryImpl
 @Composable
 fun HomeDashboardRoute(
     onOpenDocuments: () -> Unit,
-    onOpenDocumentKits: () -> Unit,
+    onOpenKits: () -> Unit,
+    onKitClick: (Long) -> Unit,
     onAddDocument: () -> Unit,
     onRecentDocumentClick: (Long) -> Unit,
 ) {
@@ -36,7 +37,8 @@ fun HomeDashboardRoute(
     HomeDashboardScreen(
         uiState = uiState,
         onOpenDocuments = onOpenDocuments,
-        onOpenDocumentKits = onOpenDocumentKits,
+        onOpenKits = onOpenKits,
+        onKitClick = onKitClick,
         onAddDocument = onAddDocument,
         onRecentDocumentClick = onRecentDocumentClick,
     )

@@ -29,4 +29,13 @@ interface KitItemDao {
 
     @Query("SELECT * FROM kit_items WHERE document_kit_id = :kitId")
     fun observeItemsByKit(kitId: Long): Flow<List<KitItemEntity>>
+
+    @Query(
+        """
+        SELECT COUNT(*) FROM kit_items
+        WHERE name = :name COLLATE NOCASE
+            AND document_kit_id = :kitId AND id != :excludeId
+        """
+    )
+    suspend fun countByNameInKit(name: String, kitId: Long, excludeId: Long): Int
 }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -28,12 +29,21 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.repository.CategoryRepositoryImpl
+import com.example.nestory.domain.model.DocumentCategory
 import com.example.nestory.ui.theme.GeneratedColor
+import com.example.nestory.ui.theme.categoryColor
+import com.example.nestory.ui.theme.isPredefinedCategoryName
 
 @Composable
 fun CategoryRoute(
     onBack: () -> Unit,
-    onConfirmSelection: ((CategoryUiModel) -> Unit)? = null
+    onConfirmSelection: ((CategoryUiModel) -> Unit)? = null,
+    selectionOnly: Boolean = false,
+    startInCreateMode: Boolean = false,
+    onCreated: ((CategoryUiModel) -> Unit)? = null,
+    allowCreate: Boolean = true,
+    showPresetCategories: Boolean = false,
+    initialSelectedName: String? = null
 ) {
     val context = LocalContext.current
     
@@ -51,19 +61,60 @@ fun CategoryRoute(
     // Lắng nghe UiState từ ViewModel
     val uiState by viewModel.uiState.collectAsState()
 
+    // Khi được mở từ Create Document để tạo danh mục mới, vào thẳng form tạo
+    // (cùng CategoryScreen/ViewModel với màn hình Category chính).
+    LaunchedEffect(Unit) {
+        if (startInCreateMode) {
+            viewModel.onEvent(CategoryEvent.OnAddClick)
+        }
+    }
+
+    // Khi mở để chọn danh mục cho giấy tờ đang chỉnh sửa, tự động chọn trước
+    // danh mục hiện tại của giấy tờ để hiển thị dấu ✓ ngay khi mở selector.
+    // Hiệu ứng này chạy lại khi danh sách được tải từ DB để chuyển từ row preset
+    // tạm sang row thật, nhưng không bao giờ ghi đè lựa chọn của người dùng.
+    LaunchedEffect(uiState.categories, initialSelectedName) {
+        val name = initialSelectedName?.trim()
+        if (name.isNullOrEmpty()) return@LaunchedEffect
+        val all = buildPresetCategories(uiState.categories) + uiState.categories
+        val match = all.firstOrNull { it.name.equals(name, ignoreCase = true) }
+            ?: return@LaunchedEffect
+        val current = all.firstOrNull { it.id == uiState.selectedCategoryId }
+        val keepCurrent = current != null && !current.name.equals(name, ignoreCase = true)
+        if (!keepCurrent && uiState.selectedCategoryId != match.id) {
+            viewModel.onEvent(CategoryEvent.OnCategorySelected(match.id))
+        }
+    }
+
     CategoryScreen(
         uiState = uiState,
         onEvent = { event ->
-            if (event == CategoryEvent.OnConfirmSelection && onConfirmSelection != null) {
-                val selected = uiState.categories.find { it.id == uiState.selectedCategoryId }
-                if (selected != null) {
-                    onConfirmSelection(selected)
+            when {
+                event == CategoryEvent.OnSubmitForm && onCreated != null ->
+                    viewModel.submitForm(onCreated)
+                event == CategoryEvent.OnConfirmSelection && onConfirmSelection != null -> {
+                    val selected = uiState.categories.find { it.id == uiState.selectedCategoryId }
+                    if (selected != null) {
+                        onConfirmSelection(selected)
+                    } else {
+                        val preset = buildPresetCategories(uiState.categories)
+                            .firstOrNull { it.id == uiState.selectedCategoryId }
+                        if (preset != null) {
+                            viewModel.ensurePresetCategory(preset.name) {
+                                onConfirmSelection(it)
+                            }
+                        }
+                    }
                 }
-            } else {
-                viewModel.onEvent(event)
+                event == CategoryEvent.OnAddClick && !allowCreate -> Unit
+                else -> viewModel.onEvent(event)
             }
         },
-        onBack = onBack
+        onBack = onBack,
+        selectionOnly = selectionOnly,
+        allowCreate = allowCreate,
+        showPresetCategories = showPresetCategories,
+        exitOnFormBack = startInCreateMode
     )
 }
 
@@ -71,18 +122,29 @@ fun CategoryRoute(
 fun CategoryScreen(
     uiState: CategoryUiState,
     onEvent: (CategoryEvent) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    selectionOnly: Boolean = false,
+    allowCreate: Boolean = true,
+    showPresetCategories: Boolean = false,
+    exitOnFormBack: Boolean = false
 ) {
-    val filteredCategories = uiState.categories.filter {
+    val displayCategories = if (showPresetCategories) {
+        buildPresetCategories(uiState.categories) + uiState.categories
+    } else {
+        uiState.categories
+    }
+    val filteredCategories = displayCategories.filter {
         it.name.contains(uiState.query, ignoreCase = true)
     }
     val selectedCategory = uiState.categories.firstOrNull { it.id == uiState.selectedCategoryId }
     val deleteTarget = uiState.categories.firstOrNull { it.id == uiState.deleteTargetId }
+    val hasAnyCategory = displayCategories.isNotEmpty()
 
     BackHandler {
         when {
             uiState.isDeleteDialogVisible -> onEvent(CategoryEvent.OnDismissDeleteDialog)
             uiState.mode == CategoryMode.Selection -> onBack()
+            exitOnFormBack -> onBack()
             else -> onEvent(CategoryEvent.OnCancelForm)
         }
     }
@@ -104,7 +166,7 @@ fun CategoryScreen(
                         CategoryMode.Edit -> "Chỉnh sửa danh mục"
                     },
                     onBack = {
-                        if (uiState.mode == CategoryMode.Selection) {
+                        if (uiState.mode == CategoryMode.Selection || exitOnFormBack) {
                             onBack()
                         } else {
                             onEvent(CategoryEvent.OnCancelForm)
@@ -117,7 +179,10 @@ fun CategoryScreen(
                         uiState = uiState,
                         filteredCategories = filteredCategories,
                         selectedCategory = selectedCategory,
-                        onEvent = onEvent
+                        hasAnyCategory = hasAnyCategory,
+                        onEvent = onEvent,
+                        selectionOnly = selectionOnly,
+                        allowCreate = allowCreate
                     )
                 } else {
                     CategoryFormContent(
@@ -128,7 +193,7 @@ fun CategoryScreen(
             }
         }
 
-        if (uiState.isDeleteDialogVisible) {
+        if (uiState.isDeleteDialogVisible && !selectionOnly) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -151,7 +216,10 @@ private fun CategorySelectionContent(
     uiState: CategoryUiState,
     filteredCategories: List<CategoryUiModel>,
     selectedCategory: CategoryUiModel?,
-    onEvent: (CategoryEvent) -> Unit
+    hasAnyCategory: Boolean,
+    onEvent: (CategoryEvent) -> Unit,
+    selectionOnly: Boolean = false,
+    allowCreate: Boolean = true
 ) {
     CategorySearchField(
         query = uiState.query,
@@ -159,14 +227,16 @@ private fun CategorySelectionContent(
     )
     Spacer(modifier = Modifier.height(15.dp))
 
-    if (uiState.categories.isEmpty()) {
+    if (!hasAnyCategory) {
         EmptyCategoryCard()
-        Spacer(modifier = Modifier.height(15.dp))
-        CategoryOutlinedActionButton(
-            text = "Tạo danh mục mới",
-            onClick = { onEvent(CategoryEvent.OnAddClick) },
-            modifier = Modifier.fillMaxWidth()
-        )
+        if (allowCreate) {
+            Spacer(modifier = Modifier.height(15.dp))
+            CategoryOutlinedActionButton(
+                text = "Tạo danh mục mới",
+                onClick = { onEvent(CategoryEvent.OnAddClick) },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
     } else {
         CategoryListFrame {
             LazyColumn(modifier = Modifier.fillMaxSize()) {
@@ -174,11 +244,12 @@ private fun CategorySelectionContent(
                     items = filteredCategories,
                     key = { _, category -> category.id }
                 ) { index, category ->
+                    val isPredefined = isPredefinedCategoryName(category.name)
                     CategoryListItem(
                         category = category,
                         isSelected = category.id == uiState.selectedCategoryId,
                         onClick = { onEvent(CategoryEvent.OnCategorySelected(category.id)) },
-                        onDelete = { onEvent(CategoryEvent.OnDeleteClick(category.id)) }
+                        onDelete = if (selectionOnly || isPredefined) null else { { onEvent(CategoryEvent.OnDeleteClick(category.id)) } }
                     )
                     if (index < filteredCategories.lastIndex) {
                         CategoryDivider()
@@ -187,29 +258,42 @@ private fun CategorySelectionContent(
             }
         }
         Spacer(modifier = Modifier.height(15.dp))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(42.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
+        if (selectionOnly && !allowCreate) {
+            // Selection-only picker without any Category management actions
+            // (used by Edit Document: change assignment only).
+        } else if (selectionOnly) {
             CategoryOutlinedActionButton(
                 text = "Tạo danh mục mới",
                 onClick = { onEvent(CategoryEvent.OnAddClick) },
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.fillMaxWidth()
             )
-            CategoryOutlinedActionButton(
-                text = "Chỉnh sửa danh mục",
-                onClick = { onEvent(CategoryEvent.OnEditClick) },
-                enabled = selectedCategory != null,
-                modifier = Modifier.weight(1f)
-            )
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(42.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                CategoryOutlinedActionButton(
+                    text = "Tạo danh mục mới",
+                    onClick = { onEvent(CategoryEvent.OnAddClick) },
+                    modifier = Modifier.weight(1f)
+                )
+                CategoryOutlinedActionButton(
+                    text = "Chỉnh sửa danh mục",
+                    onClick = { onEvent(CategoryEvent.OnEditClick) },
+                    enabled = selectedCategory != null && !isPredefinedCategoryName(selectedCategory.name),
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
         Spacer(modifier = Modifier.height(15.dp))
-        CategoryPrimaryActionButton(
-            text = "Xác nhận danh mục",
-            onClick = { onEvent(CategoryEvent.OnConfirmSelection) }
-        )
+        if (selectionOnly) {
+            CategoryPrimaryActionButton(
+                text = "Xác nhận danh mục",
+                onClick = { onEvent(CategoryEvent.OnConfirmSelection) }
+            )
+        }
     }
 }
 
@@ -244,6 +328,22 @@ private fun CategoryFormContent(
             textSize = if (uiState.mode == CategoryMode.Create) 14.sp else 16.sp
         )
     }
+}
+
+internal const val PRESET_CATEGORY_ID_PREFIX = "preset_"
+
+internal fun buildPresetCategories(userCategories: List<CategoryUiModel>): List<CategoryUiModel> {
+    val existingNames = userCategories.map { it.name.trim().lowercase() }.toSet()
+    return DocumentCategory.entries
+        .mapNotNull { preset ->
+            val label = preset.toVietnameseLabel()
+            if (label.lowercase() in existingNames) return@mapNotNull null
+            CategoryUiModel(
+                id = "$PRESET_CATEGORY_ID_PREFIX${preset.name}",
+                name = label,
+                color = preset.categoryColor
+            )
+        }
 }
 
 @Preview(showBackground = true)

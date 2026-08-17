@@ -16,10 +16,24 @@ class KitItemRepositoryImpl(
         runCatching { dao.getItemById(itemId) }
 
     override suspend fun addItem(item: KitItemEntity): Result<Long> =
-        runCatching { dao.insertItem(item) }
+        runCatching {
+            item.name?.let { name ->
+                if (name.isNotBlank() && dao.countByNameInKit(name, item.documentKitId, 0) > 0) {
+                    throw IllegalArgumentException("Tên item đã tồn tại trong bộ hồ sơ này")
+                }
+            }
+            dao.insertItem(item)
+        }
 
     override suspend fun updateItem(item: KitItemEntity): Result<Unit> =
-        runCatching { dao.updateItem(item) }
+        runCatching {
+            item.name?.let { name ->
+                if (name.isNotBlank() && dao.countByNameInKit(name, item.documentKitId, item.id) > 0) {
+                    throw IllegalArgumentException("Tên item đã tồn tại trong bộ hồ sơ này")
+                }
+            }
+            dao.updateItem(item)
+        }
 
     override suspend fun deleteItem(item: KitItemEntity): Result<Unit> =
         runCatching { dao.deleteItem(item) }

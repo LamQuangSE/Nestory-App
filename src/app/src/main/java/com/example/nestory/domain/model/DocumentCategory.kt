@@ -6,16 +6,14 @@ enum class DocumentCategory {
     FINANCE,
     PROPERTY,
     VEHICLE,
-    HEALTH,
-    OTHER;
+    HEALTH;
 
     fun toVietnameseLabel(): String = when (this) {
-        IDENTITY -> "Nhân thân"
+        IDENTITY -> "Danh tính"
         EDUCATION -> "Học vấn"
         FINANCE -> "Tài chính"
-        PROPERTY -> "Bất động sản"
+        PROPERTY -> "Tài sản"
         VEHICLE -> "Phương tiện"
         HEALTH -> "Sức khỏe"
-        OTHER -> "Khác"
     }
 }

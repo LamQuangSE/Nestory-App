@@ -2,6 +2,7 @@ package com.example.nestory.ui.screen.document
 
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
+import com.example.nestory.data.filesystem.ImageStorageManager
 import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.local.entity.AttachmentEntity
 import com.example.nestory.data.local.entity.CategoryEntity
@@ -12,7 +13,6 @@ import com.example.nestory.data.repository.CategoryRepositoryImpl
 import com.example.nestory.data.repository.ContainerRepositoryImpl
 import com.example.nestory.data.repository.DocumentRepositoryImpl
 import com.example.nestory.domain.model.DocumentFilter
-import com.example.nestory.domain.model.ExpiryReminderSettings
 import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
@@ -158,7 +158,7 @@ class DocumentDeleteTest {
                     CategoryEntity(id = "identity", name = "Identity", colorValue = 0xFF1855EE),
                 ),
                 attachmentRepository = StaticAttachmentRepository(),
-                expiryReminderSettings = flowOf(ExpiryReminderSettings()),
+                imageStorageManager = ImageStorageManager(InstrumentationRegistry.getInstrumentation().targetContext),
                 todayProvider = { LocalDate.of(2026, 8, 14) },
             )
             val collection = launch { viewModel.uiState.collect() }
@@ -190,7 +190,7 @@ class DocumentDeleteTest {
             containerRepository = ContainerRepositoryImpl(database.containerDao()),
             categoryRepository = CategoryRepositoryImpl(database.categoryDao()),
             attachmentRepository = AttachmentRepositoryImpl(database.attachmentDao()),
-            expiryReminderSettings = flowOf(ExpiryReminderSettings()),
+            imageStorageManager = ImageStorageManager(InstrumentationRegistry.getInstrumentation().targetContext),
             todayProvider = { LocalDate.of(2026, 8, 14) },
         )
 
@@ -252,6 +252,9 @@ private class FailingDeleteDocumentRepository(
 
     override suspend fun updateDocumentExpiryDate(documentId: Long, expirationDate: String?): Result<Unit> =
         Result.failure(UnsupportedOperationException("Not needed"))
+
+    override suspend fun updateLastOpenedAt(documentId: Long, timestamp: Long): Result<Unit> =
+        Result.success(Unit)
 }
 
 private class StaticContainerRepository(

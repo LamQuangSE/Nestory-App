@@ -11,6 +11,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
+import com.example.nestory.data.filesystem.ImageStorageManager
 import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.local.entity.AttachmentEntity
 import com.example.nestory.data.local.entity.CategoryEntity
@@ -20,11 +21,9 @@ import com.example.nestory.data.repository.AttachmentRepositoryImpl
 import com.example.nestory.data.repository.CategoryRepositoryImpl
 import com.example.nestory.data.repository.ContainerRepositoryImpl
 import com.example.nestory.data.repository.DocumentRepositoryImpl
-import com.example.nestory.domain.model.ExpiryReminderSettings
 import com.example.nestory.ui.theme.NestoryTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -206,8 +205,10 @@ class DocumentViewTest {
                     }
                 }
 
-                composeRule.onNodeWithText("front.jpg").fetchSemanticsNode()
+                // Only the PDF is shown as the actual scanned file; the first
+                // image is rendered as the top preview (image, not a text node).
                 composeRule.onNodeWithText("back.pdf").fetchSemanticsNode()
+                composeRule.onNodeWithText("front.jpg").assertDoesNotExist()
             } finally {
                 collection.cancel()
             }
@@ -220,7 +221,7 @@ class DocumentViewTest {
             containerRepository = ContainerRepositoryImpl(database.containerDao()),
             categoryRepository = CategoryRepositoryImpl(database.categoryDao()),
             attachmentRepository = AttachmentRepositoryImpl(database.attachmentDao()),
-            expiryReminderSettings = flowOf(ExpiryReminderSettings()),
+            imageStorageManager = ImageStorageManager(InstrumentationRegistry.getInstrumentation().targetContext),
             todayProvider = { LocalDate.of(2026, 8, 14) },
         )
 

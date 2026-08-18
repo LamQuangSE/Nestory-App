@@ -61,7 +61,7 @@ class OcrReviewCategorySelectionTest {
             }
         }
 
-        composeRule.onNodeWithText("Chưa xác định").fetchSemanticsNode()
+        composeRule.onNodeWithText("Chọn danh mục").fetchSemanticsNode()
 
         composeRule.onNodeWithTag("ReviewField:Danh mục").performClick()
         composeRule.onNodeWithText("hihi").performClick()

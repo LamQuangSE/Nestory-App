@@ -1,6 +1,5 @@
 package com.example.nestory.ui.screen.document
 
-import com.example.nestory.domain.model.ExpiryReminderSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -13,7 +12,6 @@ class DocumentStatusCalculatorTest {
     fun expiredDate_returnsExpired() {
         val status = DocumentStatusCalculator.calculate(
             expirationDate = "03/08/2026",
-            settings = ExpiryReminderSettings(),
             today = today,
         )
 
@@ -21,10 +19,9 @@ class DocumentStatusCalculatorTest {
     }
 
     @Test
-    fun dateInsideLeadTime_whenReminderEnabled_returnsExpiringSoon() {
+    fun dateInsideLeadTime_returnsExpiringSoon() {
         val status = DocumentStatusCalculator.calculate(
             expirationDate = "11/08/2026",
-            settings = ExpiryReminderSettings(enabled = true, leadTimeDays = 7),
             today = today,
         )
 
@@ -34,8 +31,7 @@ class DocumentStatusCalculatorTest {
     @Test
     fun dateOutsideLeadTime_returnsActive() {
         val status = DocumentStatusCalculator.calculate(
-            expirationDate = "12/08/2026",
-            settings = ExpiryReminderSettings(enabled = true, leadTimeDays = 7),
+            expirationDate = "20/10/2026",
             today = today,
         )
 
@@ -43,21 +39,19 @@ class DocumentStatusCalculatorTest {
     }
 
     @Test
-    fun dateInsideLeadTime_whenReminderDisabled_returnsActive() {
+    fun dateExactlySixtyDaysAhead_returnsExpiringSoon() {
         val status = DocumentStatusCalculator.calculate(
-            expirationDate = "11/08/2026",
-            settings = ExpiryReminderSettings(enabled = false, leadTimeDays = 7),
+            expirationDate = "03/10/2026",
             today = today,
         )
 
-        assertEquals(DocumentStatus.Active, status)
+        assertEquals(DocumentStatus.ExpiringSoon, status)
     }
 
     @Test
-    fun todayExpiration_whenReminderEnabled_returnsExpiringSoon() {
+    fun todayExpiration_returnsExpiringSoon() {
         val status = DocumentStatusCalculator.calculate(
             expirationDate = "04/08/2026",
-            settings = ExpiryReminderSettings(enabled = true, leadTimeDays = 7),
             today = today,
         )
 
@@ -68,11 +62,11 @@ class DocumentStatusCalculatorTest {
     fun blankOrInvalidDate_returnsActive() {
         assertEquals(
             DocumentStatus.Active,
-            DocumentStatusCalculator.calculate(null, ExpiryReminderSettings(), today),
+            DocumentStatusCalculator.calculate(null, today),
         )
         assertEquals(
             DocumentStatus.Active,
-            DocumentStatusCalculator.calculate("not-a-date", ExpiryReminderSettings(), today),
+            DocumentStatusCalculator.calculate("not-a-date", today),
         )
     }
 

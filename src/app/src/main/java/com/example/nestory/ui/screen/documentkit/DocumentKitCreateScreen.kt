@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -300,7 +301,8 @@ private fun KitNameCard(
             value = name,
             onValueChange = onNameChange,
             placeholder = "Nhập tên bộ hồ sơ",
-            isError = showError || showDuplicateError
+            isError = showError || showDuplicateError,
+            testTag = "kit_name_input"
         )
         if (showDuplicateError) {
             Text(
@@ -529,6 +531,7 @@ internal fun KitTextField(
     readOnly: Boolean = false,
     onTap: (() -> Unit)? = null,
     isError: Boolean = false,
+    testTag: String? = null,
 ) {
     Box(
         modifier = modifier
@@ -554,7 +557,9 @@ internal fun KitTextField(
                         overflow = TextOverflow.Ellipsis
                     )
                 },
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
                 textStyle = NestoryTextStyles.Body14Medium.copy(color = GeneratedColor.Figma000000),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),

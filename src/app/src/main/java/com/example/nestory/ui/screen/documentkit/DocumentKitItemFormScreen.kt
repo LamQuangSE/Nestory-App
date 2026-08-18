@@ -283,7 +283,8 @@ private fun ItemNameCard(
             value = name,
             onValueChange = onNameChange,
             placeholder = "Nhập tên Item",
-            isError = showError || showDuplicateError
+            isError = showError || showDuplicateError,
+            testTag = "item_name_input"
         )
         if (showDuplicateError) {
             Text(
@@ -392,7 +393,8 @@ private fun ItemRequiredDocsCard(
             placeholder = "Nhập số lượng giấy tờ cần liên kết",
             height = 34.dp,
             keyboardType = KeyboardType.Number,
-            isError = showError
+            isError = showError,
+            testTag = "item_required_docs_input"
         )
         if (showError) {
             Text(

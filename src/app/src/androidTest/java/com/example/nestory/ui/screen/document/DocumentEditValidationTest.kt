@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
+import com.example.nestory.data.filesystem.ImageStorageManager
 import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.local.entity.CategoryEntity
 import com.example.nestory.data.local.entity.ContainerEntity
@@ -21,11 +22,9 @@ import com.example.nestory.data.repository.AttachmentRepositoryImpl
 import com.example.nestory.data.repository.CategoryRepositoryImpl
 import com.example.nestory.data.repository.ContainerRepositoryImpl
 import com.example.nestory.data.repository.DocumentRepositoryImpl
-import com.example.nestory.domain.model.ExpiryReminderSettings
 import com.example.nestory.ui.theme.NestoryTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -268,7 +267,7 @@ class DocumentEditValidationTest {
                 DocumentDetailScreen(
                     document = editableUiDocument(),
                     onBack = {},
-                    onSave = { name, _, _, _ -> savedName = name },
+                    onSave = { name, _, _, _, _ -> savedName = name },
                     isEditMode = isEditMode,
                     onEditModeChange = { isEditMode = it },
                     editLeaveRequested = editLeaveRequested,
@@ -308,7 +307,7 @@ class DocumentEditValidationTest {
                 DocumentDetailScreen(
                     document = editableUiDocument(),
                     onBack = {},
-                    onSave = { name, _, _, _ -> savedName = name },
+                    onSave = { name, _, _, _, _ -> savedName = name },
                     isEditMode = isEditMode,
                     onEditModeChange = { isEditMode = it },
                     editLeaveRequested = editLeaveRequested,
@@ -418,7 +417,7 @@ class DocumentEditValidationTest {
             containerRepository = ContainerRepositoryImpl(database.containerDao()),
             categoryRepository = CategoryRepositoryImpl(database.categoryDao()),
             attachmentRepository = AttachmentRepositoryImpl(database.attachmentDao()),
-            expiryReminderSettings = flowOf(ExpiryReminderSettings()),
+            imageStorageManager = ImageStorageManager(InstrumentationRegistry.getInstrumentation().targetContext),
             todayProvider = { LocalDate.of(2026, 8, 14) },
         )
 

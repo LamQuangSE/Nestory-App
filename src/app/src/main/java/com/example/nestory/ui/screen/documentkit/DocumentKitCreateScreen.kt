@@ -48,6 +48,8 @@ import com.example.nestory.ui.screen.document.DocumentStatusCalculator
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestorySpacing
 import com.example.nestory.ui.theme.NestoryTextStyles
+import com.example.nestory.ui.components.LocalInputMonitor
+import androidx.compose.ui.focus.onFocusChanged
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -532,7 +534,10 @@ internal fun KitTextField(
     onTap: (() -> Unit)? = null,
     isError: Boolean = false,
     testTag: String? = null,
+    useMonitor: Boolean = true
 ) {
+    val monitor = LocalInputMonitor.current
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -546,7 +551,10 @@ internal fun KitTextField(
         ) {
             androidx.compose.material3.TextField(
                 value = value,
-                onValueChange = onValueChange,
+                onValueChange = {
+                    onValueChange(it)
+                    if (useMonitor) monitor.update(it)
+                },
                 readOnly = readOnly,
                 placeholder = {
                     Text(
@@ -559,7 +567,14 @@ internal fun KitTextField(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .then(if (testTag != null) Modifier.testTag(testTag) else Modifier),
+                    .then(if (testTag != null) Modifier.testTag(testTag) else Modifier)
+                    .onFocusChanged { 
+                        if (it.isFocused && useMonitor && !readOnly) {
+                            monitor.show(value, placeholder)
+                        } else if (!it.isFocused) {
+                            monitor.hide()
+                        }
+                    },
                 textStyle = NestoryTextStyles.Body14Medium.copy(color = GeneratedColor.Figma000000),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
@@ -567,7 +582,9 @@ internal fun KitTextField(
                     focusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                     unfocusedContainerColor = androidx.compose.ui.graphics.Color.Transparent,
                     focusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
-                    unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent
+                    unfocusedIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
+                    disabledContainerColor = androidx.compose.ui.graphics.Color.Transparent,
+                    disabledIndicatorColor = androidx.compose.ui.graphics.Color.Transparent,
                 )
             )
             trailingIcon?.invoke()

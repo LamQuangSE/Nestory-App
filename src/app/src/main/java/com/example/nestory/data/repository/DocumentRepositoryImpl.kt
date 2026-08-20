@@ -27,8 +27,10 @@ class DocumentRepositoryImpl(
     override suspend fun getDocumentsByContainer(containerId: Long): Result<List<DocumentEntity>> =
         runCatching { documentDao.getDocumentsByContainer(containerId) }
 
-    override fun searchDocuments(query: String): Flow<List<DocumentEntity>> =
-        documentDao.searchDocuments(query.trim())
+    override fun searchDocuments(query: String): Flow<List<DocumentEntity>> {
+        val cleanQuery = query.replace("""[^\p{L}\p{N}]+$""".toRegex(), "").trim()
+        return documentDao.searchDocuments(cleanQuery)
+    }
 
     override fun filterDocuments(filter: DocumentFilter): Flow<List<DocumentEntity>> =
         documentDao.filterDocuments(

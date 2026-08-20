@@ -47,6 +47,12 @@ import com.example.nestory.ui.theme.CategoryPropertyColor
 import com.example.nestory.ui.theme.CategoryVehicleColor
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryTextStyles
+import com.example.nestory.ui.components.LocalInputMonitor
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 private val CategoryRadius = RoundedCornerShape(10.dp)
 
@@ -294,8 +300,11 @@ fun CategoryNameField(
     name: String,
     error: String?,
     onNameChanged: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    useMonitor: Boolean = true
 ) {
+    val monitor = LocalInputMonitor.current
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -322,9 +331,19 @@ fun CategoryNameField(
         BasicTextField(
             value = name,
             onValueChange = {
-                if (it.length <= 50) onNameChanged(it)
+                if (it.length <= 50) {
+                    onNameChanged(it)
+                    if (useMonitor) monitor.update(it)
+                }
             },
             singleLine = true,
+            modifier = Modifier.onFocusChanged { 
+                if (it.isFocused && useMonitor) {
+                    monitor.show(name, "Tên giấy tờ")
+                } else if (!it.isFocused) {
+                    monitor.hide()
+                }
+            },
             textStyle = NestoryTextStyles.Body15Medium.copy(
                 color = GeneratedColor.Figma000000,
                 fontSize = 15.sp,

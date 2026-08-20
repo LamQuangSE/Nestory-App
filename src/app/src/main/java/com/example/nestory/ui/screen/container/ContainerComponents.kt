@@ -28,6 +28,8 @@ import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestorySpacing
 import com.example.nestory.ui.theme.NestoryTextStyles
+import com.example.nestory.ui.components.LocalInputMonitor
+import androidx.compose.ui.focus.onFocusChanged
 
 @Composable
 fun ContainerItem(
@@ -239,8 +241,11 @@ fun ContainerTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     isError: Boolean = false,
-    errorMessage: String? = null
+    errorMessage: String? = null,
+    useMonitor: Boolean = true
 ) {
+    val monitor = LocalInputMonitor.current
+
     Column(verticalArrangement = Arrangement.spacedBy(NestorySpacing.S4)) {
         Text(
             text = buildAnnotatedString {
@@ -260,11 +265,21 @@ fun ContainerTextField(
         )
         OutlinedTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = {
+                onValueChange(it)
+                if (useMonitor) monitor.update(it)
+            },
             placeholder = { Text(text = placeholder, style = NestoryTextStyles.Body15Medium) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(56.dp)
+                .onFocusChanged { 
+                    if (it.isFocused && useMonitor) {
+                        monitor.show(value, label)
+                    } else if (!it.isFocused) {
+                        monitor.hide()
+                    }
+                },
             shape = RoundedCornerShape(NestorySpacing.S10),
             isError = isError,
             colors = TextFieldDefaults.colors(
@@ -272,7 +287,9 @@ fun ContainerTextField(
                 unfocusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = if (isError) GeneratedColor.FigmaFf0000 else GeneratedColor.Figma1855ee,
                 unfocusedIndicatorColor = GeneratedColor.FigmaE5e7eb,
-                errorIndicatorColor = GeneratedColor.FigmaFf0000
+                errorIndicatorColor = GeneratedColor.FigmaFf0000,
+                disabledContainerColor = Color.Transparent,
+                disabledIndicatorColor = GeneratedColor.FigmaE5e7eb
             ),
             textStyle = NestoryTextStyles.Body15Medium,
             singleLine = true
@@ -335,7 +352,10 @@ fun ContainerFormField(
     placeholder: String,
     modifier: Modifier = Modifier,
     isError: Boolean = false,
+    useMonitor: Boolean = true
 ) {
+    val monitor = LocalInputMonitor.current
+
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -346,7 +366,10 @@ fun ContainerFormField(
     ) {
         TextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = {
+                onValueChange(it)
+                if (useMonitor) monitor.update(it)
+            },
             placeholder = {
                 Text(
                     text = placeholder,
@@ -354,13 +377,23 @@ fun ContainerFormField(
                     color = GeneratedColor.Figma919191
                 )
             },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .onFocusChanged { 
+                    if (it.isFocused && useMonitor) {
+                        monitor.show(value, placeholder)
+                    } else if (!it.isFocused) {
+                        monitor.hide()
+                    }
+                },
             textStyle = NestoryTextStyles.Body15Medium.copy(color = GeneratedColor.Figma000000),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = Color.Transparent,
                 unfocusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
+                unfocusedIndicatorColor = Color.Transparent,
+                disabledContainerColor = Color.Transparent,
+                disabledIndicatorColor = Color.Transparent
             ),
             singleLine = true
         )

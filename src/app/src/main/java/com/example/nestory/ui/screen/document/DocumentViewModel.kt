@@ -67,10 +67,15 @@ class DocumentViewModel(
 
         val filteredDocuments = documents.filter { document ->
             val catName = categories.find { it.id == document.categoryId }?.name ?: "Khác"
-            val matchesSearch = state.searchQuery.isBlank() ||
-                    document.title.contains(state.searchQuery, ignoreCase = true) ||
-                    document.notes.orEmpty().contains(state.searchQuery, ignoreCase = true) ||
-                    catName.contains(state.searchQuery, ignoreCase = true)
+            val cleanQuery = state.searchQuery.replace("""[^\p{L}\p{N}]+$""".toRegex(), "")
+            
+            val matchesSearch = cleanQuery.isBlank() ||
+                    document.title.contains(cleanQuery, ignoreCase = true) ||
+                    document.notes.orEmpty().contains(cleanQuery, ignoreCase = true) ||
+                    catName.contains(cleanQuery, ignoreCase = true) ||
+                    document.ocrText.orEmpty().contains(cleanQuery, ignoreCase = true) ||
+                    document.holderName.orEmpty().contains(cleanQuery, ignoreCase = true) ||
+                    document.documentNumber.orEmpty().contains(cleanQuery, ignoreCase = true)
 
             val matchesCategory = state.activeFilter.selectedCategoryId == null || document.categoryId == state.activeFilter.selectedCategoryId
             val matchesContainer = state.activeFilter.selectedContainerId == null || document.containerId == state.activeFilter.selectedContainerId

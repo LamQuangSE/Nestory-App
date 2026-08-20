@@ -34,6 +34,11 @@ import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestorySpacing
 import com.example.nestory.ui.theme.NestoryTextStyles
+import com.example.nestory.ui.components.LocalInputMonitor
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -573,8 +578,11 @@ private fun DetailField(
     trailingIcon: Int? = null,
     required: Boolean = false,
     errorText: String? = null,
+    useMonitor: Boolean = true
 ) {
+    val monitor = LocalInputMonitor.current
     val focusRequester = remember { FocusRequester() }
+
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
         Text(
             text = buildAnnotatedString {
@@ -601,7 +609,9 @@ private fun DetailField(
                 .then(
                     when {
                         onClick != null -> Modifier.clickable { onClick() }
-                        isEditMode && editableValue != null -> Modifier.clickable { focusRequester.requestFocus() }
+                        isEditMode && editableValue != null -> Modifier.clickable {
+                            focusRequester.requestFocus()
+                        }
                         else -> Modifier
                     }
                 )
@@ -611,12 +621,24 @@ private fun DetailField(
             if (isEditMode && editableValue != null && onClick == null) {
                 BasicTextField(
                     value = editableValue,
-                    onValueChange = onValueChange,
+                    onValueChange = {
+                        onValueChange(it)
+                        if (useMonitor) monitor.update(it)
+                    },
                     singleLine = true,
                     textStyle = NestoryTextStyles.Body14Medium.copy(
                         color = GeneratedColor.Figma000000
                     ),
-                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                        .onFocusChanged { 
+                            if (it.isFocused && useMonitor) {
+                                monitor.show(editableValue, label)
+                            } else if (!it.isFocused) {
+                                monitor.hide()
+                            }
+                        },
                     decorationBox = { innerTextField ->
                         if (editableValue.isEmpty()) {
                             Text(

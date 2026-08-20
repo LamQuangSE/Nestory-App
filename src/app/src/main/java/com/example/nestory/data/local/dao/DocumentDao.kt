@@ -50,7 +50,11 @@ interface DocumentDao {
     @Query(
         """
         SELECT * FROM documents
-        WHERE title LIKE '%' || :keyword || '%' COLLATE NOCASE
+        WHERE (title LIKE '%' || :keyword || '%' COLLATE NOCASE)
+           OR (notes LIKE '%' || :keyword || '%' COLLATE NOCASE)
+           OR (ocr_text LIKE '%' || :keyword || '%' COLLATE NOCASE)
+           OR (holder_name LIKE '%' || :keyword || '%' COLLATE NOCASE)
+           OR (document_number LIKE '%' || :keyword || '%' COLLATE NOCASE)
         ORDER BY title
         """
     )

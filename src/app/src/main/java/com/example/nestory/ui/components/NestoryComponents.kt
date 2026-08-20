@@ -42,6 +42,8 @@ import com.example.nestory.ui.assets.AppImages
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestorySpacing
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import com.example.nestory.ui.theme.NestoryTextStyles
 
 @Composable
@@ -55,24 +57,30 @@ fun NestoryScreen(
 ) {
     val scrollModifier = if (scrollable) Modifier.verticalScroll(rememberScrollState()) else Modifier
     val statusModifier = if (useStatusBarPadding) Modifier.statusBarsPadding() else Modifier
+    val monitorState = remember { InputMonitorState() }
 
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = GeneratedColor.FigmaFfffff
-    ) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.TopCenter
+    CompositionLocalProvider(LocalInputMonitor provides monitorState) {
+        Surface(
+            modifier = modifier.fillMaxSize(),
+            color = GeneratedColor.FigmaFfffff
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .fillMaxWidth()
-                    .then(statusModifier)
-                    .then(scrollModifier)
-                    .padding(horizontal = horizontalPadding, vertical = verticalPadding),
-                content = content
-            )
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.TopCenter
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .fillMaxWidth()
+                        .then(statusModifier)
+                        .then(scrollModifier)
+                        .padding(horizontal = horizontalPadding, vertical = verticalPadding),
+                    content = content
+                )
+                
+                // Khung monitor nằm ở layer riêng biệt, cùng cấp với nội dung chính
+                GlobalInputMonitor()
+            }
         }
     }
 }

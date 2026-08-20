@@ -40,6 +40,15 @@ import com.example.nestory.ui.screen.vault.CreateVaultScreen
 import com.example.nestory.ui.screen.vault.WaitingScreen
 import com.example.nestory.ui.screen.ocr.OcrRoute
 import com.example.nestory.ui.screen.setting.SettingScreen
+import com.example.nestory.ui.screen.setting.ExportBackupScreen
+import com.example.nestory.ui.screen.setting.ImportBackupScreen
+import com.example.nestory.ui.screen.setting.SetBackupPasswordScreen
+import com.example.nestory.ui.screen.setting.ImportPasswordScreen
+import com.example.nestory.ui.screen.setting.BackupProgressScreen
+import com.example.nestory.ui.screen.setting.ExportSuccessScreen
+import com.example.nestory.ui.screen.setting.ImportSuccessScreen
+import com.example.nestory.ui.screen.setting.BackupStep
+import com.example.nestory.ui.screen.setting.BackupStepStatus
 import androidx.compose.runtime.LaunchedEffect
 
 @Composable
@@ -67,6 +76,7 @@ fun NestoryApp(initialDocumentId: String? = null) {
     var vaultCreationSession by remember { mutableIntStateOf(0) }
     var isEditingMode by remember { mutableStateOf(false) }
     var pdfViewerActive by remember { mutableStateOf(false) }
+    var isImportFlow by remember { mutableStateOf(false) }
 
     // Edit-leave guard: while editing (Kit/Item/Document), any navigation away via the
     // bottom bar (tab or Scan) must first run the edit confirmation. The request is passed
@@ -186,7 +196,6 @@ fun NestoryApp(initialDocumentId: String? = null) {
                 NestoryDestination.DocumentSelection,
                 NestoryDestination.DocumentDetail,
                 NestoryDestination.DocumentKit,
-                NestoryDestination.Category,
                 NestoryDestination.Settings -> true
                 else -> false
             }
@@ -304,7 +313,63 @@ fun NestoryApp(initialDocumentId: String? = null) {
                                     onBack = { destination = NestoryDestination.Home },
                                     onCategoryClick = { destination = NestoryDestination.Category },
                                     onContainerClick = { destination = NestoryDestination.Container },
+                                    onExportBackupClick = { 
+                                        isImportFlow = false
+                                        destination = NestoryDestination.ExportBackup 
+                                    },
+                                    onRestoreBackupClick = { 
+                                        isImportFlow = true
+                                        destination = NestoryDestination.ImportBackup 
+                                    },
                             )
+                    NestoryDestination.ExportBackup ->
+                        ExportBackupScreen(
+                            onBack = { destination = NestoryDestination.Settings },
+                            onContinue = { destination = NestoryDestination.SetBackupPassword }
+                        )
+                    NestoryDestination.SetBackupPassword ->
+                        SetBackupPasswordScreen(
+                            onBack = { destination = NestoryDestination.ExportBackup },
+                            onContinue = { destination = NestoryDestination.BackupWaiting }
+                        )
+                    NestoryDestination.ImportBackup ->
+                        ImportBackupScreen(
+                            onBack = { destination = NestoryDestination.Settings },
+                            onContinue = { destination = NestoryDestination.ImportPassword }
+                        )
+                    NestoryDestination.ImportPassword ->
+                        ImportPasswordScreen(
+                            onBack = { destination = NestoryDestination.ImportBackup },
+                            onContinue = { destination = NestoryDestination.BackupWaiting }
+                        )
+                    NestoryDestination.BackupWaiting -> {
+                        val steps = remember {
+                            listOf(
+                                BackupStep("Đang chuẩn bị dữ liệu", BackupStepStatus.SUCCESS),
+                                BackupStep("Đang nén ứng dụng", BackupStepStatus.SUCCESS),
+                                BackupStep("Đang mã hóa dữ liệu", BackupStepStatus.PENDING),
+                                BackupStep("Đang lưu file", BackupStepStatus.PENDING),
+                                BackupStep("Hoàn tất", BackupStepStatus.PENDING)
+                            )
+                        }
+                        BackupProgressScreen(
+                            title = if (isImportFlow) "Đang khôi phục dữ liệu..." else "Đang xuất văn bản sao lưu...",
+                            initialProgress = 0.62f,
+                            steps = steps,
+                            onCancel = { destination = NestoryDestination.Settings },
+                            onComplete = { 
+                                destination = if (isImportFlow) NestoryDestination.ImportBackupSuccess else NestoryDestination.ExportBackupSuccess
+                            }
+                        )
+                    }
+                    NestoryDestination.ExportBackupSuccess ->
+                        ExportSuccessScreen(
+                            onHomeClick = { destination = NestoryDestination.Home }
+                        )
+                    NestoryDestination.ImportBackupSuccess ->
+                        ImportSuccessScreen(
+                            onHomeClick = { destination = NestoryDestination.Home }
+                        )
                     NestoryDestination.DocumentSelection ->
                             DocumentRoute(
                                 onAddDocument = goToScan,

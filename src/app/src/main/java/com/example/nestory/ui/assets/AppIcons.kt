@@ -102,4 +102,6 @@ object AppIcons {
     val WeuiFolderOutlined = R.drawable.ic_weui_folder_outlined
     val MdiExport = R.drawable.ic_mdi_export
     val MdiImport = R.drawable.ic_mdi_import
+    val CharmCircleCross = R.drawable.ic_gridicons_cross
+    val MaterialSymbolsPending = R.drawable.ic_vault_step_pending
 }

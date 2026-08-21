@@ -1,5 +1,10 @@
 package com.example.nestory.ui.screen.setting
 
+import android.content.Intent
+import android.net.Uri
+import android.provider.OpenableColumns
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
@@ -24,23 +29,36 @@ import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nestory.R
+import com.example.nestory.data.filesystem.BackupExportEstimate
+import com.example.nestory.data.filesystem.BackupExportResult
+import com.example.nestory.data.filesystem.BackupImportResult
+import com.example.nestory.data.filesystem.BackupOperationStep
+import com.example.nestory.data.filesystem.BackupOperationStepStatus
+import com.example.nestory.data.filesystem.BackupProgressStep
+import com.example.nestory.data.filesystem.BackupProgressSnapshot
+import com.example.nestory.data.filesystem.NestoryBackupManager
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.assets.AppImages
 import com.example.nestory.ui.components.NestoryScreen
+import com.example.nestory.ui.components.PrimaryActionButton
+import com.example.nestory.ui.components.SecondaryActionButton
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestoryTextStyles
 import com.example.nestory.ui.components.LocalInputMonitor
 import androidx.compose.ui.focus.onFocusChanged
+import java.util.Locale
 
 enum class BackupStepStatus {
     PENDING, SUCCESS, ERROR
@@ -54,8 +72,51 @@ data class BackupStep(
 @Composable
 fun ExportBackupScreen(
     onBack: () -> Unit,
-    onContinue: () -> Unit
+    onContinue: (targetUri: Uri, fileName: String) -> Unit
 ) {
+    val context = LocalContext.current.applicationContext
+    val backupManager = remember { NestoryBackupManager(context) }
+    var estimate by remember {
+        mutableStateOf(
+            BackupExportEstimate(
+                includedLabel = "Đang tính",
+                encryptionLabel = "AES-256-GCM",
+                estimatedSize = 0L,
+            )
+        )
+    }
+    var selectedUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedFileName by remember { mutableStateOf("") }
+    var selectedLocationLabel by remember { mutableStateOf("Chưa chọn") }
+    val createBackupLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream")
+    ) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                )
+            }
+            selectedUri = uri
+            val displayName = context.contentResolver.displayName(uri)
+            selectedFileName = displayName ?: selectedFileName.ifBlank { backupManager.defaultBackupFileName() }
+            selectedLocationLabel = displayName
+                ?.shortenMiddle(maxLength = 24)
+                ?: uri.toString().shortenMiddle(maxLength = 24)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        estimate = backupManager.estimateExport()
+    }
+
+    fun openSavePicker() {
+        val fileName = backupManager.defaultBackupFileName()
+        selectedFileName = fileName
+        createBackupLauncher.launch(fileName)
+    }
+
     NestoryScreen(
         horizontalPadding = 20.dp,
         verticalPadding = 0.dp,
@@ -104,16 +165,34 @@ fun ExportBackupScreen(
                     .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
                     .background(GeneratedColor.FigmaFfffff)
             ) {
-                BackupOptionItem(label = "Bao gồm", value = "Tất cả dữ liệu", showChevron = true)
+                BackupOptionItem(label = "Bao gồm", value = estimate.includedLabel, showChevron = false)
                 HorizontalDivider()
-                BackupOptionItem(label = "Mã hóa", value = "Tất cả dữ liệu", showChevron = true)
+                BackupOptionItem(label = "Mã hóa", value = estimate.encryptionLabel, showChevron = false)
                 HorizontalDivider()
-                BackupOptionItem(label = "Dung lượng ước tính", value = "Tất cả dữ liệu", showChevron = true)
+                BackupOptionItem(label = "Dung lượng ước tính", value = estimate.estimatedSize.formatFileSize(), showChevron = false)
+                HorizontalDivider()
+                BackupOptionItem(
+                    label = "Vị trí lưu",
+                    value = selectedLocationLabel,
+                    showChevron = true,
+                    valueColor = if (selectedUri == null) Color(0xFFFF4D00) else GeneratedColor.Figma919191,
+                    onClick = ::openSavePicker,
+                )
             }
             
             Spacer(modifier = Modifier.height(40.dp))
             
-            PrimaryBackupButton(text = "Tiếp tục", onClick = onContinue)
+            PrimaryBackupButton(
+                text = "Tiếp tục",
+                onClick = {
+                    val uri = selectedUri
+                    if (uri == null) {
+                        openSavePicker()
+                    } else {
+                        onContinue(uri, selectedFileName.ifBlank { backupManager.defaultBackupFileName() })
+                    }
+                }
+            )
             
             Spacer(modifier = Modifier.height(49.dp))
         }
@@ -123,12 +202,18 @@ fun ExportBackupScreen(
 @Composable
 fun SetBackupPasswordScreen(
     onBack: () -> Unit,
-    onContinue: () -> Unit
+    onContinue: (password: String) -> Unit
 ) {
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var confirmVisible by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val passwordValid = password.length >= 12 &&
+        password.any { it.isUpperCase() } &&
+        password.any { it.isLowerCase() } &&
+        password.any { !it.isLetterOrDigit() || it.isDigit() } &&
+        password == confirmPassword
 
     NestoryScreen(
         horizontalPadding = 20.dp,
@@ -199,14 +284,36 @@ fun SetBackupPasswordScreen(
             ) {
                 Text(text = "Yêu cầu mật khẩu", style = NestoryTextStyles.Body12Medium, color = GeneratedColor.Figma919191)
                 Spacer(modifier = Modifier.height(8.dp))
-                PasswordRequirementRow(text = "Tối thiểu 8 ký tự", isMet = password.length >= 8)
+                PasswordRequirementRow(text = "Tối thiểu 12 ký tự", isMet = password.length >= 12)
                 PasswordRequirementRow(text = "Bao gồm chữ hoa và thường", isMet = password.any { it.isUpperCase() } && password.any { it.isLowerCase() })
                 PasswordRequirementRow(text = "Bao gồm số hoặc ký tự đặc biệt", isMet = password.any { !it.isLetter() })
+                PasswordRequirementRow(text = "Mật khẩu nhập lại khớp", isMet = password.isNotEmpty() && password == confirmPassword)
+            }
+
+            errorMessage?.let {
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    text = it,
+                    style = NestoryTextStyles.Body12Medium,
+                    color = GeneratedColor.FigmaFf0000,
+                    textAlign = TextAlign.Center
+                )
             }
             
             Spacer(modifier = Modifier.weight(1f))
             
-            PrimaryBackupButton(text = "Tiếp tục", onClick = onContinue)
+            PrimaryBackupButton(
+                text = "Tiếp tục",
+                enabled = passwordValid,
+                onClick = {
+                    if (!passwordValid) {
+                        errorMessage = "Mật khẩu chưa đạt yêu cầu hoặc chưa khớp."
+                        return@PrimaryBackupButton
+                    }
+                    errorMessage = null
+                    onContinue(password)
+                }
+            )
             
             Spacer(modifier = Modifier.height(49.dp))
         }
@@ -216,8 +323,24 @@ fun SetBackupPasswordScreen(
 @Composable
 fun ImportBackupScreen(
     onBack: () -> Unit,
-    onContinue: () -> Unit
+    onContinue: (sourceUri: Uri, fileName: String) -> Unit
 ) {
+    val context = LocalContext.current
+    var selectedUri by remember { mutableStateOf<Uri?>(null) }
+    var selectedName by remember { mutableStateOf<String?>(null) }
+    val openBackupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            }
+            selectedUri = uri
+            selectedName = context.contentResolver.displayName(uri) ?: "File sao lưu đã chọn"
+        }
+    }
+
     NestoryScreen(
         horizontalPadding = 20.dp,
         verticalPadding = 0.dp,
@@ -266,6 +389,7 @@ fun ImportBackupScreen(
                     .clip(NestoryRadius.R10)
                     .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
                     .background(GeneratedColor.FigmaFfffff)
+                    .clickable { openBackupLauncher.launch(arrayOf("application/octet-stream", "application/zip", "*/*")) }
                     .padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -276,9 +400,11 @@ fun ImportBackupScreen(
                     modifier = Modifier.padding(start = 10.dp).weight(1f)
                 )
                 Text(
-                    text = "Chưa chọn", 
+                    text = selectedName ?: "Chưa chọn",
                     style = NestoryTextStyles.Body15Semi,
-                    color = GeneratedColor.Figma919191
+                    color = if (selectedUri == null) GeneratedColor.Figma919191 else GeneratedColor.Figma000000,
+                    textAlign = TextAlign.End,
+                    modifier = Modifier.widthIn(max = 150.dp)
                 )
                 Spacer(modifier = Modifier.width(10.dp))
                 Image(
@@ -313,7 +439,14 @@ fun ImportBackupScreen(
             
             Spacer(modifier = Modifier.height(40.dp))
             
-            PrimaryBackupButton(text = "Tiếp tục", onClick = onContinue)
+            PrimaryBackupButton(
+                text = "Tiếp tục",
+                enabled = selectedUri != null,
+                onClick = {
+                    val uri = selectedUri ?: return@PrimaryBackupButton
+                    onContinue(uri, selectedName ?: "Nestory backup")
+                }
+            )
             
             Spacer(modifier = Modifier.height(49.dp))
         }
@@ -323,7 +456,7 @@ fun ImportBackupScreen(
 @Composable
 fun ImportPasswordScreen(
     onBack: () -> Unit,
-    onContinue: () -> Unit
+    onContinue: (password: String) -> Unit
 ) {
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
@@ -388,7 +521,11 @@ fun ImportPasswordScreen(
             
             Spacer(modifier = Modifier.weight(1f))
             
-            PrimaryBackupButton(text = "Tiếp tục", onClick = onContinue)
+            PrimaryBackupButton(
+                text = "Tiếp tục",
+                enabled = password.isNotBlank(),
+                onClick = { onContinue(password) }
+            )
             
             Spacer(modifier = Modifier.height(49.dp))
         }
@@ -400,18 +537,39 @@ fun BackupProgressScreen(
     title: String,
     initialProgress: Float = 0f,
     steps: List<BackupStep>,
+    isImportFlow: Boolean,
     onCancel: () -> Unit,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    operation: suspend (onProgress: (BackupProgressSnapshot) -> Unit) -> Unit,
 ) {
     var progress by remember { mutableFloatStateOf(initialProgress) }
+    var currentSteps by remember { mutableStateOf(steps) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var retryKey by remember { mutableIntStateOf(0) }
+    val hasError = currentSteps.any { it.status == BackupStepStatus.ERROR } || errorMessage != null
     
-    LaunchedEffect(Unit) {
-        while (progress < 1f) {
-            kotlinx.coroutines.delay(50)
-            progress += 0.01f
+    LaunchedEffect(retryKey) {
+        progress = initialProgress
+        currentSteps = steps
+        errorMessage = null
+        runCatching {
+            operation { snapshot ->
+                progress = snapshot.progress
+                currentSteps = snapshot.steps.map { it.toBackupStep(isImportFlow) }
+            }
+        }.onSuccess {
+            onComplete()
+        }.onFailure { throwable ->
+            errorMessage = throwable.message ?: "Không thể xử lý file sao lưu."
+            if (currentSteps.none { it.status == BackupStepStatus.ERROR }) {
+                val index = currentSteps.indexOfFirst { it.status == BackupStepStatus.PENDING }
+                    .takeIf { it >= 0 }
+                    ?: currentSteps.lastIndex
+                currentSteps = currentSteps.mapIndexed { i, step ->
+                    if (i == index) step.copy(status = BackupStepStatus.ERROR) else step
+                }
+            }
         }
-        kotlinx.coroutines.delay(500)
-        onComplete()
     }
 
     NestoryScreen(useStatusBarPadding = true) {
@@ -475,7 +633,7 @@ fun BackupProgressScreen(
                 verticalArrangement = Arrangement.spacedBy(0.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                steps.forEach { step ->
+                currentSteps.forEach { step ->
                     Row(
                         modifier = Modifier.width(250.dp).height(46.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -507,18 +665,28 @@ fun BackupProgressScreen(
             }
             
             Spacer(modifier = Modifier.weight(1f))
-            
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 20.dp, end = 20.dp, bottom = 49.dp)
-                    .height(60.dp)
-                    .clip(NestoryRadius.R10)
-                    .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
-                    .clickable(onClick = onCancel),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = "Hủy", style = NestoryTextStyles.Body20Semi, color = GeneratedColor.Figma000000)
+
+            if (hasError) {
+                errorMessage?.let {
+                    Text(
+                        text = it,
+                        style = NestoryTextStyles.Body12Medium,
+                        color = GeneratedColor.FigmaFf0000,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp, vertical = 8.dp)
+                    )
+                }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 20.dp, bottom = 49.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    PrimaryActionButton(text = "Thử lại", onClick = { retryKey++ })
+                    SecondaryActionButton(text = "Quay lại", onClick = onCancel)
+                }
             }
         }
     }
@@ -526,6 +694,7 @@ fun BackupProgressScreen(
 
 @Composable
 fun ExportSuccessScreen(
+    result: BackupExportResult?,
     onHomeClick: () -> Unit
 ) {
     NestoryScreen(
@@ -583,12 +752,12 @@ fun ExportSuccessScreen(
                 Spacer(modifier = Modifier.width(10.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = "Nestory_Backup_2024-07-28.nestory",
+                        text = result?.fileName ?: "Nestory backup",
                         style = NestoryTextStyles.Body14Medium,
                         color = GeneratedColor.Figma000000
                     )
                     Text(
-                        text = "12.4 MB",
+                        text = result?.fileSize?.formatFileSize() ?: "--",
                         style = NestoryTextStyles.Body12Medium,
                         color = GeneratedColor.Figma919191
                     )
@@ -615,11 +784,11 @@ fun ExportSuccessScreen(
                     .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
                     .background(GeneratedColor.FigmaFfffff)
             ) {
-                InfoRow(label = "Ngày tạo:", value = "18/07/2024 18:30")
+                InfoRow(label = "Ngày tạo:", value = result?.createdAt ?: "--")
                 HorizontalDivider()
-                InfoRow(label = "Kích thước", value = "12.4 MB")
+                InfoRow(label = "Kích thước", value = result?.fileSize?.formatFileSize() ?: "--")
                 HorizontalDivider()
-                InfoRow(label = "Đường dẫn", value = "Storage/Nestory/")
+                InfoRow(label = "Vị trí lưu", value = result?.locationLabel ?: "Vị trí bạn đã chọn")
             }
             
             Spacer(modifier = Modifier.weight(1f))
@@ -633,6 +802,7 @@ fun ExportSuccessScreen(
 
 @Composable
 fun ImportSuccessScreen(
+    result: BackupImportResult?,
     onHomeClick: () -> Unit
 ) {
     NestoryScreen(
@@ -672,11 +842,11 @@ fun ImportSuccessScreen(
                     .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
                     .background(GeneratedColor.FigmaFfffff)
             ) {
-                InfoRow(label = "Tổng số mục", value = "1,248")
+                InfoRow(label = "Tổng số mục", value = result?.totalItems?.toString() ?: "--")
                 HorizontalDivider()
-                InfoRow(label = "Dung lượng", value = "12.4 MB")
+                InfoRow(label = "Dung lượng", value = result?.fileSize?.formatFileSize() ?: "--")
                 HorizontalDivider()
-                InfoRow(label = "Thời gian hoàn tất", value = "18/07/2024 18:30")
+                InfoRow(label = "Thời gian hoàn tất", value = result?.completedAt ?: "--")
             }
             
             Spacer(modifier = Modifier.weight(1f))
@@ -785,10 +955,16 @@ private fun InfoRow(label: String, value: String) {
 private fun BackupOptionItem(
     label: String, 
     value: String, 
-    showChevron: Boolean = true
+    showChevron: Boolean = true,
+    valueColor: Color = GeneratedColor.Figma919191,
+    onClick: (() -> Unit)? = null,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().height(60.dp).padding(horizontal = 15.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(60.dp)
+            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .padding(horizontal = 15.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
@@ -800,7 +976,11 @@ private fun BackupOptionItem(
         Text(
             text = value, 
             style = NestoryTextStyles.Body15Semi,
-            color = GeneratedColor.Figma919191
+            color = valueColor,
+            textAlign = TextAlign.End,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.widthIn(max = 170.dp)
         )
         if (showChevron) {
             Spacer(modifier = Modifier.width(10.dp))
@@ -815,22 +995,12 @@ private fun BackupOptionItem(
 }
 
 @Composable
-private fun PrimaryBackupButton(text: String, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(60.dp)
-            .clip(NestoryRadius.R10)
-            .background(GeneratedColor.Figma1855ee)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = text, 
-            style = NestoryTextStyles.Body20Semi, 
-            color = GeneratedColor.FigmaFfffff
-        )
-    }
+private fun PrimaryBackupButton(
+    text: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    PrimaryActionButton(text = text, onClick = onClick, enabled = enabled)
 }
 
 @Composable
@@ -855,6 +1025,49 @@ private fun BackupHeader(title: String, onBack: () -> Unit) {
         )
     }
 }
+
+private fun BackupProgressStep.toBackupStep(isImportFlow: Boolean): BackupStep =
+    BackupStep(
+        title = step.label(isImportFlow),
+        status = when (status) {
+            BackupOperationStepStatus.PENDING -> BackupStepStatus.PENDING
+            BackupOperationStepStatus.SUCCESS -> BackupStepStatus.SUCCESS
+            BackupOperationStepStatus.ERROR -> BackupStepStatus.ERROR
+        }
+    )
+
+private fun BackupOperationStep.label(isImportFlow: Boolean): String = when (this) {
+    BackupOperationStep.PREPARE_DATA -> "Đang chuẩn bị dữ liệu"
+    BackupOperationStep.COMPRESS_DATA -> "Đang nén dữ liệu"
+    BackupOperationStep.ENCRYPT_DATA -> "Đang mã hóa dữ liệu"
+    BackupOperationStep.SAVE_FILE -> "Đang lưu file"
+    BackupOperationStep.VERIFY_BACKUP -> "Đang xác thực file sao lưu"
+    BackupOperationStep.DECRYPT_DATA -> "Đang giải mã dữ liệu"
+    BackupOperationStep.RESTORE_DATA -> "Đang khôi phục dữ liệu"
+    BackupOperationStep.COMPLETE -> if (isImportFlow) "Hoàn tất" else "Hoàn tất"
+}
+
+private fun Long.formatFileSize(): String {
+    if (this <= 0L) return "--"
+    val kb = this / 1024.0
+    val mb = kb / 1024.0
+    return if (mb >= 1.0) {
+        String.format(Locale.US, "%.1f MB", mb)
+    } else {
+        String.format(Locale.US, "%.0f KB", kb)
+    }
+}
+
+private fun String.shortenMiddle(maxLength: Int): String {
+    if (length <= maxLength) return this
+    val sideLength = ((maxLength - 1) / 2).coerceAtLeast(1)
+    return take(sideLength) + "…" + takeLast(sideLength)
+}
+
+private fun android.content.ContentResolver.displayName(uri: Uri): String? =
+    query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) cursor.getString(0) else null
+    }
 
 @Composable
 private fun HorizontalDivider() {

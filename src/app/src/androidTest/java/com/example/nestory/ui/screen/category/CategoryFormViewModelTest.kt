@@ -55,6 +55,7 @@ class CategoryFormViewModelTest {
     fun submitForm_duplicateName_showsDuplicateError() = runBlocking {
         val collection = launch { viewModel.uiState.collect {} }
         try {
+            viewModel.onEvent(CategoryEvent.OnAddClick)
             viewModel.onEvent(CategoryEvent.OnNameChanged("Giấy tờ cá nhân"))
             viewModel.submitForm { }
             val state = viewModel.waitForState { it.categories.isNotEmpty() }

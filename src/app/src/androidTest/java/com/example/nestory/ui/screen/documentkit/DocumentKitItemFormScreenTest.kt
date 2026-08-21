@@ -1,6 +1,8 @@
 package com.example.nestory.ui.screen.documentkit
 
 import androidx.activity.ComponentActivity
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -31,7 +33,7 @@ class DocumentKitItemFormScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Tạo Item mới").performClick()
+        composeRule.onNode(hasText("Tạo Item mới") and hasClickAction()).performClick()
 
         composeRule.onNodeWithText("Tên item không được để trống").fetchSemanticsNode()
         composeRule.onNodeWithText("Số giấy tờ cần liên kết không được để trống").fetchSemanticsNode()
@@ -56,7 +58,7 @@ class DocumentKitItemFormScreenTest {
 
         composeRule.onNodeWithTag("item_name_input").performTextInput("Căn cước công dân")
         composeRule.onNodeWithTag("item_required_docs_input").performTextInput("2")
-        composeRule.onNodeWithText("Tạo Item mới").performClick()
+        composeRule.onNode(hasText("Tạo Item mới") and hasClickAction()).performClick()
 
         composeRule.runOnIdle {
             assertEquals("Căn cước công dân", submittedName)
@@ -79,7 +81,7 @@ class DocumentKitItemFormScreenTest {
 
         composeRule.onNodeWithTag("item_name_input").performTextInput("Hộ chiếu")
         composeRule.onNodeWithTag("item_required_docs_input").performTextInput("1")
-        composeRule.onNodeWithText("Tạo Item mới").performClick()
+        composeRule.onNode(hasText("Tạo Item mới") and hasClickAction()).performClick()
 
         composeRule.onNodeWithText("Tên item đã tồn tại trong bộ hồ sơ này").fetchSemanticsNode()
         composeRule.runOnIdle { assertFalse(submitted) }

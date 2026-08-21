@@ -7,10 +7,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.hasAnySibling
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.hasContentDescription
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -73,9 +73,7 @@ class CategorySelectionCheckmarkTest {
 
         composeRule.onNodeWithText("Bảo hiểm").performClick()
 
-        composeRule
-            .onNode(hasContentDescription("Đã chọn") and hasAnySibling(hasText("Bảo hiểm")))
-            .fetchSemanticsNode()
+        composeRule.onAllNodesWithContentDescription("Đã chọn").assertCountEquals(1)
         composeRule.onNodeWithContentDescription("Xóa danh mục").fetchSemanticsNode()
         composeRule.onNodeWithText("Chỉnh sửa danh mục").assertIsEnabled()
     }

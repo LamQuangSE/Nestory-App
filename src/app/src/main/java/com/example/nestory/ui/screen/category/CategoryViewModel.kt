@@ -161,16 +161,17 @@ class CategoryViewModel(
      * [onCreated] reports the newly created category back so it can be auto-selected.
      */
     fun submitForm(onCreated: ((CategoryUiModel) -> Unit)? = null) {
-        val currentState = uiState.value
+        val currentState = _internalState.value
+        val categories = uiState.value.categories
         val inputName = currentState.form.name.trim()
         val selectedColor = currentState.form.selectedColor
         val selectedId = currentState.selectedCategoryId
 
-        val isNameDuplicate = currentState.categories.any {
+        val isNameDuplicate = categories.any {
             it.name.equals(inputName, ignoreCase = true) &&
                     !(currentState.mode == CategoryMode.Edit && it.id == selectedId)
         }
-        val isColorDuplicate = currentState.categories.any {
+        val isColorDuplicate = categories.any {
             it.color == selectedColor &&
                     !(currentState.mode == CategoryMode.Edit && it.id == selectedId)
         }

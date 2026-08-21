@@ -90,7 +90,7 @@ fun DocumentKitItemFormScreen(
 
     BackHandler(enabled = isEdit || hasContent) {
         if (isEdit) {
-            onEditBack(name, description, note, requiredDocs.toIntOrNull())
+            onEditBack(name, description, note, null)
         } else {
             showDiscardDialog = true
         }
@@ -99,7 +99,7 @@ fun DocumentKitItemFormScreen(
     LaunchedEffect(editLeaveRequested) {
         if (editLeaveRequested) {
             when {
-                isEdit -> onEditBack(name, description, note, requiredDocs.toIntOrNull())
+                isEdit -> onEditBack(name, description, note, null)
                 hasContent -> showDiscardDialog = true
                 else -> onBackClick()
             }
@@ -118,7 +118,7 @@ fun DocumentKitItemFormScreen(
             title = if (isEdit) "Chỉnh sửa Item" else "Tạo Item mới",
             onBack = {
                 if (isEdit) {
-                    onEditBack(name, description, note, requiredDocs.toIntOrNull())
+                    onEditBack(name, description, note, null)
                 } else if (!hasContent) {
                     onBackClick()
                 } else {
@@ -218,7 +218,7 @@ fun DocumentKitItemFormScreen(
                                 validateRequiredDocs = !isEdit,
                                 onShowNameError = { showNameError = true },
                                 onShowRequiredDocsError = { showRequiredDocsError = true },
-                                onValid = { onSubmit(name, description, note, requiredDocs.toIntOrNull()) }
+                                onValid = { onSubmit(name, description, note, null) }
                             )
                         }
                     },

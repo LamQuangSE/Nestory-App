@@ -2,6 +2,8 @@ package com.example.nestory.ui.screen.documentkit
 
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -30,7 +32,7 @@ class DocumentKitCreateScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Tạo bộ hồ sơ mới").performClick()
+        composeRule.onNode(hasText("Tạo bộ hồ sơ mới") and hasClickAction()).performClick()
 
         composeRule.onNodeWithText("Tên bộ hồ sơ không được để trống").fetchSemanticsNode()
         composeRule.onNodeWithText("Vui lòng chọn ngày sử dụng").fetchSemanticsNode()
@@ -48,7 +50,7 @@ class DocumentKitCreateScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Tạo bộ hồ sơ mới").performClick()
+        composeRule.onNode(hasText("Tạo bộ hồ sơ mới") and hasClickAction()).performClick()
         composeRule.onNodeWithText("Tên bộ hồ sơ không được để trống").fetchSemanticsNode()
 
         composeRule.onNodeWithTag("kit_name_input").performTextInput("Passport Kit")

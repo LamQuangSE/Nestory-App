@@ -207,13 +207,14 @@ private fun KitDetailHeaderCard(kit: KitWithItems) {
                 .size(width = 77.dp, height = 100.dp)
                 .clip(RoundedCornerShape(NestorySpacing.S10))
                 .background(categoryVisual.boxColor, RoundedCornerShape(NestorySpacing.S10))
-                .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10)),
+                .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10))
+                .padding(10.dp),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(id = categoryVisual.iconRes),
                 contentDescription = null,
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(57.dp),
                 tint = categoryVisual.iconTint
             )
         }
@@ -357,32 +358,32 @@ private fun KitDistributionCard(
                 )
                 Spacer(modifier = Modifier.width(24.dp))
                 Text(
-                    text = String.format(Locale.ROOT, "%.1f%%", percent),
+                    text = if (percent >= 100f) "100%" else String.format(Locale.ROOT, "%.1f%%", percent),
                     style = NestoryTextStyles.Body14Medium,
                     color = GeneratedColor.Figma000000,
                     modifier = Modifier.width(48.dp)
                 )
             }
         }
-        Row(
+Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onViewAllItemsClick)
-                .padding(vertical = 2.dp),
+                    .fillMaxWidth()
+                    .clickable(onClick = onViewAllItemsClick)
+                    .padding(vertical = 2.dp),
             horizontalArrangement = Arrangement.End,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = "Xem tất cả",
                 style = NestoryTextStyles.Body14Medium,
-                color = GeneratedColor.Figma000000
+                color = GeneratedColor.Figma522ec8
             )
             Spacer(modifier = Modifier.width(6.dp))
             Icon(
                 painter = painterResource(id = AppIcons.LsiconRightFilled),
                 contentDescription = null,
                 modifier = Modifier.size(12.dp),
-                tint = GeneratedColor.Figma000000
+                tint = GeneratedColor.Figma522ec8
             )
         }
     }

@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -113,13 +114,14 @@ private fun KitItemHeaderCard(
                 .size(width = 77.dp, height = 100.dp)
                 .clip(RoundedCornerShape(NestorySpacing.S10))
                 .background(visual.bgColor, RoundedCornerShape(NestorySpacing.S10))
-                .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10)),
+                .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10))
+                .padding(10.dp),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(id = visual.iconRes),
                 contentDescription = null,
-                modifier = Modifier.size(30.dp),
+                modifier = Modifier.size(57.dp),
                 tint = visual.iconTint
             )
         }
@@ -165,7 +167,7 @@ private fun KitItemInfoCard(
             iconBoxColor = visual.bgColor,
             iconTint = visual.iconTint
         )
-        KitItemField(value = note, height = 65.dp)
+        KitItemField(value = note, minHeight = 31.dp)
     }
 }
 
@@ -222,12 +224,12 @@ private fun KitItemLinkedDocsCard(
 @Composable
 private fun KitItemField(
     value: String,
-    height: androidx.compose.ui.unit.Dp = 31.dp,
+    minHeight: androidx.compose.ui.unit.Dp = 31.dp,
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(height)
+            .heightIn(min = minHeight)
             .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(5.dp))
             .padding(horizontal = 12.dp, vertical = 7.dp),
         contentAlignment = Alignment.CenterStart

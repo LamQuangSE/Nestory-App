@@ -192,9 +192,13 @@ class OcrViewModel(
                         },
                         onFailure = { error ->
                             _isSaving.value = false
-                            _uiState.value = OcrUiState.Error(
-                                error.message ?: "Không thể lưu giấy tờ",
-                            )
+                            if (error.message == "Tên giấy tờ đã tồn tại") {
+                                _fieldErrors.update { it.copy(titleDuplicate = true) }
+                            } else {
+                                _uiState.value = OcrUiState.Error(
+                                    error.message ?: "Không thể lưu giấy tờ",
+                                )
+                            }
                         },
                     )
                 },
@@ -257,13 +261,14 @@ class OcrViewModel(
 
 data class OcrFieldErrors(
     val title: Boolean = false,
+    val titleDuplicate: Boolean = false,
     val category: Boolean = false,
     val issueDate: Boolean = false,
     val expiryDate: Boolean = false,
     val container: Boolean = false,
     val fileName: Boolean = false,
 ) {
-    val hasErrors: Boolean get() = title || category || issueDate || expiryDate || container || fileName
+    val hasErrors: Boolean get() = title || titleDuplicate || category || issueDate || expiryDate || container || fileName
 }
 
 class OcrViewModelFactory(

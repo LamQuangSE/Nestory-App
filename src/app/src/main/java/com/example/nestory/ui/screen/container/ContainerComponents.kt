@@ -48,11 +48,12 @@ fun ContainerItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .heightIn(min = 52.dp)
             .background(
                 if (isSelected) GeneratedColor.FigmaF3f6ff.copy(alpha = 0.5f)
                 else Color.Transparent
             )
-            .padding(horizontal = NestorySpacing.S15, vertical = NestorySpacing.S10),
+            .padding(horizontal = NestorySpacing.S15),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Spacer(modifier = Modifier.width((level * 30).dp))
@@ -109,14 +110,19 @@ fun ContainerItem(
             )
         }
 
-        if (showDelete && onDeleteClick != null) {
-            IconButton(onClick = onDeleteClick) {
-                Icon(
-                    painter = painterResource(id = AppIcons.MageTrash),
-                    contentDescription = "Delete",
-                    modifier = Modifier.size(24.dp),
-                    tint = GeneratedColor.FigmaCf1111
-                )
+        Box(
+            modifier = Modifier.size(48.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (showDelete && onDeleteClick != null) {
+                IconButton(onClick = onDeleteClick) {
+                    Icon(
+                        painter = painterResource(id = AppIcons.MageTrash),
+                        contentDescription = "Delete",
+                        modifier = Modifier.size(24.dp),
+                        tint = GeneratedColor.FigmaCf1111
+                    )
+                }
             }
         }
     }

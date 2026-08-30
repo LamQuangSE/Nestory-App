@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -85,11 +84,20 @@ fun ContainerSelectionScreen(
             )
         }
 
-        if (!isEmpty && uiState.containerPath.isNotEmpty()) {
-            ContainerBreadcrumb(
-                pathSegments = uiState.containerPath.map { it.name },
-                onClose = onCloseBreadcrumb
-            )
+        if (!isEmpty) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
+                if (uiState.containerPath.isNotEmpty()) {
+                    ContainerBreadcrumb(
+                        pathSegments = uiState.containerPath.map { it.name },
+                        onClose = onCloseBreadcrumb
+                    )
+                }
+            }
         }
 
         if (errorMessage != null) {
@@ -184,7 +192,8 @@ fun ExpandableContainerList(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(NestorySpacing.S15)
     ) {
         uiState.rootContainers.forEach { container ->
             ContainerGroup(
@@ -195,7 +204,6 @@ fun ExpandableContainerList(
                 onDeleteClick = onDeleteClick,
                 selectionOnly = selectionOnly
             )
-            Divider(color = GeneratedColor.FigmaE5e7eb, thickness = 1.dp)
         }
     }
 }

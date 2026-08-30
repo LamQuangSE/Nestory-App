@@ -158,7 +158,7 @@ fun DocumentListItem(
         
         Spacer(modifier = Modifier.width(12.dp))
         
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
             Text(
                 text = document.name,
                 style = NestoryTextStyles.Body15Semi,
@@ -166,21 +166,34 @@ fun DocumentListItem(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            Spacer(modifier = Modifier.height(4.dp))
+            Surface(
+                color = document.categoryColor.copy(alpha = 0.12f),
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text(
+                    text = document.category,
+                    style = NestoryTextStyles.Body11Semi,
+                    color = document.categoryColor,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
             Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = document.category,
-                style = NestoryTextStyles.Body12Semi,
-                color = GeneratedColor.Figma919191
-            )
-            Text(
-                text = document.containerPath,
-                style = NestoryTextStyles.Body11Semi,
-                color = GeneratedColor.Figma919191,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Surface(
+                color = GeneratedColor.FigmaF3f6ff,
+                shape = RoundedCornerShape(4.dp)
+            ) {
+                Text(
+                    text = document.containerPath,
+                    style = NestoryTextStyles.Body11Semi,
+                    color = GeneratedColor.Figma919191,
+                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.weight(1f))
             
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val statusColor = when (document.status) {
@@ -210,9 +223,9 @@ fun DocumentListItem(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .width(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
+                .wrapContentWidth(),
+            horizontalAlignment = Alignment.End,
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
             Icon(
                 painter = painterResource(
@@ -223,6 +236,13 @@ fun DocumentListItem(
                     .size(24.dp)
                     .clickable(onClick = onToggleFavorite),
                 tint = if (document.isFavorite) GeneratedColor.Figma1a60e2 else GeneratedColor.Figma919191
+            )
+
+            Text(
+                text = document.expiryDate,
+                style = NestoryTextStyles.Body11Semi,
+                color = GeneratedColor.Figma919191,
+                maxLines = 1
             )
         }
     }

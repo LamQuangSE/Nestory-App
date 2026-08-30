@@ -215,7 +215,11 @@ fun OcrReviewScreen(
                     value = draft.title,
                     hint = "Nhập tên giấy tờ",
                     onValueChange = { onDraftChange(draft.copy(title = it)) },
-                    errorText = if (fieldErrors.title) "Vui lòng nhập tên giấy tờ" else null,
+                    errorText = when {
+                        fieldErrors.title -> "Vui lòng nhập tên giấy tờ"
+                        fieldErrors.titleDuplicate -> "Tên giấy tờ đã tồn tại"
+                        else -> null
+                    },
                     required = true,
                 )
 
@@ -258,19 +262,6 @@ fun OcrReviewScreen(
                 )
             }
             
-            ReviewSection(
-                title = "Tên file",
-                icon = AppIcons.NestoryNote
-            ) {
-                ReviewField(
-                    label = "Tên file",
-                    value = draft.fileName,
-                    hint = "Nhập tên file PDF",
-                    onValueChange = { onDraftChange(draft.copy(fileName = it)) },
-                    errorText = if (fieldErrors.fileName) "Vui lòng nhập tên file PDF" else null,
-                    required = true,
-                )
-            }
 
             PrimaryActionButton(
                 text = if (isSaving) "Đang lưu..." else "Lưu giấy tờ",

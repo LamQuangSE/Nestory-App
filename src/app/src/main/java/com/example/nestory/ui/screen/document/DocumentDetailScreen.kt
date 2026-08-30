@@ -331,21 +331,6 @@ fun DocumentDetailScreen(
                     title = "Tệp scan",
                     icon = AppIcons.DocumentFileScan
                 ) {
-                        if (isEditMode && hasPdf) {
-                            DetailField(
-                                label = "Tên file PDF ",
-                                value = pdfBaseName(pdfFileUri.orEmpty()),
-                                isEditMode = isEditMode,
-                                hint = "Nhập tên file PDF",
-                                editableValue = if (isEditMode) editedFileName else null,
-                                onValueChange = {
-                                    editedFileName = it
-                                    showFileNameRequiredError = false
-                                },
-                                required = true,
-                                errorText = if (isEditMode && showFileNameRequiredError) "Vui lòng nhập tên file PDF" else null,
-                            )
-                        }
                         // The PDF is the actual scanned file; fall back to all
                         // attachments for legacy image-only documents.
                         val scannedFiles = document.attachmentUris

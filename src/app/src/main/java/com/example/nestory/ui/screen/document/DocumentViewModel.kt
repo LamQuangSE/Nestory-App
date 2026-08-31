@@ -8,11 +8,14 @@ import com.example.nestory.data.filesystem.ImageStorageManager
 import com.example.nestory.data.local.entity.CategoryEntity
 import com.example.nestory.data.local.entity.ContainerEntity
 import com.example.nestory.data.local.entity.DocumentEntity
+import com.example.nestory.domain.model.DocumentCategory // Đã import thêm để lấy 6 mục mặc định
 import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentRepository
 import com.example.nestory.ui.theme.CategoryFallbackColor
+import com.example.nestory.ui.theme.categoryColor // Đã import
+import com.example.nestory.ui.theme.isPredefinedCategoryName // Đã import
 import com.example.nestory.ui.theme.predefinedCategoryColor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -57,13 +60,36 @@ class DocumentViewModel(
             )
         }
 
-        val categoryUiModels = categories.map { category ->
+        // ==========================================
+        // CẬP NHẬT LOGIC: THÊM 6 MỤC MẶC ĐỊNH & SORT A-Z 2 TẦNG
+        // ==========================================
+        val dbCategoryUiModels = categories.map { category ->
             DocCategoryUiModel(
                 id = category.id,
                 name = category.name,
                 color = predefinedCategoryColor(category.name) ?: Color(category.colorValue.toULong())
             )
         }
+
+        val existingCategoryNames = dbCategoryUiModels.map { it.name.trim().lowercase() }.toSet()
+        val missingDefaultCategories = DocumentCategory.entries.mapNotNull { preset ->
+            val label = preset.toVietnameseLabel()
+            if (label.lowercase() in existingCategoryNames) null
+            else DocCategoryUiModel(
+                id = "preset_${preset.name}",
+                name = label,
+                color = preset.categoryColor
+            )
+        }
+
+        val allAvailableCategories = dbCategoryUiModels + missingDefaultCategories
+        
+        // Chia 2 nhóm và Sort A-Z
+        val defaultGroup = allAvailableCategories.filter { isPredefinedCategoryName(it.name) }.sortedBy { it.name }
+        val customGroup = allAvailableCategories.filterNot { isPredefinedCategoryName(it.name) }.sortedBy { it.name }
+        
+        val sortedCategoryUiModels = defaultGroup + customGroup
+        // ==========================================
 
         val filteredDocuments = documents.filter { document ->
             val catName = categories.find { it.id == document.categoryId }?.name ?: "Khác"
@@ -77,7 +103,14 @@ class DocumentViewModel(
                     document.holderName.orEmpty().contains(cleanQuery, ignoreCase = true) ||
                     document.documentNumber.orEmpty().contains(cleanQuery, ignoreCase = true)
 
-            val matchesCategory = state.activeFilter.selectedCategoryId == null || document.categoryId == state.activeFilter.selectedCategoryId
+            // TRÍCH XUẤT LỖI TÌM ẨN: Khi Document lưu categoryId dưới dạng ID của Database, 
+            // nhưng Filter lại truyền vào "preset_IDENTITY", việc lọc sẽ bị rỗng.
+            // Giải pháp: Tìm tên của Category đang được chọn trong filter, rồi so sánh với tên Category của Document.
+            val selectedFilterCatName = sortedCategoryUiModels.find { it.id == state.activeFilter.selectedCategoryId }?.name
+            val docCatName = sortedCategoryUiModels.find { it.id == document.categoryId }?.name ?: "Khác"
+            
+            val matchesCategory = state.activeFilter.selectedCategoryId == null || docCatName == selectedFilterCatName
+            
             val matchesContainer = state.activeFilter.selectedContainerId == null || document.containerId == state.activeFilter.selectedContainerId
             val matchesFav = state.activeFilter.isFavorite == null || document.isFavorite == state.activeFilter.isFavorite
 
@@ -96,7 +129,7 @@ class DocumentViewModel(
         state.toUiState(
             documents = filteredDocuments,
             availableContainers = containerUiModels,
-            availableCategories = categoryUiModels,
+            availableCategories = sortedCategoryUiModels, // Truyền danh sách đã sort xuống UI
             selectedDocument = filteredDocuments.firstOrNull { it.id == state.selectedDocumentId },
         )
     }
@@ -174,7 +207,7 @@ class DocumentViewModel(
         containerId: Long? = null,
         pdfFileName: String? = null,
     ) {
-if (isSaving) return
+        if (isSaving) return
         val selected = uiState.value.selectedDocument ?: return
         val documentId = selected.id.toLongOrNull() ?: return
 
@@ -183,8 +216,6 @@ if (isSaving) return
             documentRepository.getDocumentById(documentId).fold(
                 onSuccess = { document ->
                     if (document != null) {
-                        // Rename the stored PDF file (content unchanged) and update
-                        // its stored file URI when the user changed the PDF name.
                         if (pdfFileName != null && pdfFileName.isNotBlank()) {
                             attachmentRepository.getAttachmentsByDocumentId(documentId).fold(
                                 onSuccess = { attachments ->
@@ -205,7 +236,6 @@ if (isSaving) return
                                 onFailure = { },
                             )
                         }
-                        // FIX LOGIC CŨ CỦA ĐỒNG ĐỘI: Tìm ID danh mục từ danh sách đang có thay vì duyệt Enum
                         val selectedCategory = uiState.value.availableCategories.firstOrNull { it.name == categoryLabelValue.trim() }
                         val newCategoryId = selectedCategory?.id ?: document.categoryId
 

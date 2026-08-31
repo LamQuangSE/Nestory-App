@@ -29,9 +29,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.repository.CategoryRepositoryImpl
-import com.example.nestory.domain.model.DocumentCategory
 import com.example.nestory.ui.theme.GeneratedColor
-import com.example.nestory.ui.theme.categoryColor
 import com.example.nestory.ui.theme.isPredefinedCategoryName
 
 @Composable
@@ -42,44 +40,34 @@ fun CategoryRoute(
     startInCreateMode: Boolean = false,
     onCreated: ((CategoryUiModel) -> Unit)? = null,
     allowCreate: Boolean = true,
-    showPresetCategories: Boolean = false,
+    showPresetCategories: Boolean = false, // Biến này giờ không cần thiết nữa vì ViewModel xử lý, nhưng giữ để không gãy hàm khởi tạo
     initialSelectedName: String? = null
 ) {
     val context = LocalContext.current
     
-    // Khởi tạo Repository thông qua Manual DI
     val repository = remember {
         val database = AppDatabase.getDatabase(context)
         CategoryRepositoryImpl(database.categoryDao())
     }
     
-    // Khởi tạo ViewModel thông qua Factory
     val viewModel: CategoryViewModel = viewModel(
         factory = CategoryViewModelFactory(repository)
     )
     
-    // Lắng nghe UiState từ ViewModel
     val uiState by viewModel.uiState.collectAsState()
 
-    // Khi được mở từ Create Document để tạo danh mục mới, vào thẳng form tạo
-    // (cùng CategoryScreen/ViewModel với màn hình Category chính).
     LaunchedEffect(Unit) {
         if (startInCreateMode) {
             viewModel.onEvent(CategoryEvent.OnAddClick)
         }
     }
 
-    // Khi mở để chọn danh mục cho giấy tờ đang chỉnh sửa, tự động chọn trước
-    // danh mục hiện tại của giấy tờ để hiển thị dấu ✓ ngay khi mở selector.
-    // Hiệu ứng này chạy lại khi danh sách được tải từ DB để chuyển từ row preset
-    // tạm sang row thật, nhưng không bao giờ ghi đè lựa chọn của người dùng.
     LaunchedEffect(uiState.categories, initialSelectedName) {
         val name = initialSelectedName?.trim()
         if (name.isNullOrEmpty()) return@LaunchedEffect
-        val all = buildPresetCategories(uiState.categories) + uiState.categories
-        val match = all.firstOrNull { it.name.equals(name, ignoreCase = true) }
+        val match = uiState.categories.firstOrNull { it.name.equals(name, ignoreCase = true) }
             ?: return@LaunchedEffect
-        val current = all.firstOrNull { it.id == uiState.selectedCategoryId }
+        val current = uiState.categories.firstOrNull { it.id == uiState.selectedCategoryId }
         val keepCurrent = current != null && !current.name.equals(name, ignoreCase = true)
         if (!keepCurrent && uiState.selectedCategoryId != match.id) {
             viewModel.onEvent(CategoryEvent.OnCategorySelected(match.id))
@@ -95,14 +83,12 @@ fun CategoryRoute(
                 event == CategoryEvent.OnConfirmSelection && onConfirmSelection != null -> {
                     val selected = uiState.categories.find { it.id == uiState.selectedCategoryId }
                     if (selected != null) {
-                        onConfirmSelection(selected)
-                    } else {
-                        val preset = buildPresetCategories(uiState.categories)
-                            .firstOrNull { it.id == uiState.selectedCategoryId }
-                        if (preset != null) {
-                            viewModel.ensurePresetCategory(preset.name) {
+                        if (selected.id.startsWith("preset_")) {
+                            viewModel.ensurePresetCategory(selected.name) {
                                 onConfirmSelection(it)
                             }
+                        } else {
+                            onConfirmSelection(selected)
                         }
                     }
                 }
@@ -113,7 +99,6 @@ fun CategoryRoute(
         onBack = onBack,
         selectionOnly = selectionOnly,
         allowCreate = allowCreate,
-        showPresetCategories = showPresetCategories,
         exitOnFormBack = startInCreateMode
     )
 }
@@ -125,20 +110,15 @@ fun CategoryScreen(
     onBack: () -> Unit,
     selectionOnly: Boolean = false,
     allowCreate: Boolean = true,
-    showPresetCategories: Boolean = false,
+    showPresetCategories: Boolean = false, // Ignored, handled by viewmodel now
     exitOnFormBack: Boolean = false
 ) {
-    val displayCategories = if (showPresetCategories) {
-        buildPresetCategories(uiState.categories) + uiState.categories
-    } else {
-        uiState.categories
-    }
-    val filteredCategories = displayCategories.filter {
+    val filteredCategories = uiState.categories.filter {
         it.name.contains(uiState.query, ignoreCase = true)
     }
     val selectedCategory = uiState.categories.firstOrNull { it.id == uiState.selectedCategoryId }
     val deleteTarget = uiState.categories.firstOrNull { it.id == uiState.deleteTargetId }
-    val hasAnyCategory = displayCategories.isNotEmpty()
+    val hasAnyCategory = uiState.categories.isNotEmpty()
 
     BackHandler {
         when {
@@ -259,8 +239,7 @@ private fun CategorySelectionContent(
         }
         Spacer(modifier = Modifier.height(15.dp))
         if (selectionOnly && !allowCreate) {
-            // Selection-only picker without any Category management actions
-            // (used by Edit Document: change assignment only).
+            // Selection-only picker
         } else if (selectionOnly) {
             CategoryOutlinedActionButton(
                 text = "Tạo danh mục mới",
@@ -309,7 +288,8 @@ private fun CategoryFormContent(
     )
     Spacer(modifier = Modifier.height(15.dp))
     CategoryColorPicker(
-        colors = defaultCategoryColors(),
+        // TRUYỀN BẢNG MÀU ĐÃ LỌC CỦA UISTATE XUỐNG ĐÂY
+        colors = uiState.availableColors, 
         selectedColor = uiState.form.selectedColor,
         error = uiState.form.colorError,
         onSelectColor = { onEvent(CategoryEvent.OnColorSelected(it)) }
@@ -328,22 +308,6 @@ private fun CategoryFormContent(
             textSize = if (uiState.mode == CategoryMode.Create) 14.sp else 16.sp
         )
     }
-}
-
-internal const val PRESET_CATEGORY_ID_PREFIX = "preset_"
-
-internal fun buildPresetCategories(userCategories: List<CategoryUiModel>): List<CategoryUiModel> {
-    val existingNames = userCategories.map { it.name.trim().lowercase() }.toSet()
-    return DocumentCategory.entries
-        .mapNotNull { preset ->
-            val label = preset.toVietnameseLabel()
-            if (label.lowercase() in existingNames) return@mapNotNull null
-            CategoryUiModel(
-                id = "$PRESET_CATEGORY_ID_PREFIX${preset.name}",
-                name = label,
-                color = preset.categoryColor
-            )
-        }
 }
 
 @Preview(showBackground = true)

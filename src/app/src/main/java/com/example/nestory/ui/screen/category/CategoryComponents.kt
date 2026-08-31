@@ -420,7 +420,6 @@ fun CategoryColorPicker(
                 .height(41.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Áp dụng buildAnnotatedString để tô đỏ dấu *
             Text(
                 text = buildAnnotatedString {
                     append("Màu sắc ")
@@ -436,29 +435,38 @@ fun CategoryColorPicker(
                 )
             )
         }
+        
         colors.chunked(6).forEach { rowColors ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (error == null) 70.67.dp else 65.33.dp)
-                    .padding(horizontal = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    .height(if (error == null) 70.67.dp else 65.33.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 rowColors.forEach { color ->
-                    val isSelected = selectedColor == color
                     Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(color)
-                            .border(
-                                width = if (isSelected) 2.5.dp else 0.dp,
-                                color = if (isSelected) GeneratedColor.Figma1855ee else Color.Transparent,
-                                shape = CircleShape
-                            )
-                            .clickable { onSelectColor(color) }
-                    )
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val isSelected = selectedColor == color
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .border(
+                                    width = if (isSelected) 2.5.dp else 0.dp,
+                                    color = if (isSelected) GeneratedColor.Figma1855ee else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                                .clickable { onSelectColor(color) }
+                        )
+                    }
+                }
+                
+                val missingColumns = 6 - rowColors.size
+                repeat(missingColumns) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -681,6 +689,7 @@ fun defaultCategoryColors(): List<Color> = listOf(
     CategoryPropertyColor,
     CategoryVehicleColor,
     CategoryHealthColor,
+    
     Color(0xFF5EEAD4),
     Color(0xFF67E8F9),
     Color(0xFF7DD3FC),
@@ -692,5 +701,12 @@ fun defaultCategoryColors(): List<Color> = listOf(
     Color(0xFFF9A8D4),
     Color(0xFFFBCFE8),
     Color(0xFFCBD5E1),
-    Color(0xFFC4B5A5)
+    Color(0xFFC4B5A5),
+    
+    Color(0xFFF87171), 
+    Color(0xFF34D399), 
+    Color(0xFF60A5FA), 
+    Color(0xFFA78BFA), 
+    Color(0xFFF472B6), 
+    Color(0xFF9CA3AF) 
 )

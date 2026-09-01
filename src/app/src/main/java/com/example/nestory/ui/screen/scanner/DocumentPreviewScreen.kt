@@ -42,13 +42,14 @@ fun DocumentPreviewScreen(
     modifier: Modifier = Modifier
 ) {
     val currentPage = uiState.currentPage
+    val stripPadding = (0.3f * 160f / 2.54f).dp
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(Color.White)
             .statusBarsPadding()
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = stripPadding),
         verticalArrangement = Arrangement.spacedBy(15.dp)
     ) {
         Row(
@@ -148,7 +149,7 @@ fun DocumentPreviewScreen(
             
             Box(
                 modifier = Modifier
-                    .size(71.dp, 56.dp)
+                    .size(56.dp, 44.dp)
                     .drawBehind {
                         drawRoundRect(
                             color = Color(0xFFE5E7EB),

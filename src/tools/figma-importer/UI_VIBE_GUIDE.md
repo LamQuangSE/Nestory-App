@@ -21,7 +21,7 @@ Dùng `semantic` cho UI work bình thường:
 export FIGMA_TOKEN='figd_xxx'
 
 python tools/figma-importer/figma_extract_full.py \
-  'https://www.figma.com/design/FILE_KEY/FILE_NAME?t=TOKEN' \
+  'https://www.figma.com/design/mGJKoMEL99j46mHDpqrd4v/Detailed_Design_UI--Copy-?node-id=0-1&p=f&t=hNv5oPRnJcppuBPg-0' \
   --out-dir build/figma/Nestory_semantic_vN \
   --asset-mode semantic \
   --formats png \

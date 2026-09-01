@@ -11,7 +11,6 @@ data class OcrResult(
     val category: DocumentCategory? = null,
     val issueDate: String? = null,
     val expiryDate: String? = null,
-    val documentNumber: String? = null,
     val holderName: String? = null,
     val rawText: String = "",
 )

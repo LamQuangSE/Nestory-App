@@ -5,7 +5,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import com.example.nestory.data.local.entity.CategoryEntity
+import com.example.nestory.domain.model.DocumentCategory
 import com.example.nestory.domain.repository.CategoryRepository
+import com.example.nestory.ui.theme.categoryColor
+import com.example.nestory.ui.theme.predefinedCategoryColor
+import com.example.nestory.ui.theme.isPredefinedCategoryName
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -18,27 +22,72 @@ class CategoryViewModel(
     private val repository: CategoryRepository
 ) : ViewModel() {
 
-    // Trạng thái cục bộ (Query tìm kiếm, Text input, Màu đang chọn...)
     private val _internalState = MutableStateFlow(CategoryUiState())
 
-    // Gộp dữ liệu từ Database (realtime) với Trạng thái cục bộ để tạo ra UiState cuối cùng
     val uiState: StateFlow<CategoryUiState> = combine(
         repository.getAllCategories(),
         _internalState
     ) { entities, state ->
-        val categories = entities.map {
+        // 1. Lấy danh sách từ DB
+        val dbCategories = entities.map {
             CategoryUiModel(
                 id = it.id,
                 name = it.name,
-                color = Color(it.colorValue.toULong()) // Phục hồi Color từ Long
+                color = predefinedCategoryColor(it.name) ?: Color(it.colorValue.toULong())
             )
         }
-        state.copy(categories = categories)
+
+        // 2. Chèn 6 mục Default vào nếu trong DB chưa có
+        val existingNames = dbCategories.map { it.name.trim().lowercase() }.toSet()
+        val missingDefaults = DocumentCategory.entries.mapNotNull { preset ->
+            val label = preset.toVietnameseLabel()
+            if (label.lowercase() in existingNames) null
+            else CategoryUiModel(
+                id = "preset_${preset.name}",
+                name = label,
+                color = preset.categoryColor
+            )
+        }
+
+        // 3. Phân chia 2 nhóm và Sắp xếp A-Z (2-Tier Sorting)
+        val allCategories = dbCategories + missingDefaults
+        val defaultGroup = allCategories.filter { isPredefinedCategoryName(it.name) }.sortedBy { it.name }
+        val customGroup = allCategories.filterNot { isPredefinedCategoryName(it.name) }.sortedBy { it.name }
+        val sortedCategories = defaultGroup + customGroup
+
+        // 4. Logic Bảng màu MỚI (Theo đúng yêu cầu của bạn):
+        // Chỉ loại bỏ 6 màu Default. Giữ nguyên các màu User tự tạo để UI không bị thụt lùi.
+        val totalColors = defaultCategoryColors()
+        val predefinedColors = DocumentCategory.entries.map { it.categoryColor }.toSet()
+        val availableColors = totalColors.filterNot { it in predefinedColors }
+
+        state.copy(
+            categories = sortedCategories,
+            availableColors = availableColors
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5000),
         initialValue = CategoryUiState()
     )
+
+    fun ensurePresetCategory(name: String, onReady: (CategoryUiModel) -> Unit) {
+        viewModelScope.launch {
+            val existing = uiState.value.categories.firstOrNull { it.name.equals(name, ignoreCase = true) }
+            if (existing != null && !existing.id.startsWith("preset_")) {
+                onReady(existing)
+                return@launch
+            }
+            val color = predefinedCategoryColor(name) ?: defaultCategoryColors().first()
+            val newEntity = CategoryEntity(
+                id = System.currentTimeMillis().toString(),
+                name = name,
+                colorValue = color.value.toLong(),
+            )
+            repository.insertCategory(newEntity)
+            onReady(CategoryUiModel(newEntity.id, newEntity.name, color))
+        }
+    }
 
     fun onEvent(event: CategoryEvent) {
         when (event) {
@@ -52,14 +101,15 @@ class CategoryViewModel(
                 _internalState.update {
                     it.copy(
                         mode = CategoryMode.Create,
-                        form = CategoryFormUiState(selectedColor = defaultCategoryColors().first())
+                        // Focus vào màu khả dụng đầu tiên
+                        form = CategoryFormUiState(selectedColor = uiState.value.availableColors.firstOrNull())
                     )
                 }
             }
             CategoryEvent.OnEditClick -> {
                 val currentState = uiState.value
                 val selected = currentState.categories.firstOrNull { it.id == currentState.selectedCategoryId }
-                if (selected != null) {
+                if (selected != null && !isPredefinedCategoryName(selected.name)) {
                     _internalState.update {
                         it.copy(
                             mode = CategoryMode.Edit,
@@ -72,14 +122,18 @@ class CategoryViewModel(
                 }
             }
             is CategoryEvent.OnDeleteClick -> {
-                _internalState.update { it.copy(deleteTargetId = event.categoryId) }
+                val target = uiState.value.categories.firstOrNull { it.id == event.categoryId }
+                if (target != null && !isPredefinedCategoryName(target.name)) {
+                    _internalState.update { it.copy(deleteTargetId = event.categoryId) }
+                }
             }
             CategoryEvent.OnDismissDeleteDialog -> {
                 _internalState.update { it.copy(deleteTargetId = null) }
             }
             CategoryEvent.OnConfirmDelete -> {
                 val deleteId = uiState.value.deleteTargetId
-                if (deleteId != null) {
+                val target = uiState.value.categories.firstOrNull { it.id == deleteId }
+                if (deleteId != null && (target == null || !isPredefinedCategoryName(target.name))) {
                     viewModelScope.launch {
                         repository.deleteCategory(deleteId)
                     }
@@ -89,6 +143,8 @@ class CategoryViewModel(
                             deleteTargetId = null
                         )
                     }
+                } else {
+                    _internalState.update { it.copy(deleteTargetId = null) }
                 }
             }
             is CategoryEvent.OnNameChanged -> {
@@ -113,34 +169,37 @@ class CategoryViewModel(
                 }
             }
             CategoryEvent.OnConfirmSelection -> {
-                // Xử lý logic khi bấm Xác nhận danh mục (ví dụ: pop back stack kèm data)
+                // Xử lý logic khi bấm Xác nhận danh mục
             }
         }
     }
 
-    private fun submitForm() {
-        val currentState = uiState.value
+    fun submitForm(onCreated: ((CategoryUiModel) -> Unit)? = null) {
+        val currentState = _internalState.value
+        val categories = uiState.value.categories
         val inputName = currentState.form.name.trim()
         val selectedColor = currentState.form.selectedColor
         val selectedId = currentState.selectedCategoryId
 
-        val isNameDuplicate = currentState.categories.any {
+        val isNameDuplicate = categories.any {
             it.name.equals(inputName, ignoreCase = true) &&
                     !(currentState.mode == CategoryMode.Edit && it.id == selectedId)
         }
-        val isColorDuplicate = currentState.categories.any {
+        
+        // Logic validation: Giữ nguyên để báo lỗi khi user cố ý chọn màu đã có người dùng[cite: 21]
+        val isColorDuplicate = categories.any {
             it.color == selectedColor &&
                     !(currentState.mode == CategoryMode.Edit && it.id == selectedId)
         }
 
         val nameError = when {
-            inputName.isBlank() -> "Tên giấy tờ không được để trống"
+            inputName.isBlank() -> "Tên danh mục không được để trống"
             isNameDuplicate -> "Tên '$inputName' đã tồn tại"
             else -> null
         }
         val colorError = when {
             selectedColor == null -> "Màu sắc không được để trống"
-            isColorDuplicate -> "Màu sắc đã tồn tại"
+            isColorDuplicate -> "Màu sắc đã được sử dụng"
             else -> null
         }
 
@@ -156,7 +215,7 @@ class CategoryViewModel(
                 val newEntity = CategoryEntity(
                     id = System.currentTimeMillis().toString(),
                     name = inputName,
-                    colorValue = selectedColor.value.toLong() // Ép kiểu về Long để lưu Database
+                    colorValue = selectedColor.value.toLong()
                 )
                 repository.insertCategory(newEntity)
                 
@@ -168,6 +227,7 @@ class CategoryViewModel(
                         query = ""
                     )
                 }
+                onCreated?.invoke(CategoryUiModel(newEntity.id, newEntity.name, selectedColor))
             } else if (currentState.mode == CategoryMode.Edit && selectedColor != null && selectedId != null) {
                 val updateEntity = CategoryEntity(
                     id = selectedId,
@@ -188,7 +248,6 @@ class CategoryViewModel(
     }
 }
 
-// Vì chưa dùng Hilt/Koin, ta dùng Factory để Manual DI truyền Repository vào ViewModel
 class CategoryViewModelFactory(private val repository: CategoryRepository) : ViewModelProvider.Factory {
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(CategoryViewModel::class.java)) {

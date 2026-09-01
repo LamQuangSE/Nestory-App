@@ -3,7 +3,7 @@ package com.example.nestory.ui.screen.vault
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import com.example.nestory.data.filesystem.FileSystemManager
+import com.example.nestory.data.filesystem.VaultInitializer
 import com.example.nestory.data.filesystem.VaultCreationError
 import com.example.nestory.data.filesystem.VaultCreationResult
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class WaitingViewModel(
-    private val fileSystemManager: FileSystemManager,
+    private val vaultInitializer: VaultInitializer,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WaitingUiState())
@@ -31,7 +31,7 @@ class WaitingViewModel(
 
         viewModelScope.launch {
             val result = runCatching {
-                fileSystemManager.createVaultStructure()
+                vaultInitializer.createVaultStructure()
             }.getOrElse {
                 VaultCreationResult(
                     completedSteps = emptyList(),
@@ -57,12 +57,12 @@ class WaitingViewModel(
 }
 
 class WaitingViewModelFactory(
-    private val fileSystemManager: FileSystemManager,
+    private val vaultInitializer: VaultInitializer,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         if (modelClass.isAssignableFrom(WaitingViewModel::class.java)) {
-            return WaitingViewModel(fileSystemManager) as T
+            return WaitingViewModel(vaultInitializer) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
     }

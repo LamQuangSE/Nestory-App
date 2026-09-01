@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.vault
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.RepeatMode
@@ -36,6 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nestory.data.filesystem.FileSystemManager
 import com.example.nestory.data.filesystem.VaultCreationError
 import com.example.nestory.data.filesystem.VaultCreationStep
+import com.example.nestory.data.filesystem.VaultInitializer
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.assets.AppImages
 import com.example.nestory.ui.components.NestoryScreen
@@ -58,15 +60,22 @@ private val vaultCreationSteps = listOf(
 fun WaitingScreen(
     sessionKey: Int,
     onBack: () -> Unit,
-    onComplete: () -> Unit
+    onComplete: () -> Unit,
+    vaultInitializerProvider: (android.content.Context) -> VaultInitializer = { FileSystemManager(it) },
 ) {
     val context = LocalContext.current.applicationContext
     val waitingViewModel: WaitingViewModel = viewModel(
         key = "waiting-vault-$sessionKey",
-        factory = WaitingViewModelFactory(FileSystemManager(context))
+        factory = WaitingViewModelFactory(vaultInitializerProvider(context))
     )
     val uiState by waitingViewModel.uiState.collectAsState()
     var visibleStepCount by remember { mutableIntStateOf(0) }
+
+    BackHandler {
+        if (uiState.phase == WaitingPhase.Error) {
+            onBack()
+        }
+    }
 
     LaunchedEffect(uiState.phase, uiState.completedSteps, uiState.failedStep) {
         visibleStepCount = 0

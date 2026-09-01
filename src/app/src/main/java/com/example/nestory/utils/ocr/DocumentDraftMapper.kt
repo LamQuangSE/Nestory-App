@@ -12,29 +12,19 @@ class DocumentDraftMapper(
 ) {
 
     fun toDraft(result: OcrResult): DocumentDraft {
-        val title = buildTitle(result)
         val categoryEnum = result.category ?: categoryDetector.detect(result)
         return DocumentDraft(
-            title = title,
-            category = categoryEnum?.toVietnameseLabel(),
+            title = "",
+            category = categoryEnum,
+            categoryName = categoryEnum?.toVietnameseLabel(),
             issueDate = result.issueDate,
             expiryDate = result.expiryDate,
-            documentNumber = result.documentNumber,
             holderName = result.holderName,
             notes = null,
+            ocrText = result.rawText,
             containerId = null,
             attachmentId = null,
         )
     }
-
-    private fun buildTitle(result: OcrResult): String {
-        val name = result.documentName?.trim().orEmpty()
-        return when {
-            name.isNotBlank() -> name
-            !result.documentNumber.isNullOrBlank() -> "Giấy tờ số ${result.documentNumber}"
-            else -> "Giấy tờ"
-        }
-    }
 }
-
 

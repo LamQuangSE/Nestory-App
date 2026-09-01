@@ -23,6 +23,7 @@ data class CategoryFormUiState(
 
 data class CategoryUiState(
     val categories: List<CategoryUiModel> = emptyList(),
+    val availableColors: List<Color> = emptyList(), // Bổ sung danh sách màu khả dụng
     val query: String = "",
     val selectedCategoryId: String? = null,
     val mode: CategoryMode = CategoryMode.Selection,

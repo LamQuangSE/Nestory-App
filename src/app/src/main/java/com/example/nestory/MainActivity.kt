@@ -11,10 +11,13 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        
+        val initialDocumentId = intent.getStringExtra("document_id")
+
         setContent {
             NestoryTheme {
-                NestoryApp()
+                NestoryApp(initialDocumentId = initialDocumentId)
             }
         }
     }
-} 
+}

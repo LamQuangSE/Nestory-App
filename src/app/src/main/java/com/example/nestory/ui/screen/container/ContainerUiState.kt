@@ -10,6 +10,7 @@ data class ContainerUiState(
     val selectedContainerId: Long? = null,
     val containerPath: List<ContainerEntity> = emptyList(),
     val isLoading: Boolean = false,
+    val isCreating: Boolean = false,
     val errorMessage: String? = null
 ) {
     val rootContainers: List<ContainerEntity>

@@ -40,4 +40,13 @@ data class KitItemEntity(
 
     @ColumnInfo(name = "linked_document_id")
     val linkedDocumentId: Long?,
+
+    val name: String? = null,
+
+    val description: String? = null,
+
+    val note: String? = null,
+
+    @ColumnInfo(name = "required_documents")
+    val requiredDocuments: Int? = null,
 )

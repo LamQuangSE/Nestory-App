@@ -3,22 +3,34 @@ package com.example.nestory.ui.screen.ocr
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,19 +40,30 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.room.Room
 import com.example.nestory.R
 import com.example.nestory.data.filesystem.ImageStorageManager
 import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.repository.AttachmentRepositoryImpl
 import com.example.nestory.data.repository.ContainerRepositoryImpl
 import com.example.nestory.data.repository.DocumentRepositoryImpl
+import com.example.nestory.data.repository.KitItemRepositoryImpl
 import com.example.nestory.data.repository.MlKitOcrRepository
+import com.example.nestory.domain.model.DocumentCategory
+import com.example.nestory.ui.assets.AppIcons
+import com.example.nestory.ui.components.ConfirmDialog
 import com.example.nestory.ui.components.NestoryScreen
+import com.example.nestory.ui.screen.category.CategoryDivider
+import com.example.nestory.ui.screen.category.CategoryHeader
+import com.example.nestory.ui.screen.category.CategoryPrimaryActionButton
+import com.example.nestory.ui.screen.category.CategoryUiModel
+import com.example.nestory.ui.screen.category.defaultCategoryColors
 import com.example.nestory.ui.screen.scanner.ScannerEvent
 import com.example.nestory.ui.screen.scanner.ScannerMode
 import com.example.nestory.ui.screen.scanner.ScannerPageUiModel
@@ -70,17 +93,23 @@ import kotlin.math.min
 fun OcrRoute(
     onBack: () -> Unit,
     onSaved: () -> Unit,
+    linkToItemId: Long? = null,
+    editLeaveRequested: Boolean = false,
+    onEditLeaveComplete: () -> Unit = {},
+    onEditLeaveDismiss: () -> Unit = {},
+    onEditModeChange: (Boolean) -> Unit = {},
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
     val coroutineScope = rememberCoroutineScope()
-    val db = remember { AppDatabase.getDatabase(context) }
+    val db = remember { AppDatabase.getDatabase(context.applicationContext) }
 
     val ocrRepository = remember { MlKitOcrRepository() }
     val categoryDetector = remember { CategoryDetector() }
     val documentRepository = remember { DocumentRepositoryImpl(db.documentDao()) }
     val attachmentRepository = remember { AttachmentRepositoryImpl(db.attachmentDao()) }
     val containerRepository = remember { ContainerRepositoryImpl(db.containerDao()) }
+    val kitItemRepository = remember { KitItemRepositoryImpl(db.kitItemDao()) }
     val imageStorageManager = remember { ImageStorageManager(context.applicationContext) }
 
     val factory = remember {
@@ -93,17 +122,26 @@ fun OcrRoute(
             attachmentRepository = attachmentRepository,
             containerRepository = containerRepository,
             imageStorageManager = imageStorageManager,
+            kitItemRepository = kitItemRepository,
         )
     }
 
     val viewModel: OcrViewModel = viewModel(factory = factory)
+    
+    // Set pending link item if provided
+    LaunchedEffect(linkToItemId) {
+        viewModel.setPendingKitLinkItemId(linkToItemId)
+    }
     val uiState by viewModel.uiState.collectAsState()
     val containers by viewModel.containers.collectAsState()
+    val fieldErrors by viewModel.fieldErrors.collectAsState()
+    val isSaving by viewModel.isSaving.collectAsState()
 
     var scannerUiState by remember { mutableStateOf(ScannerUiState()) }
     var hasRequestedInitialScan by remember { mutableStateOf(false) }
     var appendScanResult by remember { mutableStateOf(false) }
     var scannerError by remember { mutableStateOf<String?>(null) }
+    var showDiscardConfirm by remember { mutableStateOf(false) }
 
     val scannerOptions = remember {
         GmsDocumentScannerOptions.Builder()
@@ -181,6 +219,47 @@ fun OcrRoute(
         scannerUiState = scannerUiState.copy(pages = updatedPages)
     }
 
+    val hasInProgressWork = scannerUiState.pages.isNotEmpty() || uiState is OcrUiState.Success
+
+    fun requestExit() {
+        if (hasInProgressWork) {
+            showDiscardConfirm = true
+        } else {
+            scannerUiState = ScannerUiState()
+            viewModel.cancelOcr()
+            onBack()
+        }
+    }
+
+    fun confirmDiscard() {
+        showDiscardConfirm = false
+        scannerUiState = ScannerUiState()
+        viewModel.cancelOcr()
+        if (editLeaveRequested) {
+            onEditLeaveComplete()
+        } else {
+            onBack()
+        }
+    }
+
+    LaunchedEffect(hasInProgressWork) {
+        onEditModeChange(hasInProgressWork)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { onEditModeChange(false) }
+    }
+
+    LaunchedEffect(editLeaveRequested) {
+        if (editLeaveRequested) {
+            if (hasInProgressWork) {
+                showDiscardConfirm = true
+            } else {
+                onEditLeaveComplete()
+            }
+        }
+    }
+
     fun handleScannerEvent(event: ScannerEvent) {
         when (event) {
             ScannerEvent.OnBackClick -> {
@@ -190,16 +269,12 @@ fun OcrRoute(
                         zoomPercent = 100,
                     )
                 } else {
-                    scannerUiState = ScannerUiState()
-                    viewModel.cancelOcr()
-                    onBack()
+                    requestExit()
                 }
             }
 
             ScannerEvent.OnCancelClick -> {
-                scannerUiState = ScannerUiState()
-                viewModel.cancelOcr()
-                onBack()
+                requestExit()
             }
 
             ScannerEvent.OnRotateLeftClick -> updateSelectedPage { page ->
@@ -313,6 +388,12 @@ fun OcrRoute(
         }
     }
 
+    // Reset any state left over from a previous scan/create-document session so that
+    // entering Scan always starts a brand-new session (never reuses the last document).
+    LaunchedEffect(Unit) {
+        viewModel.resetForNewSession()
+    }
+
     LaunchedEffect(Unit) {
         if (!hasRequestedInitialScan) {
             hasRequestedInitialScan = true
@@ -336,12 +417,17 @@ fun OcrRoute(
                 }
 
                 else -> {
-                    ScannerOpeningScreen()
+                    ScannerOpeningScreen(onBack = onBack)
                 }
             }
         }
 
         is OcrUiState.Processing -> {
+            BackHandler {
+                viewModel.cancelOcr()
+                onBack()
+            }
+
             NestoryScreen(
                 useStatusBarPadding = true,
                 verticalPadding = 20.dp,
@@ -363,6 +449,11 @@ fun OcrRoute(
         }
 
         is OcrUiState.Error -> {
+            BackHandler {
+                viewModel.cancelOcr()
+                onBack()
+            }
+
             NestoryScreen(
                 useStatusBarPadding = true,
                 verticalPadding = 20.dp,
@@ -401,21 +492,49 @@ fun OcrRoute(
         is OcrUiState.Success -> {
             OcrReviewScreen(
                 draft = state.draft,
+                bitmaps = state.bitmaps,
                 containers = containers,
                 onDraftChange = viewModel::updateDraft,
                 onBack = {
                     viewModel.cancelOcr()
+                    onBack()
                 },
                 onSave = {
                     viewModel.saveDocument(onSaved = { onSaved() })
                 },
+                fieldErrors = fieldErrors,
+                isSaving = isSaving,
+                categorySelectionContent = { onBack, onConfirmSelection ->
+                    DocumentCategorySelectionScreen(
+                        selectedCategoryName = state.draft.categoryName
+                            ?: state.draft.category?.toVietnameseLabel(),
+                        onBack = onBack,
+                        onConfirmSelection = onConfirmSelection,
+                    )
+                },
             )
         }
+    }
+
+    if (showDiscardConfirm) {
+        ConfirmDialog(
+            title = "Huỷ tạo giấy tờ",
+            message = "Bạn có muốn thoát khỏi quá trình tạo giấy tờ không?",
+            highlightRange = 13..16,
+            confirmLabel = "Thoát",
+            dismissLabel = "Tiếp tục",
+            onConfirm = { confirmDiscard() },
+            onDismiss = { showDiscardConfirm = false },
+        )
     }
 }
 
 @Composable
-private fun ScannerOpeningScreen() {
+private fun ScannerOpeningScreen(
+    onBack: () -> Unit,
+) {
+    BackHandler(onBack = onBack)
+
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
         verticalArrangement = Arrangement.Center,
@@ -437,6 +556,8 @@ private fun ScannerErrorScreen(
     onRetry: () -> Unit,
     onBack: () -> Unit,
 ) {
+    BackHandler(onBack = onBack)
+
     NestoryScreen(
         useStatusBarPadding = true,
         verticalPadding = 20.dp,

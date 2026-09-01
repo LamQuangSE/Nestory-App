@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.vault
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Column
@@ -34,6 +35,8 @@ fun CreateVaultScreen(
     onBack: () -> Unit,
     onCreateVault: () -> Unit,
 ) {
+    BackHandler(onBack = onBack)
+
     NestoryScreen(
         verticalPadding = NestorySpacing.S18,
         useStatusBarPadding = true,

@@ -10,9 +10,16 @@ enum class NestoryDestination {
     Category,
     Container,
     Settings,
-    ExpiryReminderSettings,
+    ExportBackup,
+    ImportBackup,
+    SetBackupPassword,
+    ImportPassword,
+    BackupWaiting,
+    ExportBackupSuccess,
+    ImportBackupSuccess,
     DocumentSelection,
     DocumentDetail,
     FilterSelection,
-    Scan
+    Scan,
+    DocumentKit
 }

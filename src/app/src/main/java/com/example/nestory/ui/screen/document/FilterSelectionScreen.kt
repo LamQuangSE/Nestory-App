@@ -12,7 +12,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.graphics.graphicsLayer
 import com.example.nestory.ui.assets.AppIcons
@@ -23,117 +22,109 @@ import com.example.nestory.ui.theme.NestoryTextStyles
 
 @Composable
 fun FilterSelectionScreen(
+    uiState: DocumentUiState,
     onBack: () -> Unit,
     onApply: () -> Unit,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    onCategoryClick: () -> Unit,
+    onContainerClick: () -> Unit,
+    onFavoriteToggle: (Boolean?) -> Unit,
+    onStatusToggle: (DocumentStatus) -> Unit
 ) {
-    NestoryScreen(
-        verticalPadding = 20.dp, // As per Frame 82 padding
-        useStatusBarPadding = true
-    ) {
+    val draft = uiState.draftFilter
+
+    NestoryScreen(verticalPadding = 20.dp, useStatusBarPadding = true) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Header Frame (Node 261:46)
+            // Header
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(65.dp),
+                modifier = Modifier.fillMaxWidth().height(65.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(45.dp)
-                        .clickable { onBack() },
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Image(
-                        painter = painterResource(AppIcons.IcBackwardArrow),
-                        contentDescription = null,
-                        modifier = Modifier.size(20.dp),
-                        contentScale = ContentScale.Fit
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Bộ lọc",
                     style = NestoryTextStyles.Title24Semi,
-                    color = GeneratedColor.Figma000000
+                    color = GeneratedColor.Figma000000,
+                    modifier = Modifier.weight(1f)
                 )
+                Box(modifier = Modifier.size(24.dp).clickable { onBack() }) {
+                    Image(
+                        painter = painterResource(AppIcons.GridiconsCross),
+                        contentDescription = "Close",
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
-            
-            Spacer(modifier = Modifier.height(8.dp)) // Gap from blueprint
-            
-            // Filter Items Frame (Node 220:501)
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(20.dp)
-            ) {
-                FilterItem(
+
+            Column(modifier = Modifier.weight(1f).padding(top = 10.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                
+                // Group 1: Navigation Filters (Danh mục & Container)
+                FilterNavigationItem(
                     label = "Danh mục ",
-                    value = "Tất cả",
-                    icon = AppIcons.FigmaCategory
+                    value = uiState.availableCategories.find { it.id == draft.selectedCategoryId }?.name ?: "Tất cả",
+                    icon = AppIcons.IcFilterDocument,
+                    onClick = onCategoryClick
                 )
-                FilterItem(
-                    label = "Container / Nơi lưu trữ",
-                    value = "Tất cả",
-                    icon = AppIcons.DocumentStorage
+                FilterNavigationItem(
+                    label = "Container",
+                    value = uiState.availableContainers.find { it.id == draft.selectedContainerId }?.fullPath ?: "Tất cả",
+                    icon = AppIcons.IcFilterCalendar,
+                    onClick = onContainerClick
                 )
-                FilterItem(
-                    label = "Yêu thích",
-                    value = "Tất cả",
-                    icon = AppIcons.DocumentStarred
-                )
-                FilterItem(
-                    label = "Sắp hết hạn",
-                    value = "Tất cả",
-                    icon = AppIcons.DocumentFilterExpiring
-                )
-                FilterItem(
-                    label = "Đã hết hạn",
-                    value = "Tất cả",
-                    icon = AppIcons.DocumentFilterExpired
-                )
+
+                // Group 2: Yêu thích (Radio-like behavior with Checkbox UI)
+                FilterSectionBlock(title = "Yêu thích") {
+                    NestoryCheckboxRow(
+                        label = "Có",
+                        isChecked = draft.isFavorite == true,
+                        onCheckedChange = { if (draft.isFavorite == true) onFavoriteToggle(null) else onFavoriteToggle(true) }
+                    )
+                    NestoryCheckboxRow(
+                        label = "Không",
+                        isChecked = draft.isFavorite == false,
+                        onCheckedChange = { if (draft.isFavorite == false) onFavoriteToggle(null) else onFavoriteToggle(false) }
+                    )
+                }
+
+                // Group 3: Trạng thái (Multi-selection)
+                FilterSectionBlock(title = "Trạng thái\n") {
+                    NestoryCheckboxRow(
+                        label = "Còn hiệu lực",
+                        isChecked = draft.statuses.contains(DocumentStatus.Active),
+                        onCheckedChange = { onStatusToggle(DocumentStatus.Active) }
+                    )
+                    NestoryCheckboxRow(
+                        label = "Sắp hết hạn (30 ngày)",
+                        isChecked = draft.statuses.contains(DocumentStatus.ExpiringSoon),
+                        onCheckedChange = { onStatusToggle(DocumentStatus.ExpiringSoon) }
+                    )
+                    NestoryCheckboxRow(
+                        label = "Đã hết hạn",
+                        isChecked = draft.statuses.contains(DocumentStatus.Expired),
+                        onCheckedChange = { onStatusToggle(DocumentStatus.Expired) }
+                    )
+                }
             }
-            
-            // Buttons Frame (Node 261:14)
+
+            // Bottom Buttons
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .padding(bottom = 8.dp), // Adjusting for total layout height
-                horizontalArrangement = Arrangement.spacedBy(15.dp)
+                modifier = Modifier.fillMaxWidth().height(50.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Reset Button
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(NestoryRadius.R10)
-                        .background(GeneratedColor.FigmaEdebff)
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                        .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
                         .clickable { onReset() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Đặt lại",
-                        style = NestoryTextStyles.Body15Semi,
-                        color = GeneratedColor.Figma6d28d9
-                    )
+                    Text("Đặt lại", style = NestoryTextStyles.Body15Semi, color = GeneratedColor.Figma000000)
                 }
-                
-                // Apply Button
                 Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clip(NestoryRadius.R10)
-                        .background(GeneratedColor.Figma1a60e2)
+                    modifier = Modifier.weight(1f).fillMaxHeight()
+                        .background(GeneratedColor.Figma1a60e2, NestoryRadius.R10)
                         .clickable { onApply() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Áp dụng",
-                        style = NestoryTextStyles.Body15Semi,
-                        color = GeneratedColor.FigmaFfffff
-                    )
+                    Text("Áp dụng", style = NestoryTextStyles.Body15Semi, color = GeneratedColor.FigmaFfffff)
                 }
             }
         }
@@ -141,68 +132,41 @@ fun FilterSelectionScreen(
 }
 
 @Composable
-private fun FilterItem(
-    label: String,
-    value: String,
-    icon: Int
-) {
+internal fun FilterNavigationItem(label: String, value: String, icon: Int, onClick: () -> Unit) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(76.dp)
-            .clip(NestoryRadius.R15)
-            .background(GeneratedColor.FigmaFfffff)
-            .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R15)
-            .clickable { /* Handle selection */ }
-            .padding(horizontal = 16.dp),
+        modifier = Modifier.fillMaxWidth().height(76.dp).clip(NestoryRadius.R10)
+            .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
+            .clickable { onClick() }.padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Icon Container (Node 228:18)
         Box(
-            modifier = Modifier
-                .size(42.dp)
-                .clip(NestoryRadius.R10)
-                .background(GeneratedColor.FigmaEdebff),
+            modifier = Modifier.size(46.dp).background(GeneratedColor.FigmaEdebff, NestoryRadius.R10),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(icon),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                contentScale = ContentScale.Fit
-            )
+            Image(painter = painterResource(icon), contentDescription = null, modifier = Modifier.size(24.dp))
         }
-        
-        Spacer(modifier = Modifier.width(15.dp))
-        
+        Spacer(modifier = Modifier.width(10.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = NestoryTextStyles.Body16Semi,
-                color = GeneratedColor.Figma000000
-            )
-            Text(
-                text = value,
-                style = NestoryTextStyles.Body14Semi,
-                color = GeneratedColor.Figma1a60e2
-            )
+            Text(text = label, style = NestoryTextStyles.Body16Semi, color = GeneratedColor.Figma000000)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(text = value, style = NestoryTextStyles.Body14Semi, color = GeneratedColor.Figma000000)
         }
-        
-        // Chevron/Arrow (Node 228:37) - Rotated to point right
         Image(
-            painter = painterResource(AppIcons.IcBackwardArrow),
-            contentDescription = null,
-            modifier = Modifier
-                .size(width = 12.dp, height = 24.dp)
-                .graphicsLayer(rotationZ = 180f),
-            contentScale = ContentScale.Fit,
+            painter = painterResource(AppIcons.IcBackwardArrow), contentDescription = null,
+            modifier = Modifier.size(12.dp, 24.dp).graphicsLayer(rotationZ = 180f),
             colorFilter = androidx.compose.ui.graphics.ColorFilter.tint(GeneratedColor.Figma919191)
         )
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun FilterSelectionPreview() {
-    FilterSelectionScreen(onBack = {}, onApply = {}, onReset = {})
+internal fun FilterSectionBlock(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier.fillMaxWidth().clip(NestoryRadius.R10)
+            .background(GeneratedColor.FigmaFfffff).padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(15.dp)
+    ) {
+        Text(text = title, style = NestoryTextStyles.Body16Semi, color = GeneratedColor.Figma000000)
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) { content() }
+    }
 }

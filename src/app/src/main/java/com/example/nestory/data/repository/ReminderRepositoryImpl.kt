@@ -1,13 +1,18 @@
 package com.example.nestory.data.repository
 
+import android.content.Context
 import com.example.nestory.data.local.dao.ReminderDao
 import com.example.nestory.data.local.entity.ReminderEntity
 import com.example.nestory.domain.repository.ReminderRepository
+import com.example.nestory.utils.notification.ReminderScheduler
 import kotlinx.coroutines.flow.Flow
 
 class ReminderRepositoryImpl(
     private val reminderDao: ReminderDao,
+    context: Context
 ) : ReminderRepository {
+
+    private val scheduler = ReminderScheduler(context)
 
     override fun observeAllReminders(): Flow<List<ReminderEntity>> =
         reminderDao.observeAll()
@@ -40,11 +45,22 @@ class ReminderRepositoryImpl(
         runCatching { reminderDao.getEnabled() }
 
     override suspend fun createReminder(reminder: ReminderEntity): Result<Long> =
-        runCatching { reminderDao.insert(reminder) }
+        runCatching {
+            val id = reminderDao.insert(reminder)
+            val inserted = reminder.copy(id = id)
+            scheduler.schedule(inserted)
+            id
+        }
 
     override suspend fun updateReminder(reminder: ReminderEntity): Result<Unit> =
-        runCatching { reminderDao.update(reminder) }
+        runCatching {
+            reminderDao.update(reminder)
+            scheduler.schedule(reminder)
+        }
 
     override suspend fun deleteReminder(reminder: ReminderEntity): Result<Unit> =
-        runCatching { reminderDao.delete(reminder) }
+        runCatching {
+            scheduler.cancel(reminder)
+            reminderDao.delete(reminder)
+        }
 }

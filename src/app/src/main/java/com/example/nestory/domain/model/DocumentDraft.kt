@@ -8,13 +8,15 @@ import com.example.nestory.domain.model.DocumentCategory
  */
 data class DocumentDraft(
     val title: String = "",
-    val category: String? = null,
+    val category: DocumentCategory? = null,
+    val categoryId: String? = null,
+    val categoryName: String? = null,
     val issueDate: String? = null,
     val expiryDate: String? = null,
-    val documentNumber: String? = null,
+    val fileName: String = "",
     val holderName: String? = null,
     val notes: String? = null,
+    val ocrText: String = "",
     val containerId: Long? = null,
     val attachmentId: Long? = null,
 )
-

@@ -103,7 +103,8 @@ fun EditContainerScreen(
                     else EditContainerState.Modified
                     onDismissError()
                 },
-                placeholder = if (initialName.isEmpty()) "Nhập tên container" else initialName
+                placeholder = if (initialName.isEmpty()) "Nhập tên container" else initialName,
+                isError = currentState == EditContainerState.ValidationError
             )
 
             if (errorMessage != null) {

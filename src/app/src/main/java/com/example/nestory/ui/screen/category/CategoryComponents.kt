@@ -39,8 +39,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.assets.AppImages
+import com.example.nestory.ui.theme.CategoryEducationColor
+import com.example.nestory.ui.theme.CategoryFinanceColor
+import com.example.nestory.ui.theme.CategoryHealthColor
+import com.example.nestory.ui.theme.CategoryIdentityColor
+import com.example.nestory.ui.theme.CategoryPropertyColor
+import com.example.nestory.ui.theme.CategoryVehicleColor
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryTextStyles
+import com.example.nestory.ui.components.LocalInputMonitor
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 private val CategoryRadius = RoundedCornerShape(10.dp)
 
@@ -146,7 +158,7 @@ fun CategoryListItem(
     category: CategoryUiModel,
     isSelected: Boolean,
     onClick: () -> Unit,
-    onDelete: () -> Unit,
+    onDelete: (() -> Unit)?,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -191,6 +203,15 @@ fun CategoryListItem(
             )
         }
         if (isSelected) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Image(
+                painter = painterResource(id = AppIcons.KitCheckCircle),
+                contentDescription = "Đã chọn",
+                modifier = Modifier.size(22.dp),
+                contentScale = ContentScale.Fit
+            )
+        }
+        if (isSelected && onDelete != null) {
             Box(
                 modifier = Modifier
                     .size(width = 45.dp, height = 60.dp)
@@ -279,8 +300,11 @@ fun CategoryNameField(
     name: String,
     error: String?,
     onNameChanged: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    useMonitor: Boolean = true
 ) {
+    val monitor = LocalInputMonitor.current
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -307,9 +331,19 @@ fun CategoryNameField(
         BasicTextField(
             value = name,
             onValueChange = {
-                if (it.length <= 50) onNameChanged(it)
+                if (it.length <= 50) {
+                    onNameChanged(it)
+                    if (useMonitor) monitor.update(it)
+                }
             },
             singleLine = true,
+            modifier = Modifier.onFocusChanged { 
+                if (it.isFocused && useMonitor) {
+                    monitor.show(name, "Tên giấy tờ")
+                } else if (!it.isFocused) {
+                    monitor.hide()
+                }
+            },
             textStyle = NestoryTextStyles.Body15Medium.copy(
                 color = GeneratedColor.Figma000000,
                 fontSize = 15.sp,
@@ -321,7 +355,7 @@ fun CategoryNameField(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(49.dp)
-                        .border(1.dp, GeneratedColor.FigmaE5e7eb, CategoryRadius)
+                        .border(1.dp, if (error != null) GeneratedColor.FigmaFf0000 else GeneratedColor.FigmaE5e7eb, CategoryRadius)
                         .padding(horizontal = 17.5.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -386,7 +420,6 @@ fun CategoryColorPicker(
                 .height(41.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Áp dụng buildAnnotatedString để tô đỏ dấu *
             Text(
                 text = buildAnnotatedString {
                     append("Màu sắc ")
@@ -402,29 +435,38 @@ fun CategoryColorPicker(
                 )
             )
         }
+        
         colors.chunked(6).forEach { rowColors ->
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(if (error == null) 70.67.dp else 65.33.dp)
-                    .padding(horizontal = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                    .height(if (error == null) 70.67.dp else 65.33.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 rowColors.forEach { color ->
-                    val isSelected = selectedColor == color
                     Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(color)
-                            .border(
-                                width = if (isSelected) 2.5.dp else 0.dp,
-                                color = if (isSelected) GeneratedColor.Figma1855ee else Color.Transparent,
-                                shape = CircleShape
-                            )
-                            .clickable { onSelectColor(color) }
-                    )
+                        modifier = Modifier.weight(1f),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val isSelected = selectedColor == color
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(color)
+                                .border(
+                                    width = if (isSelected) 2.5.dp else 0.dp,
+                                    color = if (isSelected) GeneratedColor.Figma1855ee else Color.Transparent,
+                                    shape = CircleShape
+                                )
+                                .clickable { onSelectColor(color) }
+                        )
+                    }
+                }
+                
+                val missingColumns = 6 - rowColors.size
+                repeat(missingColumns) {
+                    Spacer(modifier = Modifier.weight(1f))
                 }
             }
         }
@@ -641,12 +683,13 @@ private fun DialogPrimaryButton(
 }
 
 fun defaultCategoryColors(): List<Color> = listOf(
-    Color(0xFFFCA5A5),
-    Color(0xFFFDBA74),
-    Color(0xFFFDE68A),
-    Color(0xFFBEF264),
-    Color(0xFF86EFAC),
-    Color(0xFF6EE7B7),
+    CategoryIdentityColor,
+    CategoryEducationColor,
+    CategoryFinanceColor,
+    CategoryPropertyColor,
+    CategoryVehicleColor,
+    CategoryHealthColor,
+    
     Color(0xFF5EEAD4),
     Color(0xFF67E8F9),
     Color(0xFF7DD3FC),
@@ -658,5 +701,12 @@ fun defaultCategoryColors(): List<Color> = listOf(
     Color(0xFFF9A8D4),
     Color(0xFFFBCFE8),
     Color(0xFFCBD5E1),
-    Color(0xFFC4B5A5)
+    Color(0xFFC4B5A5),
+    
+    Color(0xFFF87171), 
+    Color(0xFF34D399), 
+    Color(0xFF60A5FA), 
+    Color(0xFFA78BFA), 
+    Color(0xFFF472B6), 
+    Color(0xFF9CA3AF) 
 )

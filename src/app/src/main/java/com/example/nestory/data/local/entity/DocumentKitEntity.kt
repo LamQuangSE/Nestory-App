@@ -11,8 +11,15 @@ data class DocumentKitEntity(
 
     val name: String,
 
+    val category: String?,
+
     val description: String?,
+
+    val note: String?,
 
     @ColumnInfo(name = "target_completion_date")
     val targetCompletionDate: String,
+
+    @ColumnInfo(name = "is_favorite")
+    val isFavorite: Boolean = false,
 )

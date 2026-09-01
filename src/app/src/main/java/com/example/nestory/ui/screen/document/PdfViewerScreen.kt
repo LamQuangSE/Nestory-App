@@ -76,7 +76,8 @@ fun PdfViewerScreen(
         loadFailed = false
         val attachments = attachmentRepository.getAttachmentsByDocumentId(documentId)
             .getOrNull().orEmpty()
-        resolved = resolveScannedPages(context, attachments, filePath)
+        val pages = resolveScannedPages(context, attachments, filePath)
+        resolved = pages.takeIf { it.pageCount > 0 }
         if (resolved == null) loadFailed = true
     }
 
@@ -132,7 +133,7 @@ private fun ScannedPageViewer(
     pages: ScannedPages,
     onBack: () -> Unit,
 ) {
-    val pageCount = pages.pagePaths.size
+    val pageCount = pages.pageCount
     val pdfPath = pages.pdfPath
     var selectedPage by rememberSaveable { mutableIntStateOf(0) }
 
@@ -214,13 +215,13 @@ private fun PageThumbnailStrip(
             horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S8),
         ) {
             itemsIndexed(
-                items = pages.pagePaths,
+                items = List(pageCount) { index -> pages.pagePaths.getOrNull(index) },
                 key = { index, _ -> index },
             ) { index, path ->
                 val isSelected = index == selectedPage
                 val pdfPath = pages.pdfPath
                 val thumb by produceState<Bitmap?>(initialValue = null, index, thumbWidthPx, path) {
-                    value = decodePageThumbnail(path, thumbWidthPx)
+                    value = path?.let { decodePageThumbnail(it, thumbWidthPx) }
                         ?: pdfPath?.let { renderPdfPageBitmap(it, index, thumbWidthPx) }
                 }
                 val current = thumb

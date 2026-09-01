@@ -76,7 +76,6 @@ fun EditScanRoute(
     val attachmentRepository = remember { AttachmentRepositoryImpl(db.attachmentDao()) }
     val imageStorageManager = remember { ImageStorageManager(context.applicationContext) }
 
-    val fileName = remember(filePath) { baseNameOf(filePath) }
     var uiState by remember { mutableStateOf<ScannerUiState?>(null) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
@@ -211,7 +210,7 @@ fun EditScanRoute(
                 if (processed.isEmpty()) return
                 saving = true
                 coroutineScope.launch {
-                    val pdfResult = imageStorageManager.saveBitmapsAsPdf(processed, fileName)
+                    val pdfResult = imageStorageManager.saveBitmapsAsPdf(processed)
                     val pageResults = processed.map { bitmap ->
                         imageStorageManager.saveBitmap(bitmap)
                     }
@@ -389,11 +388,6 @@ private fun EditScanErrorScreen(
             Text("Quay lại")
         }
     }
-}
-
-private fun baseNameOf(path: String): String {
-    val name = path.substringAfterLast('/')
-    return name.removeSuffix(".pdf").removeSuffix(".PDF")
 }
 
 private fun pdfToBitmaps(path: String, targetWidthPx: Int = 1200): List<ScannerPageUiModel> {

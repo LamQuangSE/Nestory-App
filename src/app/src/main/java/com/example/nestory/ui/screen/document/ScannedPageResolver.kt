@@ -22,6 +22,7 @@ import kotlinx.coroutines.withContext
 data class ScannedPages(
     val pagePaths: List<String>,
     val pdfPath: String?,
+    val pageCount: Int,
 )
 
 suspend fun resolveScannedPages(
@@ -33,18 +34,26 @@ suspend fun resolveScannedPages(
         .filter { !it.fileUri.endsWith(".pdf", ignoreCase = true) }
         .sortedBy { it.displayOrder }
         .map { it.fileUri }
+        .filter { File(it).exists() }
 
-    val resolved = if (pdfPath != null) {
-        val pdfPages = pdfPageCount(pdfPath)
-        if (pagePaths.isNotEmpty() && pagePaths.size == pdfPages) {
-            ScannedPages(pagePaths = pagePaths, pdfPath = pdfPath)
+    val attachmentPdfPath = attachments
+        .filter { it.fileUri.endsWith(".pdf", ignoreCase = true) }
+        .minByOrNull { it.displayOrder }
+        ?.fileUri
+    val resolvedPdfPath = listOfNotNull(attachmentPdfPath, pdfPath)
+        .firstOrNull { File(it).exists() }
+
+    val resolved = if (resolvedPdfPath != null) {
+        val pdfPages = pdfPageCount(resolvedPdfPath)
+        if (pagePaths.isNotEmpty() && (pdfPages == 0 || pagePaths.size == pdfPages)) {
+            ScannedPages(pagePaths = pagePaths, pdfPath = resolvedPdfPath, pageCount = pagePaths.size)
         } else {
             // Legacy document: no per-page images matching the PDF, so render
             // the PDF pages on demand via the renderer.
-            ScannedPages(pagePaths = emptyList(), pdfPath = pdfPath)
+            ScannedPages(pagePaths = emptyList(), pdfPath = resolvedPdfPath, pageCount = pdfPages)
         }
     } else {
-        ScannedPages(pagePaths = pagePaths, pdfPath = null)
+        ScannedPages(pagePaths = pagePaths, pdfPath = null, pageCount = pagePaths.size)
     }
     resolved
 }

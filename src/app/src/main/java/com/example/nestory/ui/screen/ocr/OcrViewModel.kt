@@ -120,9 +120,7 @@ class OcrViewModel(
                 _isSaving.value = false
                 return@launch
             }
-            val fileName = draft.fileName
-
-            val pdfResult = imageStorageManager.saveBitmapsAsPdf(bitmaps, fileName)
+            val pdfResult = imageStorageManager.saveBitmapsAsPdf(bitmaps)
             pdfResult.fold(
                 onSuccess = { pdfPath ->
                     val pageResults = bitmaps.map { bitmap ->
@@ -254,7 +252,6 @@ class OcrViewModel(
             issueDate = issueDate.isNotBlank() && DocumentStatusCalculator.parseExpirationDate(issueDate) == null,
             expiryDate = expiryDate.isBlank() || DocumentStatusCalculator.parseExpirationDate(expiryDate) == null,
             container = draft.containerId == null,
-            fileName = draft.fileName.isBlank(),
         )
     }
 }
@@ -266,9 +263,8 @@ data class OcrFieldErrors(
     val issueDate: Boolean = false,
     val expiryDate: Boolean = false,
     val container: Boolean = false,
-    val fileName: Boolean = false,
 ) {
-    val hasErrors: Boolean get() = title || titleDuplicate || category || issueDate || expiryDate || container || fileName
+    val hasErrors: Boolean get() = title || titleDuplicate || category || issueDate || expiryDate || container
 }
 
 class OcrViewModelFactory(

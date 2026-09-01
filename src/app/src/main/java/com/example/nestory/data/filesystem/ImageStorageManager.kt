@@ -18,7 +18,7 @@ class ImageStorageManager(val context: Context) {
     suspend fun saveBitmap(bitmap: Bitmap): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val dir = File(context.filesDir, "attachments").apply { mkdirs() }
-            val file = File(dir, "ocr_${UUID.randomUUID()}.jpg")
+            val file = uuidFile(dir, "ocr", "jpg")
             FileOutputStream(file).use { out ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
             }
@@ -28,12 +28,12 @@ class ImageStorageManager(val context: Context) {
 
     /**
      * Persists a single page image (used as the document preview/thumbnail) into
-     * app-internal storage using the same user-provided base file name as the PDF.
+     * app-internal storage with a UUID-backed name.
      */
     suspend fun saveBitmap(bitmap: Bitmap, fileName: String): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val dir = File(context.filesDir, "attachments").apply { mkdirs() }
-            val file = File(dir, "${sanitizeFileName(fileName)}_preview.jpg")
+            val file = uuidFile(dir, "ocr", "jpg")
             FileOutputStream(file).use { out ->
                 bitmap.compress(Bitmap.CompressFormat.JPEG, 90, out)
             }
@@ -74,14 +74,13 @@ class ImageStorageManager(val context: Context) {
     }
 
     /**
-     * Combines all captured bitmaps into a single PDF file named with the
-     * user-provided file name and persists it into app-internal storage so it can
-     * be referenced as the document's actual scanned file.
+     * Combines all captured bitmaps into a UUID-backed PDF file in app-internal
+     * storage so it can be referenced as the document's actual scanned file.
      */
-    suspend fun saveBitmapsAsPdf(bitmaps: List<Bitmap>, fileName: String): Result<String> = withContext(Dispatchers.IO) {
+    suspend fun saveBitmapsAsPdf(bitmaps: List<Bitmap>): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             val dir = File(context.filesDir, "attachments").apply { mkdirs() }
-            val file = File(dir, "${sanitizeFileName(fileName)}.pdf")
+            val file = uuidFile(dir, "scan", "pdf")
             FileOutputStream(file).use { out ->
                 val pdfDocument = PdfDocument()
                 try {
@@ -102,6 +101,14 @@ class ImageStorageManager(val context: Context) {
             }
             file.absolutePath
         }
+    }
+
+    private fun uuidFile(dir: File, prefix: String, extension: String): File {
+        var file: File
+        do {
+            file = File(dir, "${prefix}_${UUID.randomUUID()}.$extension")
+        } while (file.exists())
+        return file
     }
 
     /**

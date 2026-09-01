@@ -73,22 +73,17 @@ fun DocumentDetailScreen(
     var editedExpiry by remember { mutableStateOf(document.expiryDate) }
     var editedContainerId by remember { mutableStateOf<Long?>(document.containerId) }
     var editedContainerPath by remember { mutableStateOf(document.containerPath) }
-    val pdfFileUri = document.attachmentUris.firstOrNull { it.endsWith(".pdf", ignoreCase = true) }
-    val hasPdf = pdfFileUri != null
-    var editedFileName by remember(document.id) { mutableStateOf(pdfFileUri?.let { pdfBaseName(it) }.orEmpty()) }
 
     var showEditConfirmDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     var showDuplicateTitleError by remember { mutableStateOf(false) }
     var showNameRequiredError by remember { mutableStateOf(false) }
-    var showFileNameRequiredError by remember { mutableStateOf(false) }
 
     val duplicateTitle = editedName.isNotBlank() &&
         existingTitles.any { it.equals(editedName.trim(), ignoreCase = true) }
 
-    val canSave = editedName.isNotBlank() && !duplicateTitle &&
-        (!hasPdf || editedFileName.isNotBlank())
+    val canSave = editedName.isNotBlank() && !duplicateTitle
 
     val datePickerState = rememberDatePickerState(
         initialSelectedDateMillis = editedExpiry.takeUnless { it == "Chưa có hạn" }?.let { dateStr ->
@@ -108,10 +103,8 @@ fun DocumentDetailScreen(
         editedExpiry = document.expiryDate
         editedContainerId = document.containerId
         editedContainerPath = document.containerPath
-        editedFileName = pdfFileUri?.let { pdfBaseName(it) }.orEmpty()
         showNameRequiredError = false
         showDuplicateTitleError = false
-        showFileNameRequiredError = false
     }
 
     BackHandler {
@@ -143,13 +136,12 @@ fun DocumentDetailScreen(
             onConfirm = {
                 showEditConfirmDialog = false
                 if (canSave) {
-                    onSave(editedName, editedCategory, editedExpiry, editedContainerId, editedFileName)
+                    onSave(editedName, editedCategory, editedExpiry, editedContainerId, null)
                     onEditModeChange(false)
                     if (editLeaveRequested) onEditLeaveComplete()
                 } else {
                     showNameRequiredError = editedName.isBlank()
                     showDuplicateTitleError = duplicateTitle
-                    showFileNameRequiredError = hasPdf && editedFileName.isBlank()
                     if (editLeaveRequested) onEditLeaveDismiss()
                 }
             },
@@ -421,12 +413,11 @@ fun DocumentDetailScreen(
                         onSave = {
                             if (!isSaving) {
                                 if (canSave) {
-                                    onSave(editedName, editedCategory, editedExpiry, editedContainerId, editedFileName)
+                                    onSave(editedName, editedCategory, editedExpiry, editedContainerId, null)
                                     onEditModeChange(false)
                                 } else {
                                     showNameRequiredError = editedName.isBlank()
                                     showDuplicateTitleError = duplicateTitle
-                                    showFileNameRequiredError = hasPdf && editedFileName.isBlank()
                                 }
                             }
                         },
@@ -756,11 +747,7 @@ private fun EditActions(
     }
 }
 
-internal fun attachmentFileName(filePath: String): String =
-    filePath.substringAfterLast('/').ifBlank { filePath }
-
-internal fun pdfBaseName(filePath: String): String =
-    attachmentFileName(filePath).removeSuffix(".pdf").removeSuffix(".PDF")
+internal fun attachmentFileName(filePath: String): String = "File đính kèm"
 
 internal fun currentContainerName(containerPath: String): String =
     containerPath.substringAfterLast(" > ").ifBlank { containerPath }

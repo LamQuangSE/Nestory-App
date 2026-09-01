@@ -92,7 +92,7 @@ class DocumentViewModel(
         // ==========================================
 
         val filteredDocuments = documents.filter { document ->
-            val catName = categories.find { it.id == document.categoryId }?.name ?: "Khác"
+            val catName = resolveDocumentCategory(document.categoryId, categories).name
             val cleanQuery = state.searchQuery.replace("""[^\p{L}\p{N}]+$""".toRegex(), "")
             
             val matchesSearch = cleanQuery.isBlank() ||
@@ -106,8 +106,12 @@ class DocumentViewModel(
             // TRÍCH XUẤT LỖI TÌM ẨN: Khi Document lưu categoryId dưới dạng ID của Database, 
             // nhưng Filter lại truyền vào "preset_IDENTITY", việc lọc sẽ bị rỗng.
             // Giải pháp: Tìm tên của Category đang được chọn trong filter, rồi so sánh với tên Category của Document.
-            val selectedFilterCatName = sortedCategoryUiModels.find { it.id == state.activeFilter.selectedCategoryId }?.name
-            val docCatName = sortedCategoryUiModels.find { it.id == document.categoryId }?.name ?: "Khác"
+            val selectedFilterCatName = state.activeFilter.selectedCategoryId?.let { selectedCategoryId ->
+                sortedCategoryUiModels.find { it.id == selectedCategoryId }?.name
+                    ?: resolvePresetCategory(selectedCategoryId)?.toVietnameseLabel()
+            }
+            val docCatName = sortedCategoryUiModels.find { it.id == document.categoryId }?.name
+                ?: resolveDocumentCategory(document.categoryId, categories).name
             
             val matchesCategory = state.activeFilter.selectedCategoryId == null || docCatName == selectedFilterCatName
             
@@ -359,19 +363,52 @@ private fun DocumentEntity.toUiModel(
     today: LocalDate,
     attachmentUris: List<String> = emptyList(),
 ): DocumentUiModel {
-    val categoryEntity = categories.find { it.id == this.categoryId }
+    val category = resolveDocumentCategory(categoryId, categories)
     return DocumentUiModel(
         id = id.toString(),
         name = title,
-        category = categoryEntity?.name ?: "Khác",
+        category = category.name,
         containerPath = buildContainerPath(containerId, containers),
         containerId = containerId,
         status = DocumentStatusCalculator.calculate(expirationDate, today),
         expiryDate = expirationDate ?: "Chưa có hạn",
-        categoryColor = categoryEntity?.let { predefinedCategoryColor(it.name) ?: Color(it.colorValue.toULong()) } ?: CategoryFallbackColor,
+        categoryColor = category.color,
         isFavorite = isFavorite,
         attachmentUris = attachmentUris,
     )
+}
+
+private data class ResolvedCategory(
+    val name: String,
+    val color: Color,
+)
+
+private fun resolveDocumentCategory(
+    categoryId: String,
+    categories: List<CategoryEntity>,
+): ResolvedCategory {
+    val categoryEntity = categories.find { it.id == categoryId }
+    if (categoryEntity != null) {
+        return ResolvedCategory(
+            name = categoryEntity.name,
+            color = predefinedCategoryColor(categoryEntity.name) ?: Color(categoryEntity.colorValue.toULong()),
+        )
+    }
+
+    val preset = resolvePresetCategory(categoryId)
+    if (preset != null) {
+        return ResolvedCategory(
+            name = preset.toVietnameseLabel(),
+            color = preset.categoryColor,
+        )
+    }
+
+    return ResolvedCategory(name = "Khác", color = CategoryFallbackColor)
+}
+
+private fun resolvePresetCategory(categoryId: String): DocumentCategory? {
+    val key = categoryId.removePrefix("preset_")
+    return DocumentCategory.entries.firstOrNull { it.name.equals(key, ignoreCase = true) }
 }
 
 internal fun buildContainerPath(

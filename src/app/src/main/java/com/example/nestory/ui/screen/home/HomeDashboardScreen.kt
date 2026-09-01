@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -149,12 +150,23 @@ private fun AttentionDocumentRow(
                 .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R10),
             contentAlignment = Alignment.Center
         ) {
-            Image(
-                painter = painterResource(AppIcons.DocumentFileScan),
-                contentDescription = null,
-                modifier = Modifier.size(22.dp),
-                contentScale = ContentScale.Fit
-            )
+            val thumbnailAttachment = document.thumbnailAttachment()
+            if (thumbnailAttachment != null && !thumbnailAttachment.endsWith(".pdf", ignoreCase = true)) {
+                AsyncImage(
+                    model = thumbnailAttachment,
+                    contentDescription = null,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(AppIcons.DocumentFileScan)
+                )
+            } else {
+                Image(
+                    painter = painterResource(AppIcons.DocumentFileScan),
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    contentScale = ContentScale.Fit
+                )
+            }
         }
         Spacer(modifier = Modifier.width(NestorySpacing.S12))
         Column(modifier = Modifier.weight(1f)) {
@@ -200,11 +212,13 @@ private fun RecentSection(
     documents: List<RecentDocumentUi>,
     onDocumentClick: (Long) -> Unit,
 ) {
+    val visibleDocuments = documents.take(RecentDocumentSlotCount)
     if (documents.isEmpty()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
         ) {
+            EmptyRecentCard(Modifier.weight(1f))
             EmptyRecentCard(Modifier.weight(1f))
             EmptyRecentCard(Modifier.weight(1f))
             EmptyRecentCard(Modifier.weight(1f))
@@ -214,16 +228,23 @@ private fun RecentSection(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
         ) {
-            documents.forEach { document ->
-                RecentDocumentCard(
-                    document = document,
-                    onClick = { onDocumentClick(document.id) },
-                    modifier = Modifier.weight(1f)
-                )
+            repeat(RecentDocumentSlotCount) { index ->
+                val document = visibleDocuments.getOrNull(index)
+                if (document != null) {
+                    RecentDocumentCard(
+                        document = document,
+                        onClick = { onDocumentClick(document.id) },
+                        modifier = Modifier.weight(1f)
+                    )
+                } else {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
 }
+
+private const val RecentDocumentSlotCount = 4
 
 @Composable
 private fun KitSection(
@@ -256,8 +277,11 @@ private fun KitRow(
 ) {
     val categoryVisual = kitCategoryVisual(kit.category)
     val remaining = kit.totalItems - kit.readyItems
-    val remainingText = if (remaining <= 0) "Đã hoàn thành"
-    else "Còn $remaining mục chưa hoàn thành"
+    val progressText = if (remaining <= 0) {
+        "${kit.totalItems} giấy tờ • đủ"
+    } else {
+        "${kit.totalItems} giấy tờ • thiếu $remaining giấy tờ"
+    }
 
     Row(
         modifier = Modifier
@@ -267,12 +291,12 @@ private fun KitRow(
             .background(GeneratedColor.FigmaFfffff)
             .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R14)
             .clickable(onClick = onClick)
-            .padding(horizontal = NestorySpacing.S12, vertical = NestorySpacing.S10),
+            .padding(9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
             modifier = Modifier
-                .size(width = 60.dp, height = 72.dp)
+                .size(width = 65.dp, height = 78.dp)
                 .clip(RoundedCornerShape(NestorySpacing.S10))
                 .background(categoryVisual.boxColor)
                 .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), RoundedCornerShape(NestorySpacing.S10)),
@@ -286,7 +310,7 @@ private fun KitRow(
             )
         }
         Spacer(modifier = Modifier.width(NestorySpacing.S12))
-        Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f).fillMaxHeight()) {
             Text(
                 text = kit.name,
                 style = NestoryTextStyles.Body14Semi,
@@ -296,15 +320,15 @@ private fun KitRow(
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "${kit.totalItems} mục yêu cầu",
+                text = progressText,
                 style = NestoryTextStyles.Body12Semi,
                 color = GeneratedColor.Figma919191,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Spacer(modifier = Modifier.height(2.dp))
+            Spacer(modifier = Modifier.weight(1f))
             Text(
-                text = remainingText,
+                text = kit.targetCompletionDate,
                 style = NestoryTextStyles.Body12Semi,
                 color = GeneratedColor.Figma919191,
                 maxLines = 1,
@@ -364,7 +388,7 @@ private fun RecentDocumentCard(
                 .border(1.dp, GeneratedColor.FigmaE5e7eb.copy(alpha = 0.72f), NestoryRadius.R10),
             contentAlignment = Alignment.Center
         ) {
-            val firstAttachment = document.attachmentUris.firstOrNull()
+            val firstAttachment = document.thumbnailAttachment()
             if (firstAttachment != null) {
                 if (firstAttachment.endsWith(".pdf", ignoreCase = true)) {
                     Image(
@@ -408,6 +432,10 @@ private fun RecentDocumentCard(
         )
     }
 }
+
+private fun RecentDocumentUi.thumbnailAttachment(): String? =
+    attachmentUris.firstOrNull { !it.endsWith(".pdf", ignoreCase = true) }
+        ?: attachmentUris.firstOrNull()
 
 @Composable
 private fun EmptyRecentCard(modifier: Modifier = Modifier) {

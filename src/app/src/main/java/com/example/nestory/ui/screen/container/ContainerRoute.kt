@@ -46,7 +46,13 @@ fun ContainerRoute(
                 uiState = uiState,
                 searchQuery = searchQuery,
                 onSearchQueryChange = { searchQuery = it },
-                onSelectContainer = { viewModel.selectContainer(it) },
+                onSelectContainer = {
+                    if (uiState.selectedContainerId == it) {
+                        viewModel.clearSelection()
+                    } else {
+                        viewModel.selectContainer(it)
+                    }
+                },
                 onToggleContainer = { viewModel.toggleContainer(it) },
                 onCreateClick = { subScreen = ContainerSubScreen.Create },
                 onEditClick = { subScreen = ContainerSubScreen.Edit },

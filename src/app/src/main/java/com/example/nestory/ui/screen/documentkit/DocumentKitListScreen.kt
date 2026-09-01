@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -221,22 +222,28 @@ private fun KitListCard(
     val categoryVisual = kitCategoryVisual(kit.category)
     val (total, remaining) = kitItemCounts(items)
     val percent = kitProgressPercent(items)
-    val remainingText = if (remaining == 0) "Đã hoàn thành"
-    else "Còn $remaining mục chưa hoàn thành"
+    val progressText = if (remaining == 0) {
+        "$total giấy tờ • đủ"
+    } else {
+        "$total giấy tờ • thiếu $remaining giấy tờ"
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(110.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(GeneratedColor.FigmaFfffff)
             .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(14.dp))
-            .padding(horizontal = NestorySpacing.S10)
-            .clickable(onClick = onKitClick),
+            .clickable(onClick = onKitClick)
+            .padding(NestorySpacing.S10),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(width = 77.dp, height = 100.dp)
+                .size(width = 70.dp, height = 90.dp)
+                .clip(RoundedCornerShape(NestorySpacing.S10))
                 .background(categoryVisual.boxColor, RoundedCornerShape(NestorySpacing.S10))
                 .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10)),
             contentAlignment = Alignment.Center
@@ -252,8 +259,7 @@ private fun KitListCard(
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(vertical = NestorySpacing.S10),
-            verticalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
+                .fillMaxHeight()
         ) {
             Text(
                 text = kit.name,
@@ -262,29 +268,28 @@ private fun KitListCard(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(
-                    text = "$total mục yêu cầu",
-                    style = NestoryTextStyles.Body12Semi,
-                    color = GeneratedColor.Figma919191,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = remainingText,
-                    style = NestoryTextStyles.Body12Semi,
-                    color = GeneratedColor.Figma919191,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = progressText,
+                style = NestoryTextStyles.Body12Semi,
+                color = GeneratedColor.Figma919191,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = kit.targetCompletionDate,
+                style = NestoryTextStyles.Body12Semi,
+                color = GeneratedColor.Figma919191,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
 
         Column(
             modifier = Modifier
-                .width(83.dp)
-                .height(110.dp)
-                .padding(vertical = NestorySpacing.S10),
+                .width(55.dp)
+                .fillMaxHeight(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {

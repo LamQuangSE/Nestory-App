@@ -74,7 +74,7 @@ class CategoryViewModel(
     fun ensurePresetCategory(name: String, onReady: (CategoryUiModel) -> Unit) {
         viewModelScope.launch {
             val existing = uiState.value.categories.firstOrNull { it.name.equals(name, ignoreCase = true) }
-            if (existing != null) {
+            if (existing != null && !existing.id.startsWith("preset_")) {
                 onReady(existing)
                 return@launch
             }

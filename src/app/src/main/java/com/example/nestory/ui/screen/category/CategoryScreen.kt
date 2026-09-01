@@ -231,9 +231,7 @@ private fun CategorySelectionContent(
                         onClick = { onEvent(CategoryEvent.OnCategorySelected(category.id)) },
                         onDelete = if (selectionOnly || isPredefined) null else { { onEvent(CategoryEvent.OnDeleteClick(category.id)) } }
                     )
-                    if (index < filteredCategories.lastIndex) {
-                        CategoryDivider()
-                    }
+                    CategoryDivider()
                 }
             }
         }

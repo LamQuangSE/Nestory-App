@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -85,19 +86,10 @@ fun ContainerSelectionScreen(
         }
 
         if (!isEmpty) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                if (uiState.containerPath.isNotEmpty()) {
-                    ContainerBreadcrumb(
-                        pathSegments = uiState.containerPath.map { it.name },
-                        onClose = onCloseBreadcrumb
-                    )
-                }
-            }
+            ContainerBreadcrumb(
+                pathSegments = uiState.containerPath.map { it.name },
+                onClose = onCloseBreadcrumb
+            )
         }
 
         if (errorMessage != null) {
@@ -195,7 +187,7 @@ fun ExpandableContainerList(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(NestorySpacing.S15)
     ) {
-        uiState.rootContainers.forEach { container ->
+        uiState.rootContainers.forEachIndexed { index, container ->
             ContainerGroup(
                 container = container,
                 uiState = uiState,
@@ -204,6 +196,12 @@ fun ExpandableContainerList(
                 onDeleteClick = onDeleteClick,
                 selectionOnly = selectionOnly
             )
+            if (index < uiState.rootContainers.lastIndex) {
+                HorizontalDivider(
+                    thickness = 1.dp,
+                    color = GeneratedColor.FigmaE5e7eb
+                )
+            }
         }
     }
 }
@@ -227,7 +225,6 @@ fun ContainerGroup(
             EmitContainerRows(
                 container = container,
                 level = 0,
-                isLastChild = false,
                 uiState = uiState,
                 onSelectContainer = onSelectContainer,
                 onToggleContainer = onToggleContainer,
@@ -242,7 +239,6 @@ fun ContainerGroup(
 private fun EmitContainerRows(
     container: ContainerEntity,
     level: Int,
-    isLastChild: Boolean,
     uiState: ContainerUiState,
     onSelectContainer: (Long) -> Unit,
     onToggleContainer: (Long) -> Unit,
@@ -258,7 +254,6 @@ private fun EmitContainerRows(
         isExpanded = isExpanded,
         hasChildren = hasChildren,
         level = level,
-        isLastChild = isLastChild,
         showDelete = !selectionOnly && container.id == uiState.selectedContainerId,
         onToggle = { onToggleContainer(container.id) },
         onItemClick = { onSelectContainer(container.id) },
@@ -271,7 +266,6 @@ private fun EmitContainerRows(
             EmitContainerRows(
                 container = child,
                 level = level + 1,
-                isLastChild = index == children.lastIndex,
                 uiState = uiState,
                 onSelectContainer = onSelectContainer,
                 onToggleContainer = onToggleContainer,

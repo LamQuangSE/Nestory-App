@@ -38,7 +38,6 @@ fun ContainerItem(
     isExpanded: Boolean = false,
     hasChildren: Boolean = false,
     level: Int = 0,
-    isLastChild: Boolean = false,
     showDelete: Boolean = false,
     onToggle: () -> Unit = {},
     onItemClick: () -> Unit,
@@ -56,17 +55,7 @@ fun ContainerItem(
             .padding(horizontal = NestorySpacing.S15),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Spacer(modifier = Modifier.width((level * 30).dp))
-
-        if (level > 0) {
-            Text(
-                text = if (isLastChild) "└──" else "├──",
-                style = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium),
-                color = GeneratedColor.Figma919191,
-                maxLines = 1,
-            )
-            Spacer(modifier = Modifier.width(NestorySpacing.S4))
-        }
+        Spacer(modifier = Modifier.width((level * 28).dp))
 
         if (hasChildren) {
             Box(
@@ -320,6 +309,9 @@ fun ContainerBreadcrumb(
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp)
+            .clip(RoundedCornerShape(NestorySpacing.S10))
+            .background(GeneratedColor.FigmaF3f6ff)
+            .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10))
             .padding(horizontal = NestorySpacing.S10),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -340,13 +332,15 @@ fun ContainerBreadcrumb(
             }
         }
         Spacer(modifier = Modifier.weight(1f))
-        IconButton(onClick = onClose) {
-            Icon(
-                painter = painterResource(id = AppIcons.GridiconsCross),
-                contentDescription = "Close",
-                modifier = Modifier.size(22.dp),
-                tint = GeneratedColor.Figma919191
-            )
+        if (pathSegments.isNotEmpty()) {
+            IconButton(onClick = onClose) {
+                Icon(
+                    painter = painterResource(id = AppIcons.GridiconsCross),
+                    contentDescription = "Close",
+                    modifier = Modifier.size(22.dp),
+                    tint = GeneratedColor.Figma919191
+                )
+            }
         }
     }
 }

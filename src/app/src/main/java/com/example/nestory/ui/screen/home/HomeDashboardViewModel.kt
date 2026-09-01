@@ -5,6 +5,8 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
+import com.example.nestory.data.local.entity.CategoryEntity
+import com.example.nestory.domain.model.DocumentCategory
 import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
@@ -51,7 +53,7 @@ class HomeDashboardViewModel(
                         .sortedByDescending { it.lastOpenedAt ?: Long.MIN_VALUE }
                         .take(recentCount)
                         .map { doc ->
-                            val catName = categories.find { it.id == doc.categoryId }?.name ?: "Khác"
+                            val catName = resolveCategoryName(doc.categoryId, categories)
                             RecentDocumentUi(
                                 id = doc.id,
                                 title = doc.title,
@@ -72,7 +74,7 @@ class HomeDashboardViewModel(
                         .sortedBy { it.third }
                         .take(DEFAULT_ATTENTION_COUNT)
                         .map { (doc, _, daysRemaining) ->
-                            val catName = categories.find { it.id == doc.categoryId }?.name ?: "Khác"
+                            val catName = resolveCategoryName(doc.categoryId, categories)
                             RecentDocumentUi(
                                 id = doc.id,
                                 title = doc.title,
@@ -120,10 +122,23 @@ class HomeDashboardViewModel(
     }
 
     companion object {
-        private const val DEFAULT_RECENT_COUNT = 3
+        private const val DEFAULT_RECENT_COUNT = 4
         private const val DEFAULT_KIT_COUNT = 3
         private const val DEFAULT_ATTENTION_COUNT = 3
     }
+}
+
+private fun resolveCategoryName(
+    categoryId: String,
+    categories: List<CategoryEntity>,
+): String {
+    categories.find { it.id == categoryId }?.let { return it.name }
+
+    val presetKey = categoryId.removePrefix("preset_")
+    return DocumentCategory.entries
+        .firstOrNull { it.name.equals(presetKey, ignoreCase = true) }
+        ?.toVietnameseLabel()
+        ?: "Khác"
 }
 
 class HomeDashboardViewModelFactory(

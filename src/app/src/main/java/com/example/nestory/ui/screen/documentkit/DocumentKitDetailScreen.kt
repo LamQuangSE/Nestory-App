@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -193,18 +194,21 @@ private fun KitDetailErrorState(
 @Composable
 private fun KitDetailHeaderCard(kit: KitWithItems) {
     val categoryVisual = kitCategoryVisual(kit.kit.category)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(110.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(GeneratedColor.FigmaFfffff)
             .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(14.dp))
-            .padding(horizontal = NestorySpacing.S10),
+            .padding(NestorySpacing.S10),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
     ) {
         Box(
             modifier = Modifier
-                .size(width = 77.dp, height = 100.dp)
+                .size(width = 70.dp, height = 90.dp)
                 .clip(RoundedCornerShape(NestorySpacing.S10))
                 .background(categoryVisual.boxColor, RoundedCornerShape(NestorySpacing.S10))
                 .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10))
@@ -214,13 +218,14 @@ private fun KitDetailHeaderCard(kit: KitWithItems) {
             Icon(
                 painter = painterResource(id = categoryVisual.iconRes),
                 contentDescription = null,
-                modifier = Modifier.size(57.dp),
+                modifier = Modifier.size(44.dp),
                 tint = categoryVisual.iconTint
             )
         }
         Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(NestorySpacing.S10)
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
         ) {
             Text(
                 text = kit.kit.name,
@@ -229,25 +234,14 @@ private fun KitDetailHeaderCard(kit: KitWithItems) {
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "Ngày sử dụng: ",
-                    style = NestoryTextStyles.Body12Semi,
-                    color = GeneratedColor.Figma000000
-                )
-                Text(
-                    text = kit.kit.targetCompletionDate,
-                    style = NestoryTextStyles.Body12Semi.copy(fontWeight = FontWeight.W400),
-                    color = GeneratedColor.Figma000000
-                )
-                Spacer(modifier = Modifier.width(2.dp))
-                Icon(
-                    painter = painterResource(id = AppIcons.KitCalendar),
-                    contentDescription = null,
-                    modifier = Modifier.size(15.dp),
-                    tint = GeneratedColor.Figma000000
-                )
-            }
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Ngày sử dụng: ${kit.kit.targetCompletionDate}",
+                style = NestoryTextStyles.Body12Semi,
+                color = GeneratedColor.Figma919191,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
         }
     }
 }

@@ -204,7 +204,7 @@ fun DocumentEmptyState(
             )
             Spacer(modifier = Modifier.height(NestorySpacing.S24))
             PrimaryActionButton(
-                text = "Scan tài đây",
+                text = "Scan tại đây",
                 onClick = onAddDocument,
                 leadingIcon = AppIcons.DocumentCamera,
             )

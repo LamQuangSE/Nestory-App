@@ -8,11 +8,13 @@ import com.example.nestory.data.filesystem.ImageStorageManager
 import com.example.nestory.data.local.entity.CategoryEntity
 import com.example.nestory.data.local.entity.ContainerEntity
 import com.example.nestory.data.local.entity.DocumentEntity
+import com.example.nestory.data.local.entity.ReminderEntity
 import com.example.nestory.domain.model.DocumentCategory // Đã import thêm để lấy 6 mục mặc định
 import com.example.nestory.domain.repository.AttachmentRepository
 import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentRepository
+import com.example.nestory.domain.repository.ReminderRepository
 import com.example.nestory.ui.theme.CategoryFallbackColor
 import com.example.nestory.ui.theme.categoryColor // Đã import
 import com.example.nestory.ui.theme.isPredefinedCategoryName // Đã import
@@ -32,21 +34,34 @@ class DocumentViewModel(
     private val containerRepository: ContainerRepository,
     private val categoryRepository: CategoryRepository,
     private val attachmentRepository: AttachmentRepository,
+    private val reminderRepository: ReminderRepository,
     private val imageStorageManager: ImageStorageManager,
     private val todayProvider: () -> LocalDate = { LocalDate.now() },
 ) : ViewModel() {
 
     private val localState = MutableStateFlow(DocumentLocalState())
 
-    val uiState: StateFlow<DocumentUiState> = combine(
+    private val documentsWithReminders = combine(
         documentRepository.observeAllDocuments(),
+        reminderRepository.observeAllReminders(),
+    ) { documents, reminders ->
+        documents to reminders
+    }
+
+    val uiState: StateFlow<DocumentUiState> = combine(
+        documentsWithReminders,
         containerRepository.observeAllContainers(),
         categoryRepository.getAllCategories(),
         attachmentRepository.observeAllAttachments(),
         localState,
-    ) { documents, containers, categories, attachments, state ->
+    ) { documentsAndReminders, containers, categories, attachments, state ->
 
+        val documents = documentsAndReminders.first
+        val reminders = documentsAndReminders.second
         val attachmentsByDocumentId = attachments.groupBy { it.documentId }
+        val remindersByDocumentId = reminders
+            .filter { it.documentId != null }
+            .associateBy { it.documentId }
 
         val containerUiModels = containers.map { container ->
             ContainerUiModel(
@@ -124,6 +139,7 @@ class DocumentViewModel(
                 containers = containers,
                 categories = categories,
                 today = todayProvider(),
+                reminder = remindersByDocumentId[document.id],
                 attachmentUris = attachmentsByDocumentId[document.id].orEmpty().map { it.fileUri }
             )
         }.filter { uiModel ->
@@ -361,6 +377,7 @@ private fun DocumentEntity.toUiModel(
     containers: List<ContainerEntity>,
     categories: List<CategoryEntity>,
     today: LocalDate,
+    reminder: ReminderEntity? = null,
     attachmentUris: List<String> = emptyList(),
 ): DocumentUiModel {
     val category = resolveDocumentCategory(categoryId, categories)
@@ -370,7 +387,7 @@ private fun DocumentEntity.toUiModel(
         category = category.name,
         containerPath = buildContainerPath(containerId, containers),
         containerId = containerId,
-        status = DocumentStatusCalculator.calculate(expirationDate, today),
+        status = DocumentStatusCalculator.calculate(expirationDate, today, reminder),
         expiryDate = expirationDate ?: "Chưa có hạn",
         categoryColor = category.color,
         isFavorite = isFavorite,
@@ -430,6 +447,7 @@ class DocumentViewModelFactory(
     private val containerRepository: ContainerRepository,
     private val categoryRepository: CategoryRepository,
     private val attachmentRepository: AttachmentRepository,
+    private val reminderRepository: ReminderRepository,
     private val imageStorageManager: ImageStorageManager,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
@@ -440,6 +458,7 @@ class DocumentViewModelFactory(
                 containerRepository = containerRepository,
                 categoryRepository = categoryRepository,
                 attachmentRepository = attachmentRepository,
+                reminderRepository = reminderRepository,
                 imageStorageManager = imageStorageManager,
             ) as T
         }

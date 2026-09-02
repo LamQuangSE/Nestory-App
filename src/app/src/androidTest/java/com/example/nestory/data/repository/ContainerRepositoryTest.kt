@@ -57,12 +57,33 @@ class ContainerRepositoryTest {
     }
 
     @Test
-    fun createContainer_duplicateName_isRejected() = runBlocking {
+    fun createContainer_duplicateTopLevelName_isRejected() = runBlocking {
         repository.createContainer(ContainerEntity(name = "Duplicated")).getOrThrow()
 
         val result = repository.createContainer(ContainerEntity(name = "Duplicated"))
 
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun createContainer_duplicateNameUnderSameParent_isRejected() = runBlocking {
+        val parentId = repository.createContainer(ContainerEntity(name = "Parent")).getOrThrow()
+        repository.createContainer(ContainerEntity(name = "Duplicated", parentId = parentId)).getOrThrow()
+
+        val result = repository.createContainer(ContainerEntity(name = "Duplicated", parentId = parentId))
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun createContainer_duplicateNameUnderDifferentParents_succeeds() = runBlocking {
+        val firstParentId = repository.createContainer(ContainerEntity(name = "First parent")).getOrThrow()
+        val secondParentId = repository.createContainer(ContainerEntity(name = "Second parent")).getOrThrow()
+        repository.createContainer(ContainerEntity(name = "Shared", parentId = firstParentId)).getOrThrow()
+
+        val result = repository.createContainer(ContainerEntity(name = "Shared", parentId = secondParentId))
+
+        assertTrue(result.isSuccess)
     }
 
     @Test
@@ -73,6 +94,33 @@ class ContainerRepositoryTest {
 
         val saved = repository.getContainerById(id).getOrThrow()
         assertEquals("New", saved?.name)
+    }
+
+    @Test
+    fun updateContainer_duplicateNameUnderSameParent_isRejected() = runBlocking {
+        val parentId = repository.createContainer(ContainerEntity(name = "Parent")).getOrThrow()
+        repository.createContainer(ContainerEntity(name = "Existing", parentId = parentId)).getOrThrow()
+        val targetId = repository.createContainer(ContainerEntity(name = "Target", parentId = parentId)).getOrThrow()
+
+        val result = repository.updateContainer(
+            ContainerEntity(id = targetId, name = "Existing", parentId = parentId),
+        )
+
+        assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun updateContainer_duplicateNameUnderDifferentParent_succeeds() = runBlocking {
+        val firstParentId = repository.createContainer(ContainerEntity(name = "First parent")).getOrThrow()
+        val secondParentId = repository.createContainer(ContainerEntity(name = "Second parent")).getOrThrow()
+        repository.createContainer(ContainerEntity(name = "Existing", parentId = firstParentId)).getOrThrow()
+        val targetId = repository.createContainer(ContainerEntity(name = "Target", parentId = secondParentId)).getOrThrow()
+
+        val result = repository.updateContainer(
+            ContainerEntity(id = targetId, name = "Existing", parentId = secondParentId),
+        )
+
+        assertTrue(result.isSuccess)
     }
 
     @Test

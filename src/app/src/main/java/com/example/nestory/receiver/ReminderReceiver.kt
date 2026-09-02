@@ -17,6 +17,7 @@ class ReminderReceiver : BroadcastReceiver() {
         if (reminderId == -1L) return
 
         Log.d("ReminderReceiver", "Received reminder alarm for ID: $reminderId")
+        val pendingResult = goAsync()
 
         // Use Coroutine to handle DB access in background
         CoroutineScope(Dispatchers.IO).launch {
@@ -44,6 +45,8 @@ class ReminderReceiver : BroadcastReceiver() {
                 }
             } catch (e: Exception) {
                 Log.e("ReminderReceiver", "Error processing reminder $reminderId", e)
+            } finally {
+                pendingResult.finish()
             }
         }
     }

@@ -77,7 +77,13 @@ fun DocumentKitRoute(
 
     val allDocuments by documentRepository.observeAllDocuments().collectAsState(initial = emptyList())
     val containers by containerRepository.observeAllContainers().collectAsState(initial = emptyList())
+    val reminders by reminderRepository.observeAllReminders().collectAsState(initial = emptyList())
     val documentsById = remember(allDocuments) { allDocuments.associateBy { it.id } }
+    val remindersByDocumentId = remember(reminders) {
+        reminders
+            .filter { it.documentId != null }
+            .associateBy { it.documentId }
+    }
 
     var subScreen by remember { mutableStateOf(DocumentKitSubScreen.List) }
     var searchQuery by remember { mutableStateOf("") }
@@ -158,7 +164,10 @@ fun DocumentKitRoute(
                 category = "Chưa phân loại",
                 containerPath = buildContainerPath(doc.containerId, containers),
                 containerId = doc.containerId,
-                status = DocumentStatusCalculator.calculate(doc.expirationDate),
+                status = DocumentStatusCalculator.calculate(
+                    expirationDate = doc.expirationDate,
+                    reminder = remindersByDocumentId[doc.id],
+                ),
                 expiryDate = doc.expirationDate ?: "Chưa có hạn",
                 categoryColor = CategoryFallbackColor,
                 isFavorite = doc.isFavorite,
@@ -540,11 +549,21 @@ fun DocumentKitRoute(
                     subScreen = DocumentKitSubScreen.Detail
                 }
             },
-            onDismiss = {
+            onDiscard = {
+                showConfirmDialog = false
+                pendingForm = null
+                editingKit = null
+                if (editLeaveRequested) {
+                    onEditLeaveComplete()
+                } else {
+                    subScreen = DocumentKitSubScreen.Detail
+                }
+            },
+            onCancel = {
                 showConfirmDialog = false
                 pendingForm = null
                 if (editLeaveRequested) onEditLeaveDismiss()
-            }
+            },
         )
     }
 
@@ -583,11 +602,21 @@ fun DocumentKitRoute(
                         subScreen = DocumentKitSubScreen.ItemDetail
                     }
                 },
-                onDismiss = {
+                onDiscard = {
+                    showItemConfirmDialog = false
+                    pendingItemForm = null
+                    editingItem = null
+                    if (editLeaveRequested) {
+                        onEditLeaveComplete()
+                    } else {
+                        subScreen = DocumentKitSubScreen.ItemDetail
+                    }
+                },
+                onCancel = {
                     showItemConfirmDialog = false
                     pendingItemForm = null
                     if (editLeaveRequested) onEditLeaveDismiss()
-                }
+                },
             )
         }
     }

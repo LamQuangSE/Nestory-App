@@ -24,6 +24,9 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
+import com.example.nestory.ui.components.GlobalInputMonitor
+import com.example.nestory.ui.components.InputMonitorState
+import com.example.nestory.ui.components.LocalInputMonitor
 
 enum class EditContainerState {
     Default,
@@ -43,20 +46,25 @@ fun EditContainerScreen(
 ) {
     var containerName by remember { mutableStateOf(initialName) }
     var currentState by remember { mutableStateOf(initialState) }
+    val monitorState = remember { InputMonitorState() }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(GeneratedColor.FigmaFfffff)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+    CompositionLocalProvider(LocalInputMonitor provides monitorState) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(GeneratedColor.FigmaFfffff)
+                .statusBarsPadding()
+                .navigationBarsPadding()
         ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = NestorySpacing.S20)
+                        .padding(bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
             // Frame 83 — Header
             Row(
                 modifier = Modifier
@@ -152,31 +160,34 @@ fun EditContainerScreen(
             }
         }
 
-        // Frame 128 — Save button
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(vertical = 6.dp)
-        ) {
-            val isEnabled = containerName.isNotBlank()
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-                    .background(
-                        if (isEnabled) GeneratedColor.Figma1855ee else GeneratedColor.FigmaE5e7eb,
-                        RoundedCornerShape(10.dp)
-                    )
-                    .clickable(enabled = isEnabled) { onSave(containerName) },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Lưu",
-                    style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
-                    color = if (isEnabled) GeneratedColor.FigmaFfffff else GeneratedColor.Figma919191
-                )
+                // Frame 128 — Save button
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = NestorySpacing.S20)
+                        .padding(vertical = 6.dp)
+                ) {
+                    val isEnabled = containerName.isNotBlank()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .background(
+                                if (isEnabled) GeneratedColor.Figma1855ee else GeneratedColor.FigmaE5e7eb,
+                                RoundedCornerShape(10.dp)
+                            )
+                            .clickable(enabled = isEnabled) { onSave(containerName) },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Lưu",
+                            style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
+                            color = if (isEnabled) GeneratedColor.FigmaFfffff else GeneratedColor.Figma919191
+                        )
+                    }
+                }
             }
+            GlobalInputMonitor()
         }
     }
 }

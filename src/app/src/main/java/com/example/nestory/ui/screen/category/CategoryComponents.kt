@@ -104,9 +104,15 @@ fun CategorySearchField(
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val monitor = LocalInputMonitor.current
+    val placeholder = "Tìm danh mục"
+
     BasicTextField(
         value = query,
-        onValueChange = onQueryChange,
+        onValueChange = {
+            onQueryChange(it)
+            monitor.update(it)
+        },
         singleLine = true,
         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
         textStyle = NestoryTextStyles.Body13Medium.copy(
@@ -115,6 +121,10 @@ fun CategorySearchField(
             lineHeight = 15.73.sp,
             fontWeight = FontWeight.W500
         ),
+        modifier = Modifier.onFocusChanged {
+            if (it.isFocused) monitor.show(query, placeholder)
+            else monitor.hide()
+        },
         decorationBox = { innerTextField ->
             Row(
                 modifier = modifier
@@ -137,7 +147,7 @@ fun CategorySearchField(
                 Box(modifier = Modifier.weight(1f)) {
                     if (query.isEmpty()) {
                         Text(
-                            text = "Tìm danh mục",
+                            text = placeholder,
                             color = GeneratedColor.Figma919191,
                             style = NestoryTextStyles.Body13Medium.copy(
                                 fontSize = 13.sp,
@@ -241,13 +251,15 @@ fun CategoryDivider() {
 
 @Composable
 fun CategoryListFrame(
+    fixedHeight: Boolean = true,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
+    val heightModifier = if (fixedHeight) Modifier.height(480.dp) else Modifier
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(480.dp)
+            .then(heightModifier)
             .border(1.dp, GeneratedColor.FigmaE5e7eb, CategoryRadius)
     ) {
         content()
@@ -255,11 +267,15 @@ fun CategoryListFrame(
 }
 
 @Composable
-fun EmptyCategoryCard(modifier: Modifier = Modifier) {
+fun EmptyCategoryCard(
+    modifier: Modifier = Modifier,
+    fixedHeight: Boolean = true
+) {
+    val heightModifier = if (fixedHeight) Modifier.height(480.dp) else Modifier
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(480.dp)
+            .then(heightModifier)
             .border(1.dp, GeneratedColor.FigmaE5e7eb, CategoryRadius),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

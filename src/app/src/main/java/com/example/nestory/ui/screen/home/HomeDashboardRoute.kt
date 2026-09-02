@@ -11,6 +11,7 @@ import com.example.nestory.data.repository.AttachmentRepositoryImpl
 import com.example.nestory.data.repository.ContainerRepositoryImpl
 import com.example.nestory.data.repository.DocumentKitRepositoryImpl
 import com.example.nestory.data.repository.DocumentRepositoryImpl
+import com.example.nestory.data.repository.ReminderRepositoryImpl
 
 @Composable
 fun HomeDashboardRoute(
@@ -29,6 +30,7 @@ fun HomeDashboardRoute(
             categoryRepository = com.example.nestory.data.repository.CategoryRepositoryImpl(db.categoryDao()),
             attachmentRepository = AttachmentRepositoryImpl(db.attachmentDao()),
             documentKitRepository = DocumentKitRepositoryImpl(db.documentKitDao()),
+            reminderRepository = ReminderRepositoryImpl(db.reminderDao(), context.applicationContext),
         )
     }
     val viewModel: HomeDashboardViewModel = viewModel(factory = factory)

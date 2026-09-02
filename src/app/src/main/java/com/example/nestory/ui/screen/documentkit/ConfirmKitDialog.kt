@@ -20,14 +20,16 @@ fun ConfirmCreateKitDialog(
 @Composable
 fun ConfirmEditKitDialog(
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
+    onDiscard: () -> Unit,
+    onCancel: () -> Unit,
 ) {
     KitConfirmDialog(
         title = "Xác nhận dừng chỉnh sửa bộ hồ sơ",
         message = "Bạn có muốn lưu các thay đổi và dừng chỉnh sửa bộ hồ sơ không?",
         highlightRange = 12..27,
         onConfirm = onConfirm,
-        onDismiss = onDismiss
+        onDismiss = onDiscard,
+        onDismissRequest = onCancel,
     )
 }
 
@@ -96,14 +98,16 @@ fun ConfirmDiscardItemDialog(
 @Composable
 fun ConfirmEditItemDialog(
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
+    onDiscard: () -> Unit,
+    onCancel: () -> Unit,
 ) {
     KitConfirmDialog(
         title = "Xác nhận dừng chỉnh sửa item",
         message = "Bạn có muốn lưu các thay đổi và dừng chỉnh sửa item không?",
         highlightRange = 12..27,
         onConfirm = onConfirm,
-        onDismiss = onDismiss
+        onDismiss = onDiscard,
+        onDismissRequest = onCancel,
     )
 }
 
@@ -146,6 +150,7 @@ private fun KitConfirmDialog(
     highlightRange: IntRange,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    onDismissRequest: () -> Unit = onDismiss,
     confirmLabel: String = "Có",
     dismissLabel: String = "Không",
 ) {
@@ -155,6 +160,7 @@ private fun KitConfirmDialog(
         highlightRange = highlightRange,
         onConfirm = onConfirm,
         onDismiss = onDismiss,
+        onDismissRequest = onDismissRequest,
         confirmLabel = confirmLabel,
         dismissLabel = dismissLabel,
     )

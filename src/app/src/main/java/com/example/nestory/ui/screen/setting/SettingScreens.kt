@@ -1,6 +1,12 @@
 package com.example.nestory.ui.screen.setting
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -39,22 +45,27 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
 import com.example.nestory.data.local.entity.ReminderEntity
 import com.example.nestory.domain.model.ExpiryReminderSettings
 import com.example.nestory.ui.assets.AppIcons
+import com.example.nestory.ui.components.LocalInputMonitor
 import com.example.nestory.ui.components.NestoryScreen
+import com.example.nestory.ui.components.PrimaryActionButton
 import com.example.nestory.ui.screen.document.DocumentStatusCalculator
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestoryTextStyles
+import com.example.nestory.utils.notification.NotificationHelper
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
 
 @Immutable
 data class ExpiryReminderUiState(
     val enabled: Boolean = true,
     val leadTimeDays: Int = 7,
+    val customLeadTimeMode: Boolean = false,
     val repeatDaily: Boolean = true,
     val inAppEnabled: Boolean = true,
     val pushEnabled: Boolean = true,
@@ -66,6 +77,7 @@ fun ExpiryReminderSettings.toUiState(): ExpiryReminderUiState =
     ExpiryReminderUiState(
         enabled = enabled,
         leadTimeDays = leadTimeDays,
+        customLeadTimeMode = false,
         repeatDaily = repeatDaily,
         inAppEnabled = inAppEnabled,
         pushEnabled = pushEnabled,
@@ -93,10 +105,18 @@ fun ExpiryReminderUiState.toReminderEntity(
     expiryDate: String?,
     id: Long = 0,
 ): ReminderEntity {
+    val today = LocalDate.now()
     val reminderDate = expiryDate
         ?.let(DocumentStatusCalculator::parseExpirationDate)
-        ?.minusDays(leadTimeDays.toLong())
-        ?.format(reminderDateFormatter)
+        ?.let { expiry ->
+            val configuredStartDate = expiry.minusDays(leadTimeDays.toLong())
+            val effectiveReminderDate = if (configuredStartDate.isBefore(today)) {
+                today
+            } else {
+                configuredStartDate
+            }
+            effectiveReminderDate.format(reminderDateFormatter)
+        }
     return ReminderEntity(
         id = id,
         documentId = documentId,
@@ -104,24 +124,27 @@ fun ExpiryReminderUiState.toReminderEntity(
         isEnabled = enabled,
         reminderDate = reminderDate,
         reminderTime = "%02d:%02d".format(hour, minute),
+        leadTimeDays = leadTimeDays,
+        customLeadTimeMode = customLeadTimeMode,
+        repeatDaily = repeatDaily,
+        inAppEnabled = inAppEnabled,
+        pushEnabled = pushEnabled,
     )
 }
 
 /** Ánh xạ ngược ReminderEntity (của 1 giấy tờ/bộ hồ sơ) sang UI state. */
 fun ReminderEntity.toExpiryReminderUiState(expiryDate: String?): ExpiryReminderUiState {
-    val reminderDate = reminderDate?.let(DocumentStatusCalculator::parseExpirationDate)
-    val expiry = expiryDate?.let(DocumentStatusCalculator::parseExpirationDate)
-    val leadDays = if (reminderDate != null && expiry != null) {
-        ChronoUnit.DAYS.between(reminderDate, expiry).toInt().coerceAtLeast(1)
-    } else {
-        7
-    }
     val parts = reminderTime?.split(":") ?: emptyList()
     val parsedHour = parts.getOrNull(0)?.toIntOrNull()
     val parsedMinute = parts.getOrNull(1)?.toIntOrNull()
+    val standardDays = setOf(1, 3, 7, 14)
     return ExpiryReminderUiState(
         enabled = isEnabled,
-        leadTimeDays = leadDays,
+        leadTimeDays = leadTimeDays,
+        customLeadTimeMode = customLeadTimeMode || leadTimeDays !in standardDays,
+        repeatDaily = repeatDaily,
+        inAppEnabled = inAppEnabled,
+        pushEnabled = pushEnabled,
         hour = parsedHour ?: 12,
         minute = parsedMinute ?: 0,
     )
@@ -184,19 +207,62 @@ fun ExpiryReminderSettingScreen(
     onBack: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     // Local state for immediate feedback to avoid flickering from async DataStore updates
     var localState by remember { mutableStateOf(state) }
+    var savedState by remember { mutableStateOf(state) }
+    var pendingSaveState by remember { mutableStateOf<ExpiryReminderUiState?>(null) }
+
+    fun persistState(newState: ExpiryReminderUiState) {
+        localState = newState
+        savedState = newState
+        onStateChange(newState)
+    }
+
+    val pushPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val pendingState = pendingSaveState
+        pendingSaveState = null
+        if (granted && pendingState != null) {
+            persistState(pendingState)
+        } else if (!granted && pendingState != null) {
+            val fallback = pendingState.copy(pushEnabled = false)
+            persistState(fallback)
+            Toast.makeText(context, "Bạn cần cấp quyền thông báo để nhận nhắc hạn.", Toast.LENGTH_SHORT).show()
+        }
+    }
     
     // Keep local state in sync with external state changes (e.g. initial load or background updates)
     LaunchedEffect(state) {
-        localState = state
+        if (localState == savedState || localState == state) {
+            localState = state
+        }
+        savedState = state
     }
 
-    val updateState: (ExpiryReminderUiState) -> Unit = { newState ->
+    val updateDraftState: (ExpiryReminderUiState) -> Unit = { newState ->
         localState = newState
-        onStateChange(newState)
     }
+
+    fun saveStateWithPermission(newState: ExpiryReminderUiState) {
+        if (
+            newState.pushEnabled &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingSaveState = newState
+            pushPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            persistState(newState)
+        }
+    }
+
+    val saveDraft: () -> Unit = {
+        saveStateWithPermission(localState)
+    }
+    val hasUnsavedChanges = localState != savedState
 
     NestoryScreen(
         horizontalPadding = 20.dp,
@@ -209,21 +275,40 @@ fun ExpiryReminderSettingScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
         ) {
             ReminderMasterCard(
                 enabled = localState.enabled,
-                onEnabledChange = { updateState(localState.copy(enabled = it)) },
+                onEnabledChange = { enabled ->
+                    if (enabled) {
+                        saveStateWithPermission(ExpiryReminderUiState())
+                    } else {
+                        persistState(localState.copy(enabled = false))
+                    }
+                },
             )
             
             if (localState.enabled) {
                 Spacer(modifier = Modifier.height(15.dp))
-                ReminderEnabledPanel(
-                    state = localState,
-                    onStateChange = updateState,
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    ReminderEnabledPanel(
+                        state = localState,
+                        onStateChange = updateDraftState,
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+                PrimaryActionButton(
+                    text = "Lưu",
+                    enabled = hasUnsavedChanges,
+                    onClick = saveDraft,
+                    modifier = Modifier.padding(bottom = 16.dp)
                 )
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
             }
-            Spacer(modifier = Modifier.height(20.dp))
         }
     }
 }
@@ -340,6 +425,26 @@ private fun ReminderEnabledPanel(
     onStateChange: (ExpiryReminderUiState) -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
+    val currentState by rememberUpdatedState(state)
+    val testNotificationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            NotificationHelper(context).showTestNotification()
+        } else {
+            Toast.makeText(context, "Bạn cần cấp quyền thông báo để gửi thử nghiệm.", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val sendTestNotification = {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            testNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            NotificationHelper(context).showTestNotification()
+        }
+    }
     
     Column(
         modifier = Modifier
@@ -352,17 +457,25 @@ private fun ReminderEnabledPanel(
     ) {
         ReminderLeadTimeSection(
             selectedDays = state.leadTimeDays,
-            onSelectedDaysChange = { onStateChange(state.copy(leadTimeDays = it)) },
+            customMode = state.customLeadTimeMode,
+            onSelectedDaysChange = { days, customMode ->
+                onStateChange(
+                    currentState.copy(
+                        leadTimeDays = days,
+                        customLeadTimeMode = customMode,
+                    )
+                )
+            },
         )
         HorizontalDivider()
         ReminderFrequencySection(
             repeatDaily = state.repeatDaily,
-            onRepeatDailyChange = { onStateChange(state.copy(repeatDaily = it)) },
+            onRepeatDailyChange = { onStateChange(currentState.copy(repeatDaily = it)) },
         )
         ReminderTimeOfDaySection(
             hour = state.hour,
             minute = state.minute,
-            onTimeChange = { h, m -> onStateChange(state.copy(hour = h, minute = m)) }
+            onTimeChange = { h, m -> onStateChange(currentState.copy(hour = h, minute = m)) }
         )
         HorizontalDivider()
         ReminderChannelSection(
@@ -380,9 +493,7 @@ private fun ReminderEnabledPanel(
                 .clip(RoundedCornerShape(8.dp))
                 .background(GeneratedColor.FigmaFfffff)
                 .border(1.dp, GeneratedColor.Figma1855ee, RoundedCornerShape(8.dp))
-                .clickable {
-                    com.example.nestory.utils.notification.WorkManagerHelper.runImmediateCheck(context)
-                },
+                .clickable { sendTestNotification() },
             contentAlignment = Alignment.Center
         ) {
             Text(
@@ -397,15 +508,22 @@ private fun ReminderEnabledPanel(
 @Composable
 private fun ReminderLeadTimeSection(
     selectedDays: Int,
-    onSelectedDaysChange: (Int) -> Unit,
+    customMode: Boolean,
+    onSelectedDaysChange: (Int, Boolean) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
+    val monitor = LocalInputMonitor.current
     val standardDays = remember { listOf(1, 3, 7, 14) }
-    val isCustom = selectedDays !in standardDays
-    var customText by remember(selectedDays) { 
-        mutableStateOf(if (isCustom) selectedDays.toString() else "") 
+    var customText by remember(selectedDays, customMode) {
+        mutableStateOf(if (customMode) selectedDays.toString() else "30")
     }
     var isError by remember { mutableStateOf(false) }
+
+    LaunchedEffect(customText, customMode) {
+        if (!customMode || customText.isNotEmpty()) {
+            isError = false
+        }
+    }
 
     val validateAndSubmit = remember(customText) {
         {
@@ -414,7 +532,7 @@ private fun ReminderLeadTimeSection(
                 isError = true
             } else {
                 isError = false
-                onSelectedDaysChange(value)
+                onSelectedDaysChange(value, true)
             }
         }
     }
@@ -434,10 +552,10 @@ private fun ReminderLeadTimeSection(
             key(days) {
                 ReminderRadioRow(
                     text = "Trước $days ngày",
-                    selected = !isCustom && selectedDays == days,
+                    selected = !customMode && selectedDays == days,
                     onClick = { 
                         isError = false
-                        onSelectedDaysChange(days) 
+                        onSelectedDaysChange(days, false)
                     },
                 )
                 Spacer(modifier = Modifier.height(3.dp))
@@ -452,13 +570,17 @@ private fun ReminderLeadTimeSection(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(modifier = Modifier.clickable { 
-                if (!isCustom) {
-                    onSelectedDaysChange(30)
+                if (!customMode) {
+                    val nextDays = selectedDays.takeIf { it !in standardDays }
+                        ?: customText.toIntOrNull()?.takeIf { it > 0 }
+                        ?: 30
+                    customText = nextDays.toString()
                     isError = false
+                    onSelectedDaysChange(nextDays, true)
                 }
             }) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    SettingRadioMark(selected = isCustom)
+                    SettingRadioMark(selected = customMode)
                     Spacer(modifier = Modifier.width(10.dp))
                     Text(
                         text = "Tùy chỉnh",
@@ -468,7 +590,7 @@ private fun ReminderLeadTimeSection(
                 }
             }
             
-            if (isCustom) {
+            if (customMode) {
                 Spacer(modifier = Modifier.width(15.dp))
                 Row(
                     modifier = Modifier
@@ -490,7 +612,14 @@ private fun ReminderLeadTimeSection(
                             val digits = it.filter { c -> c.isDigit() }
                             if (digits.length <= 3) {
                                 customText = digits
-                                isError = false
+                                monitor.update(digits)
+                                val value = digits.toIntOrNull()
+                                if (value != null && value > 0) {
+                                    isError = false
+                                    onSelectedDaysChange(value, true)
+                                } else {
+                                    isError = digits.isNotEmpty()
+                                }
                             }
                         },
                         textStyle = NestoryTextStyles.Body12Medium.copy(
@@ -511,6 +640,11 @@ private fun ReminderLeadTimeSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    monitor.show(customText, "Số ngày")
+                                } else {
+                                    monitor.hide()
+                                }
                                 if (!focusState.isFocused && customText.isNotEmpty()) {
                                     validateAndSubmit()
                                 }
@@ -525,7 +659,7 @@ private fun ReminderLeadTimeSection(
                 )
             }
         }
-        if (isCustom && isError) {
+        if (customMode && isError) {
             Text(
                 text = "Vui lòng nhập số ngày hợp lệ",
                 color = Color.Red,
@@ -584,11 +718,6 @@ private fun ReminderTimeOfDaySection(
     minute: Int,
     onTimeChange: (Int, Int) -> Unit,
 ) {
-    var tempHour by remember(hour) { mutableIntStateOf(hour) }
-    var tempMinute by remember(minute) { mutableIntStateOf(minute) }
-
-    val hasChanged = tempHour != hour || tempMinute != minute
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -607,8 +736,8 @@ private fun ReminderTimeOfDaySection(
         ) {
             Row(
                 modifier = Modifier
-                    .weight(1f)
-                    .height(70.dp)
+                    .fillMaxWidth()
+                    .height(88.dp)
                     .clip(RoundedCornerShape(10.dp))
                     .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(10.dp))
                     .background(GeneratedColor.FigmaFfffff),
@@ -620,7 +749,11 @@ private fun ReminderTimeOfDaySection(
                     TimeWheelPicker(
                         range = 0..23,
                         initialValue = hour,
-                        onValueChange = { tempHour = it }
+                        onValueChange = {
+                            if (it != hour) {
+                                onTimeChange(it, minute)
+                            }
+                        }
                     )
                 }
                 
@@ -635,31 +768,14 @@ private fun ReminderTimeOfDaySection(
                     TimeWheelPicker(
                         range = 0..59,
                         initialValue = minute,
-                        onValueChange = { tempMinute = it },
+                        onValueChange = {
+                            if (it != minute) {
+                                onTimeChange(hour, it)
+                            }
+                        },
                         format = { it.toString().padStart(2, '0') }
                     )
                 }
-            }
-
-            Spacer(modifier = Modifier.width(10.dp))
-
-            // Nút Xác nhận
-            Box(
-                modifier = Modifier
-                    .height(70.dp)
-                    .width(70.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(if (hasChanged) GeneratedColor.Figma1855ee else GeneratedColor.FigmaE5e7eb)
-                    .clickable(enabled = hasChanged) {
-                        onTimeChange(tempHour, tempMinute)
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Lưu",
-                    style = NestoryTextStyles.Body13Bold,
-                    color = if (hasChanged) Color.White else GeneratedColor.Figma919191
-                )
             }
         }
     }
@@ -684,6 +800,12 @@ private fun TimeWheelPicker(
         pageCount = { 1000 * totalItems }
     )
 
+    LaunchedEffect(initialPage) {
+        if (pagerState.currentPage != initialPage) {
+            pagerState.scrollToPage(initialPage)
+        }
+    }
+
     LaunchedEffect(pagerState.currentPage) {
         val actualIndex = pagerState.currentPage % totalItems
         onValueChange(items[actualIndex])
@@ -691,8 +813,8 @@ private fun TimeWheelPicker(
 
     VerticalPager(
         state = pagerState,
-        modifier = Modifier.height(70.dp),
-        contentPadding = PaddingValues(vertical = 23.dp), // Show partial neighbors
+        modifier = Modifier.height(88.dp),
+        contentPadding = PaddingValues(vertical = 31.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) { page ->
         val actualIndex = page % totalItems
@@ -703,7 +825,7 @@ private fun TimeWheelPicker(
         
         Box(
             modifier = Modifier
-                .height(24.dp)
+                .height(26.dp)
                 .fillMaxWidth(),
             contentAlignment = Alignment.Center
         ) {
@@ -724,6 +846,7 @@ private fun ReminderChannelSection(
     state: ExpiryReminderUiState,
     onStateChange: (ExpiryReminderUiState) -> Unit,
 ) {
+    val currentState by rememberUpdatedState(state)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -737,12 +860,12 @@ private fun ReminderChannelSection(
         ReminderSwitchRow(
             text = "Thông báo trong ứng dụng",
             checked = state.inAppEnabled,
-            onCheckedChange = { onStateChange(state.copy(inAppEnabled = it)) },
+            onCheckedChange = { onStateChange(currentState.copy(inAppEnabled = it)) },
         )
         ReminderSwitchRow(
             text = "Thông báo đẩy",
             checked = state.pushEnabled,
-            onCheckedChange = { onStateChange(state.copy(pushEnabled = it)) },
+            onCheckedChange = { onStateChange(currentState.copy(pushEnabled = it)) },
         )
     }
 }

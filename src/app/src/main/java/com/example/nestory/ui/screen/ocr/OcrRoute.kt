@@ -59,6 +59,7 @@ import com.example.nestory.domain.model.DocumentCategory
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.components.ConfirmDialog
 import com.example.nestory.ui.components.NestoryScreen
+import com.example.nestory.ui.screen.category.CategoryRoute
 import com.example.nestory.ui.screen.category.CategoryDivider
 import com.example.nestory.ui.screen.category.CategoryHeader
 import com.example.nestory.ui.screen.category.CategoryPrimaryActionButton
@@ -505,11 +506,13 @@ fun OcrRoute(
                 fieldErrors = fieldErrors,
                 isSaving = isSaving,
                 categorySelectionContent = { onBack, onConfirmSelection ->
-                    DocumentCategorySelectionScreen(
-                        selectedCategoryName = state.draft.categoryName
-                            ?: state.draft.category?.toVietnameseLabel(),
+                    CategoryRoute(
                         onBack = onBack,
                         onConfirmSelection = onConfirmSelection,
+                        selectionOnly = true,
+                        allowCreate = true,
+                        initialSelectedName = state.draft.categoryName
+                            ?: state.draft.category?.toVietnameseLabel(),
                     )
                 },
             )

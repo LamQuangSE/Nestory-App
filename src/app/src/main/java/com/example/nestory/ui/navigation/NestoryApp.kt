@@ -11,9 +11,11 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -28,6 +30,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.example.nestory.data.filesystem.FileSystemManager
 import com.example.nestory.security.VaultUnlockSessionProvider
+import com.example.nestory.ui.components.GlobalInputMonitor
+import com.example.nestory.ui.components.InputMonitorState
+import com.example.nestory.ui.components.LocalInputMonitor
 import com.example.nestory.ui.components.NestoryBottomBar
 import com.example.nestory.ui.screen.category.CategoryRoute
 import com.example.nestory.ui.screen.container.ContainerRoute
@@ -89,10 +94,11 @@ fun NestoryApp(initialDocumentId: String? = null) {
     var exportResult by remember { mutableStateOf<BackupExportResult?>(null) }
     var importResult by remember { mutableStateOf<BackupImportResult?>(null) }
     val backupManager = remember { NestoryBackupManager(context) }
+    val inputMonitorState = remember { InputMonitorState() }
 
     // Edit-leave guard: while editing (Kit/Item/Document), any navigation away via the
     // bottom bar (tab or Scan) must first run the edit confirmation. The request is passed
-    // down into the edit screen, which shows the dialog. Yes -> completeEditLeave, No -> dismissEditLeave.
+    // down into the edit screen, which shows the dialog. Yes -> save and leave, No -> discard and leave.
     var editLeaveRequested by remember { mutableStateOf(false) }
     var pendingLeaveDestination by remember { mutableStateOf<NestoryDestination?>(null) }
     var pendingScanLinkItemId by remember { mutableStateOf<Long?>(null) }
@@ -254,7 +260,9 @@ fun NestoryApp(initialDocumentId: String? = null) {
                 else -> false
             }
 
-    Scaffold(
+    CompositionLocalProvider(LocalInputMonitor provides inputMonitorState) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Scaffold(
             bottomBar = {
                 if (showBottomBar) {
                     NestoryBottomBar(
@@ -264,8 +272,8 @@ fun NestoryApp(initialDocumentId: String? = null) {
                     )
                 }
             }
-    ) { innerPadding ->
-        AnimatedContent(
+            ) { innerPadding ->
+                AnimatedContent(
                 targetState = destination,
                 transitionSpec = {
                     val forward = targetState.ordinal >= initialState.ordinal
@@ -289,16 +297,16 @@ fun NestoryApp(initialDocumentId: String? = null) {
                             .using(SizeTransform(clip = false))
                 },
                 label = "NestoryRouteTransition",
-        ) { currentDestination ->
-            Box(
+                ) { currentDestination ->
+                    Box(
                     modifier =
                             Modifier.padding(
                                     bottom =
                                             if (showBottomBar) innerPadding.calculateBottomPadding()
                                             else 0.dp
                             )
-            ) {
-                when (currentDestination) {
+                    ) {
+                        when (currentDestination) {
                     NestoryDestination.StartVault ->
                             StartVaultScreen(
                                     onCreateVault = {
@@ -541,8 +549,12 @@ fun NestoryApp(initialDocumentId: String? = null) {
                                     onEditLeaveDismiss = dismissEditLeave,
                                     onEditModeChange = onEditModeChange,
                             )
+                        }
+                    }
                 }
             }
+
+            GlobalInputMonitor()
         }
     }
 }

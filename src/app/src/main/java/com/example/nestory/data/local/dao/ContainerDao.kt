@@ -67,4 +67,20 @@ interface ContainerDao {
         """
     )
     suspend fun getChildrenByParentId(parentId: Long?): List<ContainerEntity>
+
+    /** Count sibling containers with the same name. Null parent means top-level siblings. */
+    @Query(
+        """
+        SELECT COUNT(*) FROM containers
+        WHERE name = :name
+          AND ((:parentId IS NULL AND parent_id IS NULL)
+               OR (:parentId IS NOT NULL AND parent_id = :parentId))
+          AND (:excludeId IS NULL OR id != :excludeId)
+        """
+    )
+    suspend fun countSiblingsByName(
+        name: String,
+        parentId: Long?,
+        excludeId: Long?,
+    ): Int
 }

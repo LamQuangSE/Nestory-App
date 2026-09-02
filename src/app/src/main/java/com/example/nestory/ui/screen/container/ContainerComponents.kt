@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -123,9 +124,14 @@ fun ContainerSearchField(
     onValueChange: (String) -> Unit,
     placeholder: String = "Tìm container"
 ) {
+    val monitor = LocalInputMonitor.current
+
     OutlinedTextField(
         value = value,
-        onValueChange = onValueChange,
+        onValueChange = {
+            onValueChange(it)
+            monitor.update(it)
+        },
         placeholder = { Text(text = placeholder, style = NestoryTextStyles.Body13Medium) },
         leadingIcon = {
             Icon(
@@ -137,7 +143,11 @@ fun ContainerSearchField(
         },
         modifier = Modifier
             .fillMaxWidth()
-            .height(55.dp),
+            .height(55.dp)
+            .onFocusChanged {
+                if (it.isFocused) monitor.show(value, placeholder)
+                else monitor.hide()
+            },
         shape = RoundedCornerShape(NestorySpacing.S10),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent,
@@ -364,21 +374,14 @@ fun ContainerFormField(
             .padding(horizontal = NestorySpacing.S15),
         contentAlignment = Alignment.CenterStart
     ) {
-        TextField(
+        BasicTextField(
             value = value,
             onValueChange = {
                 onValueChange(it)
                 if (useMonitor) monitor.update(it)
             },
-            placeholder = {
-                Text(
-                    text = placeholder,
-                    style = NestoryTextStyles.Body15Medium,
-                    color = GeneratedColor.Figma919191
-                )
-            },
             modifier = Modifier
-                .fillMaxSize()
+                .fillMaxWidth()
                 .onFocusChanged { 
                     if (it.isFocused && useMonitor) {
                         monitor.show(value, placeholder)
@@ -387,15 +390,17 @@ fun ContainerFormField(
                     }
                 },
             textStyle = NestoryTextStyles.Body15Medium.copy(color = GeneratedColor.Figma000000),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                disabledContainerColor = Color.Transparent,
-                disabledIndicatorColor = Color.Transparent
-            ),
-            singleLine = true
+            singleLine = true,
+            decorationBox = { innerTextField ->
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        style = NestoryTextStyles.Body15Medium,
+                        color = GeneratedColor.Figma919191
+                    )
+                }
+                innerTextField()
+            }
         )
     }
 }

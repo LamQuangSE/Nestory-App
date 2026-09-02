@@ -63,4 +63,12 @@ class NotificationHelper(private val context: Context) {
             // Handle permission issue
         }
     }
+
+    fun showTestNotification() {
+        showExpiryNotification(
+            id = 990001,
+            title = "Thông báo thử nghiệm",
+            message = "Nestory đã gửi thông báo thử nghiệm thành công.",
+        )
+    }
 }

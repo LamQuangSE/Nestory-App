@@ -179,6 +179,54 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Container names are only unique among siblings. Room cannot express
+                // that correctly for NULL parent_id in SQLite, so repository validation
+                // enforces the rule and the database keeps a lookup index.
+                db.execSQL("DROP INDEX IF EXISTS index_containers_name")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_containers_name_parent_id ON containers(name, parent_id)")
+            }
+        }
+
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE reminders ADD COLUMN lead_time_days INTEGER NOT NULL DEFAULT 7")
+                db.execSQL("ALTER TABLE reminders ADD COLUMN repeat_daily INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE reminders ADD COLUMN in_app_enabled INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE reminders ADD COLUMN push_enabled INTEGER NOT NULL DEFAULT 1")
+                db.execSQL(
+                    """
+                    DELETE FROM reminders
+                    WHERE document_id IS NOT NULL
+                    AND id NOT IN (
+                        SELECT MAX(id) FROM reminders WHERE document_id IS NOT NULL GROUP BY document_id
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL(
+                    """
+                    DELETE FROM reminders
+                    WHERE document_kit_id IS NOT NULL
+                    AND id NOT IN (
+                        SELECT MAX(id) FROM reminders WHERE document_kit_id IS NOT NULL GROUP BY document_kit_id
+                    )
+                    """.trimIndent()
+                )
+                db.execSQL("DROP INDEX IF EXISTS index_reminders_document_id")
+                db.execSQL("DROP INDEX IF EXISTS index_reminders_document_kit_id")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_reminders_document_id ON reminders(document_id)")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_reminders_document_kit_id ON reminders(document_kit_id)")
+            }
+        }
+
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE reminders ADD COLUMN custom_lead_time_mode INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("UPDATE reminders SET custom_lead_time_mode = 1 WHERE lead_time_days NOT IN (1, 3, 7, 14)")
+            }
+        }
+
         private val ALL_MIGRATIONS: List<Migration> = listOf(
             MIGRATION_1_2,
             MIGRATION_2_3,
@@ -187,6 +235,9 @@ abstract class AppDatabase : RoomDatabase() {
             MIGRATION_5_6,
             MIGRATION_6_7,
             MIGRATION_7_8,
+            MIGRATION_8_9,
+            MIGRATION_9_10,
+            MIGRATION_10_11,
         )
 
         /**

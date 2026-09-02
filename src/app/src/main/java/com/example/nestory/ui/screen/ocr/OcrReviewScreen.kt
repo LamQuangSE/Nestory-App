@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -42,6 +43,7 @@ import com.example.nestory.data.repository.CategoryRepositoryImpl
 import com.example.nestory.domain.model.DocumentCategory
 import com.example.nestory.domain.model.DocumentDraft
 import com.example.nestory.ui.assets.AppIcons
+import com.example.nestory.ui.components.LocalInputMonitor
 import com.example.nestory.ui.components.NestoryScreen
 import com.example.nestory.ui.components.PrimaryActionButton
 import com.example.nestory.ui.screen.category.CategoryDivider
@@ -340,6 +342,7 @@ private fun ReviewField(
     required: Boolean = false,
 ) {
     val focusRequester = remember { FocusRequester() }
+    val monitor = LocalInputMonitor.current
     Column(modifier = Modifier.padding(bottom = 12.dp)) {
         Text(
             text = buildAnnotatedString {
@@ -377,8 +380,17 @@ private fun ReviewField(
             if (onValueChange != null && onClick == null) {
                 BasicTextField(
                     value = value,
-                    onValueChange = onValueChange,
-                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+                    onValueChange = {
+                        onValueChange(it)
+                        monitor.update(it)
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                        .onFocusChanged {
+                            if (it.isFocused) monitor.show(value, label)
+                            else monitor.hide()
+                        },
                     textStyle = NestoryTextStyles.Body14Medium,
                     singleLine = true,
                     decorationBox = { innerTextField ->

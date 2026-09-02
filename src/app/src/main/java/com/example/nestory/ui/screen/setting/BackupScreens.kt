@@ -827,7 +827,7 @@ fun ImportSuccessScreen(
             Spacer(modifier = Modifier.height(20.dp))
             
             Text(
-                text = "Đã khôi phục dữ liệu thành công !",
+                text = "Đã khôi phục dữ liệu thành công!",
                 style = NestoryTextStyles.Body20Bold,
                 color = GeneratedColor.Figma000000,
                 textAlign = TextAlign.Center

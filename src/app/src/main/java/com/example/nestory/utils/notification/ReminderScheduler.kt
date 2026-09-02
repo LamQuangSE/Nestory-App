@@ -22,10 +22,14 @@ class ReminderScheduler(private val context: Context) {
             return
         }
 
-        val calendar = parseDateTime(reminder.reminderDate, reminder.reminderTime) ?: return
+        val calendar = parseDateTime(reminder.reminderDate, reminder.reminderTime) ?: run {
+            cancel(reminder)
+            return
+        }
         
         // Don't schedule if time is in the past
         if (calendar.timeInMillis <= System.currentTimeMillis()) {
+            cancel(reminder)
             Log.d("ReminderScheduler", "Reminder time is in the past, not scheduling: ${reminder.id}")
             return
         }

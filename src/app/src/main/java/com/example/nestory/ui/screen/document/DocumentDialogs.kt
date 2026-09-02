@@ -22,13 +22,15 @@ fun ConfirmDeleteDocumentDialog(
 @Composable
 fun ConfirmEditDocumentDialog(
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
+    onDiscard: () -> Unit,
+    onCancel: () -> Unit,
 ) {
     ConfirmDialog(
         title = "Xác nhận dừng chỉnh sửa giấy tờ",
         message = "Bạn có muốn lưu các thay đổi và dừng chỉnh sửa giấy tờ không?",
         highlightRange = 12..27,
         onConfirm = onConfirm,
-        onDismiss = onDismiss,
+        onDismiss = onDiscard,
+        onDismissRequest = onCancel,
     )
 }

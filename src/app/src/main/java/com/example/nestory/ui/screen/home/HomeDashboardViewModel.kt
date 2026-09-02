@@ -12,6 +12,7 @@ import com.example.nestory.domain.repository.CategoryRepository
 import com.example.nestory.domain.repository.ContainerRepository
 import com.example.nestory.domain.repository.DocumentKitRepository
 import com.example.nestory.domain.repository.DocumentRepository
+import com.example.nestory.domain.repository.ReminderRepository
 import com.example.nestory.ui.screen.document.DocumentStatus
 import com.example.nestory.ui.screen.document.DocumentStatusCalculator
 import com.example.nestory.ui.screen.documentkit.KitItemStatus
@@ -29,6 +30,7 @@ class HomeDashboardViewModel(
     categoryRepository: CategoryRepository,
     attachmentRepository: AttachmentRepository,
     documentKitRepository: DocumentKitRepository,
+    reminderRepository: ReminderRepository,
     private val recentCount: Int = DEFAULT_RECENT_COUNT,
 ) : ViewModel() {
 
@@ -37,14 +39,26 @@ class HomeDashboardViewModel(
 
     init {
         viewModelScope.launch {
-            combine(
+            val documentsWithReminders = combine(
                 documentRepository.observeAllDocuments(),
+                reminderRepository.observeAllReminders(),
+            ) { documents, reminders ->
+                documents to reminders
+            }
+
+            combine(
+                documentsWithReminders,
                 containerRepository.observeAllContainers(),
                 categoryRepository.getAllCategories(),
                 attachmentRepository.observeAllAttachments(),
                 documentKitRepository.observeAllKits(),
-            ) { documents, containers, categories, attachments, kits ->
+            ) { documentsAndReminders, containers, categories, attachments, kits ->
+                val documents = documentsAndReminders.first
+                val reminders = documentsAndReminders.second
                 val attachmentsByDocId = attachments.groupBy { it.documentId }
+                val remindersByDocId = reminders
+                    .filter { it.documentId != null }
+                    .associateBy { it.documentId }
                 val rootContainers = containers.filter { it.parentId == null }
                 val today = LocalDate.now()
 
@@ -66,7 +80,11 @@ class HomeDashboardViewModel(
                         .mapNotNull { doc ->
                             val expiry = DocumentStatusCalculator.parseExpirationDate(doc.expirationDate)
                                 ?: return@mapNotNull null
-                            val status = DocumentStatusCalculator.calculate(doc.expirationDate, today)
+                            val status = DocumentStatusCalculator.calculate(
+                                expirationDate = doc.expirationDate,
+                                today = today,
+                                reminder = remindersByDocId[doc.id],
+                            )
                             if (status == DocumentStatus.Expired) return@mapNotNull null
                             val daysRemaining = ChronoUnit.DAYS.between(today, expiry)
                             Triple(doc, expiry, daysRemaining)
@@ -147,6 +165,7 @@ class HomeDashboardViewModelFactory(
     private val categoryRepository: CategoryRepository,
     private val attachmentRepository: AttachmentRepository,
     private val documentKitRepository: DocumentKitRepository,
+    private val reminderRepository: ReminderRepository,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
@@ -157,6 +176,7 @@ class HomeDashboardViewModelFactory(
                 categoryRepository = categoryRepository,
                 attachmentRepository = attachmentRepository,
                 documentKitRepository = documentKitRepository,
+                reminderRepository = reminderRepository,
             ) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")

@@ -46,6 +46,18 @@ class ReminderRepositoryImpl(
 
     override suspend fun createReminder(reminder: ReminderEntity): Result<Long> =
         runCatching {
+            val existing = when {
+                reminder.documentId != null -> reminderDao.getByDocumentId(reminder.documentId)
+                reminder.documentKitId != null -> reminderDao.getByDocumentKitId(reminder.documentKitId)
+                else -> null
+            }
+            if (existing != null) {
+                val updated = reminder.copy(id = existing.id)
+                reminderDao.update(updated)
+                scheduler.schedule(updated)
+                return@runCatching existing.id
+            }
+
             val id = reminderDao.insert(reminder)
             val inserted = reminder.copy(id = id)
             scheduler.schedule(inserted)

@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -21,6 +22,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.example.nestory.ui.assets.AppIcons
+import com.example.nestory.ui.components.LocalInputMonitor
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestorySpacing
@@ -36,6 +38,9 @@ fun DocumentSearchBar(
     isFilterActive: Boolean = false
 
 ) {
+    val monitor = LocalInputMonitor.current
+    val placeholder = "Tìm theo tên, danh mục hoặc ghi chú"
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -56,16 +61,24 @@ fun DocumentSearchBar(
         Box(modifier = Modifier.weight(1f)) {
             BasicTextField(
                 value = query,
-                onValueChange = onQueryChange,
+                onValueChange = {
+                    onQueryChange(it)
+                    monitor.update(it)
+                },
                 singleLine = true,
                 textStyle = NestoryTextStyles.Body11Semi.copy(
                     color = GeneratedColor.Figma000000,
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onFocusChanged {
+                        if (it.isFocused) monitor.show(query, placeholder)
+                        else monitor.hide()
+                    },
                 decorationBox = { innerTextField ->
                     if (query.isEmpty()) {
                         Text(
-                            text = "Tìm theo tên, danh mục hoặc ghi chú",
+                            text = placeholder,
                             style = NestoryTextStyles.Body11Semi,
                             color = GeneratedColor.Figma919191
                         )

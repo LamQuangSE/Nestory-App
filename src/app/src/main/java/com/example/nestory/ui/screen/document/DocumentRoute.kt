@@ -67,6 +67,7 @@ fun DocumentRoute(
             containerRepository = containerRepository,
             categoryRepository = categoryRepository,
             attachmentRepository = attachmentRepository,
+            reminderRepository = reminderRepository,
             imageStorageManager = imageStorageManager,
         )
     }

@@ -29,6 +29,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -39,6 +40,7 @@ import com.example.nestory.data.local.entity.DocumentKitEntity
 import com.example.nestory.relation.KitWithItems
 import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.assets.AppImages
+import com.example.nestory.ui.components.LocalInputMonitor
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestorySpacing
 import com.example.nestory.ui.theme.NestoryTextStyles
@@ -150,6 +152,9 @@ private fun KitSearchHeader(
     isFilterActive: Boolean,
     onFilterClick: () -> Unit,
 ) {
+    val monitor = LocalInputMonitor.current
+    val placeholder = "Tìm theo tên, danh mục hoặc ghi chú"
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -157,10 +162,13 @@ private fun KitSearchHeader(
     ) {
         OutlinedTextField(
             value = query,
-            onValueChange = onQueryChange,
+            onValueChange = {
+                onQueryChange(it)
+                monitor.update(it)
+            },
             placeholder = {
                 Text(
-                    text = "Tìm theo tên, danh mục hoặc ghi chú",
+                    text = placeholder,
                     style = NestoryTextStyles.Body11Semi,
                     color = GeneratedColor.Figma919191
                 )
@@ -175,7 +183,11 @@ private fun KitSearchHeader(
             },
             modifier = Modifier
                 .weight(1f)
-                .height(45.dp),
+                .height(45.dp)
+                .onFocusChanged {
+                    if (it.isFocused) monitor.show(query, placeholder)
+                    else monitor.hide()
+                },
             shape = RoundedCornerShape(NestorySpacing.S10),
             colors = TextFieldDefaults.colors(
                 focusedContainerColor = GeneratedColor.FigmaFfffff,

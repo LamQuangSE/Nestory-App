@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 import com.example.nestory.data.local.entity.ReminderEntity
 import com.example.nestory.domain.model.ExpiryReminderSettings
 import com.example.nestory.ui.assets.AppIcons
+import com.example.nestory.ui.components.LocalInputMonitor
 import com.example.nestory.ui.components.NestoryScreen
 import com.example.nestory.ui.screen.document.DocumentStatusCalculator
 import com.example.nestory.ui.theme.GeneratedColor
@@ -400,6 +401,7 @@ private fun ReminderLeadTimeSection(
     onSelectedDaysChange: (Int) -> Unit,
 ) {
     val focusManager = LocalFocusManager.current
+    val monitor = LocalInputMonitor.current
     val standardDays = remember { listOf(1, 3, 7, 14) }
     val isCustom = selectedDays !in standardDays
     var customText by remember(selectedDays) { 
@@ -490,6 +492,7 @@ private fun ReminderLeadTimeSection(
                             val digits = it.filter { c -> c.isDigit() }
                             if (digits.length <= 3) {
                                 customText = digits
+                                monitor.update(digits)
                                 isError = false
                             }
                         },
@@ -511,6 +514,11 @@ private fun ReminderLeadTimeSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    monitor.show(customText, "Số ngày")
+                                } else {
+                                    monitor.hide()
+                                }
                                 if (!focusState.isFocused && customText.isNotEmpty()) {
                                     validateAndSubmit()
                                 }

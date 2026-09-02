@@ -179,6 +179,16 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Container names are only unique among siblings. Room cannot express
+                // that correctly for NULL parent_id in SQLite, so repository validation
+                // enforces the rule and the database keeps a lookup index.
+                db.execSQL("DROP INDEX IF EXISTS index_containers_name")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_containers_name_parent_id ON containers(name, parent_id)")
+            }
+        }
+
         private val ALL_MIGRATIONS: List<Migration> = listOf(
             MIGRATION_1_2,
             MIGRATION_2_3,
@@ -187,6 +197,7 @@ abstract class AppDatabase : RoomDatabase() {
             MIGRATION_5_6,
             MIGRATION_6_7,
             MIGRATION_7_8,
+            MIGRATION_8_9,
         )
 
         /**

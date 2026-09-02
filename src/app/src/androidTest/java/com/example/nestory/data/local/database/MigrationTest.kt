@@ -21,7 +21,7 @@ class MigrationTest {
     }
 
     @Test
-    fun migrate7To8_preservesAllRows() {
+    fun migrate7ToLatest_preservesAllRows() {
         createVersion7Database()
 
         val migrated = AppDatabase.databaseBuilder(context).build()
@@ -47,6 +47,22 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun migrate8To9_replacesGlobalContainerNameIndex() {
+        createVersion8Database()
+
+        val migrated = AppDatabase.databaseBuilder(context).build()
+        try {
+            val db = migrated.openHelper.writableDatabase
+
+            assertIndexMissing(db, "containers", "index_containers_name")
+            assertIndexPresent(db, "containers", "index_containers_name_parent_id", unique = false)
+            assertIndexPresent(db, "containers", "index_containers_parent_id", unique = false)
+        } finally {
+            migrated.close()
+        }
+    }
+
     private fun createVersion7Database() {
         context.deleteDatabase(DATABASE_NAME)
         val dbFile = context.getDatabasePath(DATABASE_NAME)
@@ -57,6 +73,20 @@ class MigrationTest {
             createVersion7Schema(db)
             insertVersion7Rows(db)
             db.version = 7
+        }
+    }
+
+    private fun createVersion8Database() {
+        context.deleteDatabase(DATABASE_NAME)
+        val dbFile = context.getDatabasePath(DATABASE_NAME)
+        dbFile.parentFile?.mkdirs()
+
+        SQLiteDatabase.openOrCreateDatabase(dbFile, null).use { db ->
+            db.execSQL("PRAGMA foreign_keys=OFF")
+            createVersion7Schema(db)
+            db.execSQL("ALTER TABLE documents ADD COLUMN last_opened_at INTEGER")
+            insertVersion7Rows(db)
+            db.version = 8
         }
     }
 
@@ -233,6 +263,42 @@ class MigrationTest {
         db.query("SELECT COUNT(*) FROM $table").use { cursor ->
             assert(cursor.moveToFirst())
             assert(cursor.getInt(0) == expected) { "$table row count != $expected" }
+        }
+    }
+
+    private fun assertIndexPresent(
+        db: SupportSQLiteDatabase,
+        table: String,
+        indexName: String,
+        unique: Boolean,
+    ) {
+        db.query("PRAGMA index_list(`$table`)").use { cursor ->
+            val nameColumn = cursor.getColumnIndexOrThrow("name")
+            val uniqueColumn = cursor.getColumnIndexOrThrow("unique")
+            while (cursor.moveToNext()) {
+                if (cursor.getString(nameColumn) == indexName) {
+                    assert(cursor.getInt(uniqueColumn) == if (unique) 1 else 0) {
+                        "$indexName unique flag != $unique"
+                    }
+                    return
+                }
+            }
+        }
+        error("Missing index $indexName on $table")
+    }
+
+    private fun assertIndexMissing(
+        db: SupportSQLiteDatabase,
+        table: String,
+        indexName: String,
+    ) {
+        db.query("PRAGMA index_list(`$table`)").use { cursor ->
+            val nameColumn = cursor.getColumnIndexOrThrow("name")
+            while (cursor.moveToNext()) {
+                assert(cursor.getString(nameColumn) != indexName) {
+                    "Unexpected index $indexName on $table"
+                }
+            }
         }
     }
 

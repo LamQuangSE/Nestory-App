@@ -2,7 +2,6 @@ package com.example.nestory.ui.screen.container
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -11,7 +10,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -184,10 +182,11 @@ fun ExpandableContainerList(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(NestorySpacing.S15)
+            .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10))
+            .clip(RoundedCornerShape(NestorySpacing.S10))
+            .verticalScroll(rememberScrollState())
     ) {
-        uiState.rootContainers.forEachIndexed { index, container ->
+        uiState.rootContainers.forEach { container ->
             ContainerGroup(
                 container = container,
                 uiState = uiState,
@@ -196,12 +195,10 @@ fun ExpandableContainerList(
                 onDeleteClick = onDeleteClick,
                 selectionOnly = selectionOnly
             )
-            if (index < uiState.rootContainers.lastIndex) {
-                HorizontalDivider(
-                    thickness = 1.dp,
-                    color = GeneratedColor.FigmaE5e7eb
-                )
-            }
+            HorizontalDivider(
+                thickness = 1.dp,
+                color = GeneratedColor.FigmaE5e7eb
+            )
         }
     }
 }
@@ -215,23 +212,16 @@ fun ContainerGroup(
     onDeleteClick: (Long) -> Unit,
     selectionOnly: Boolean = false
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Color.Transparent,
-        border = BorderStroke(1.dp, GeneratedColor.FigmaE5e7eb),
-        shape = RoundedCornerShape(NestorySpacing.S10)
-    ) {
-        Column {
-            EmitContainerRows(
-                container = container,
-                level = 0,
-                uiState = uiState,
-                onSelectContainer = onSelectContainer,
-                onToggleContainer = onToggleContainer,
-                onDeleteClick = onDeleteClick,
-                selectionOnly = selectionOnly
-            )
-        }
+    Column(modifier = Modifier.fillMaxWidth()) {
+        EmitContainerRows(
+            container = container,
+            level = 0,
+            uiState = uiState,
+            onSelectContainer = onSelectContainer,
+            onToggleContainer = onToggleContainer,
+            onDeleteClick = onDeleteClick,
+            selectionOnly = selectionOnly
+        )
     }
 }
 

@@ -44,6 +44,38 @@ class ContainerViewModelTest {
     }
 
     @Test
+    fun createContainer_duplicateNameUnderDifferentParents_appearsInList() = runBlocking {
+        var firstParentId: Long? = null
+        var secondParentId: Long? = null
+        viewModel.createContainer("Parent A", null) { firstParentId = it }
+        viewModel.waitForState { it.allContainers.size == 1 }
+        viewModel.createContainer("Parent B", null) { secondParentId = it }
+        viewModel.waitForState { it.allContainers.size == 2 }
+
+        viewModel.createContainer("Shared", firstParentId)
+        viewModel.waitForState { it.allContainers.size == 3 }
+        viewModel.createContainer("Shared", secondParentId)
+        val state = viewModel.waitForState { it.allContainers.size == 4 }
+
+        assertEquals(2, state.allContainers.count { it.name == "Shared" })
+        assertEquals(null, state.errorMessage)
+    }
+
+    @Test
+    fun createContainer_duplicateNameUnderSameParent_showsErrorMessage() = runBlocking {
+        var parentId: Long? = null
+        viewModel.createContainer("Parent", null) { parentId = it }
+        viewModel.waitForState { it.allContainers.isNotEmpty() }
+        viewModel.createContainer("Shared", parentId)
+        viewModel.waitForState { it.allContainers.size == 2 }
+
+        viewModel.createContainer("Shared", parentId)
+        val state = viewModel.waitForState { it.errorMessage != null }
+
+        assertEquals("Tên container đã tồn tại", state.errorMessage)
+    }
+
+    @Test
     fun deleteContainer_referencedByDocument_showsErrorMessage() = runBlocking {
         val containerId = database.containerDao().insert(ContainerEntity(name = "Busy"))
         database.documentDao().insert(

@@ -123,9 +123,14 @@ fun ContainerSearchField(
     onValueChange: (String) -> Unit,
     placeholder: String = "Tìm container"
 ) {
+    val monitor = LocalInputMonitor.current
+
     OutlinedTextField(
         value = value,
-        onValueChange = onValueChange,
+        onValueChange = {
+            onValueChange(it)
+            monitor.update(it)
+        },
         placeholder = { Text(text = placeholder, style = NestoryTextStyles.Body13Medium) },
         leadingIcon = {
             Icon(
@@ -137,7 +142,11 @@ fun ContainerSearchField(
         },
         modifier = Modifier
             .fillMaxWidth()
-            .height(55.dp),
+            .height(55.dp)
+            .onFocusChanged {
+                if (it.isFocused) monitor.show(value, placeholder)
+                else monitor.hide()
+            },
         shape = RoundedCornerShape(NestorySpacing.S10),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent,

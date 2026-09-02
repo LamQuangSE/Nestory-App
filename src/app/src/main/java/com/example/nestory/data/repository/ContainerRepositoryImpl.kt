@@ -44,11 +44,35 @@ class ContainerRepositoryImpl(
     }
 
     override suspend fun createContainer(container: ContainerEntity): Result<Long> =
-        runCatching { containerDao.insert(container) }
+        runCatching {
+            checkUniqueSiblingName(container)
+            containerDao.insert(container)
+        }
 
     override suspend fun updateContainer(container: ContainerEntity): Result<Unit> =
-        runCatching { containerDao.update(container) }
+        runCatching {
+            checkUniqueSiblingName(container, excludeId = container.id)
+            containerDao.update(container)
+        }
 
     override suspend fun deleteContainer(container: ContainerEntity): Result<Unit> =
         runCatching { containerDao.delete(container) }
+
+    private suspend fun checkUniqueSiblingName(
+        container: ContainerEntity,
+        excludeId: Long? = null,
+    ) {
+        val duplicates = containerDao.countSiblingsByName(
+            name = container.name,
+            parentId = container.parentId,
+            excludeId = excludeId,
+        )
+        if (duplicates > 0) {
+            throw IllegalArgumentException(DUPLICATE_CONTAINER_NAME_MESSAGE)
+        }
+    }
+
+    private companion object {
+        const val DUPLICATE_CONTAINER_NAME_MESSAGE = "Tên container đã tồn tại"
+    }
 }

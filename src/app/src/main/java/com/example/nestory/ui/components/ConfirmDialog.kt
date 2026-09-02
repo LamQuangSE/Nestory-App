@@ -41,10 +41,11 @@ fun ConfirmDialog(
     highlightRange: IntRange,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
+    onDismissRequest: () -> Unit = onDismiss,
     confirmLabel: String = "Có",
     dismissLabel: String = "Không",
 ) {
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(onDismissRequest = onDismissRequest) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

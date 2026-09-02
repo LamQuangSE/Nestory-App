@@ -549,11 +549,21 @@ fun DocumentKitRoute(
                     subScreen = DocumentKitSubScreen.Detail
                 }
             },
-            onDismiss = {
+            onDiscard = {
+                showConfirmDialog = false
+                pendingForm = null
+                editingKit = null
+                if (editLeaveRequested) {
+                    onEditLeaveComplete()
+                } else {
+                    subScreen = DocumentKitSubScreen.Detail
+                }
+            },
+            onCancel = {
                 showConfirmDialog = false
                 pendingForm = null
                 if (editLeaveRequested) onEditLeaveDismiss()
-            }
+            },
         )
     }
 
@@ -592,11 +602,21 @@ fun DocumentKitRoute(
                         subScreen = DocumentKitSubScreen.ItemDetail
                     }
                 },
-                onDismiss = {
+                onDiscard = {
+                    showItemConfirmDialog = false
+                    pendingItemForm = null
+                    editingItem = null
+                    if (editLeaveRequested) {
+                        onEditLeaveComplete()
+                    } else {
+                        subScreen = DocumentKitSubScreen.ItemDetail
+                    }
+                },
+                onCancel = {
                     showItemConfirmDialog = false
                     pendingItemForm = null
                     if (editLeaveRequested) onEditLeaveDismiss()
-                }
+                },
             )
         }
     }

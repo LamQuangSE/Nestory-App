@@ -47,6 +47,7 @@ fun ContainerSelectionScreen(
     onDismissError: () -> Unit = {},
     selectionOnly: Boolean = false,
     allowCreate: Boolean = true,
+    allowManage: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val isEmpty = uiState.rootContainers.isEmpty()
@@ -122,11 +123,13 @@ fun ContainerSelectionScreen(
                     onSelectContainer = onSelectContainer,
                     onToggleContainer = onToggleContainer,
                     onDeleteClick = onDeleteClick,
-                    selectionOnly = selectionOnly
+                    selectionOnly = selectionOnly,
+                    allowManage = allowManage,
                 )
             }
         }
 
+        val canEditSelected = allowManage && uiState.selectedContainerId != null
         if (!selectionOnly) {
             Row(
                 modifier = modifier
@@ -153,16 +156,32 @@ fun ContainerSelectionScreen(
                     )
                 }
             }
-        } else if (allowCreate) {
-            ContainerActionButton(
-                text = "Tạo container mới",
-                onClick = onCreateClick,
-                isPrimary = false,
-                isDashed = true,
-                modifier = Modifier
+        } else if (allowCreate || canEditSelected) {
+            Row(
+                modifier = modifier
                     .fillMaxWidth()
-                    .padding(vertical = NestorySpacing.S10)
-            )
+                    .padding(vertical = NestorySpacing.S10),
+                horizontalArrangement = Arrangement.spacedBy(NestorySpacing.S10),
+            ) {
+                if (allowCreate) {
+                    ContainerActionButton(
+                        text = "Tạo container mới",
+                        onClick = onCreateClick,
+                        isPrimary = false,
+                        isDashed = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                if (canEditSelected) {
+                    ContainerActionButton(
+                        text = "Chỉnh sửa container",
+                        onClick = onEditClick,
+                        isPrimary = false,
+                        isDashed = true,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
         }
 
         // The confirm action only has a purpose inside a picker flow (e.g. choosing
@@ -192,7 +211,8 @@ fun ExpandableContainerList(
     onSelectContainer: (Long) -> Unit,
     onToggleContainer: (Long) -> Unit,
     onDeleteClick: (Long) -> Unit,
-    selectionOnly: Boolean = false
+    selectionOnly: Boolean = false,
+    allowManage: Boolean = true,
 ) {
     Column(
         modifier = Modifier
@@ -208,7 +228,8 @@ fun ExpandableContainerList(
                 onSelectContainer = onSelectContainer,
                 onToggleContainer = onToggleContainer,
                 onDeleteClick = onDeleteClick,
-                selectionOnly = selectionOnly
+                selectionOnly = selectionOnly,
+                allowManage = allowManage,
             )
             HorizontalDivider(
                 thickness = 1.dp,
@@ -225,7 +246,8 @@ fun ContainerGroup(
     onSelectContainer: (Long) -> Unit,
     onToggleContainer: (Long) -> Unit,
     onDeleteClick: (Long) -> Unit,
-    selectionOnly: Boolean = false
+    selectionOnly: Boolean = false,
+    allowManage: Boolean = true,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         EmitContainerRows(
@@ -235,7 +257,8 @@ fun ContainerGroup(
             onSelectContainer = onSelectContainer,
             onToggleContainer = onToggleContainer,
             onDeleteClick = onDeleteClick,
-            selectionOnly = selectionOnly
+            selectionOnly = selectionOnly,
+            allowManage = allowManage,
         )
     }
 }
@@ -248,7 +271,8 @@ private fun EmitContainerRows(
     onSelectContainer: (Long) -> Unit,
     onToggleContainer: (Long) -> Unit,
     onDeleteClick: (Long) -> Unit,
-    selectionOnly: Boolean = false
+    selectionOnly: Boolean = false,
+    allowManage: Boolean = true,
 ) {
     val hasChildren = uiState.getChildren(container.id).isNotEmpty()
     val isExpanded = uiState.isExpanded(container.id)
@@ -259,10 +283,10 @@ private fun EmitContainerRows(
         isExpanded = isExpanded,
         hasChildren = hasChildren,
         level = level,
-        showDelete = !selectionOnly && container.id == uiState.selectedContainerId,
+        showDelete = allowManage && container.id == uiState.selectedContainerId,
         onToggle = { onToggleContainer(container.id) },
         onItemClick = { onSelectContainer(container.id) },
-        onDeleteClick = if (selectionOnly) null else ({ onDeleteClick(container.id) })
+        onDeleteClick = if (allowManage) ({ onDeleteClick(container.id) }) else null,
     )
 
     if (isExpanded) {
@@ -275,7 +299,8 @@ private fun EmitContainerRows(
                 onSelectContainer = onSelectContainer,
                 onToggleContainer = onToggleContainer,
                 onDeleteClick = onDeleteClick,
-                selectionOnly = selectionOnly
+                selectionOnly = selectionOnly,
+                allowManage = allowManage,
             )
         }
     }

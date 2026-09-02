@@ -77,6 +77,17 @@ class ContainerViewModel(
         }
     }
 
+    fun selectCreatedContainer(containerId: Long, parentId: Long?) {
+        _uiState.update { state ->
+            val path = buildContainerPath(containerId, state.allContainers)
+            state.copy(
+                selectedContainerId = containerId,
+                containerPath = path,
+                expandedIds = if (parentId != null) state.expandedIds + parentId else state.expandedIds,
+            )
+        }
+    }
+
     fun clearSelection() {
         _uiState.update { it.copy(selectedContainerId = null, containerPath = emptyList()) }
     }

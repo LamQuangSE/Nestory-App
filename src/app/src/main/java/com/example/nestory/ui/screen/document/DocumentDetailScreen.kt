@@ -145,10 +145,18 @@ fun DocumentDetailScreen(
                     if (editLeaveRequested) onEditLeaveDismiss()
                 }
             },
-            onDismiss = {
+            onDiscard = {
+                showEditConfirmDialog = false
+                resetEditState()
+                onEditModeChange(false)
+                if (editLeaveRequested) {
+                    onEditLeaveComplete()
+                }
+            },
+            onCancel = {
                 showEditConfirmDialog = false
                 if (editLeaveRequested) onEditLeaveDismiss()
-            }
+            },
         )
     }
 
@@ -170,7 +178,7 @@ fun DocumentDetailScreen(
                 subScreen = DocumentDetailSubScreen.Main
             },
             selectionOnly = true,
-            allowCreate = false,
+            allowCreate = true,
             showPresetCategories = true,
             initialSelectedName = editedCategory
         )
@@ -186,7 +194,7 @@ fun DocumentDetailScreen(
                 subScreen = DocumentDetailSubScreen.Main
             },
             selectionOnly = true,
-            allowCreate = false
+            allowCreate = true,
         )
         return
     }

@@ -98,7 +98,7 @@ fun NestoryApp(initialDocumentId: String? = null) {
 
     // Edit-leave guard: while editing (Kit/Item/Document), any navigation away via the
     // bottom bar (tab or Scan) must first run the edit confirmation. The request is passed
-    // down into the edit screen, which shows the dialog. Yes -> completeEditLeave, No -> dismissEditLeave.
+    // down into the edit screen, which shows the dialog. Yes -> save and leave, No -> discard and leave.
     var editLeaveRequested by remember { mutableStateOf(false) }
     var pendingLeaveDestination by remember { mutableStateOf<NestoryDestination?>(null) }
     var pendingScanLinkItemId by remember { mutableStateOf<Long?>(null) }

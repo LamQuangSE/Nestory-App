@@ -251,13 +251,15 @@ fun CategoryDivider() {
 
 @Composable
 fun CategoryListFrame(
+    fixedHeight: Boolean = true,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit
 ) {
+    val heightModifier = if (fixedHeight) Modifier.height(480.dp) else Modifier
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(480.dp)
+            .then(heightModifier)
             .border(1.dp, GeneratedColor.FigmaE5e7eb, CategoryRadius)
     ) {
         content()
@@ -265,11 +267,15 @@ fun CategoryListFrame(
 }
 
 @Composable
-fun EmptyCategoryCard(modifier: Modifier = Modifier) {
+fun EmptyCategoryCard(
+    modifier: Modifier = Modifier,
+    fixedHeight: Boolean = true
+) {
+    val heightModifier = if (fixedHeight) Modifier.height(480.dp) else Modifier
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(480.dp)
+            .then(heightModifier)
             .border(1.dp, GeneratedColor.FigmaE5e7eb, CategoryRadius),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center

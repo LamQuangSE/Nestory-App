@@ -15,7 +15,8 @@ fun ContainerRoute(
     onBack: () -> Unit,
     onConfirmSelection: ((ContainerEntity) -> Unit)? = null,
     selectionOnly: Boolean = false,
-    allowCreate: Boolean = true
+    allowCreate: Boolean = true,
+    allowManage: Boolean = true,
 ) {
     val context = LocalContext.current
     val db = remember { AppDatabase.getDatabase(context.applicationContext) }
@@ -66,7 +67,7 @@ fun ContainerRoute(
                     }
                 },
                 onDeleteClick = { id ->
-                    if (!selectionOnly) {
+                    if (allowManage) {
                         val container = uiState.allContainers.find { it.id == id }
                         deleteTarget = container
                         showDeleteDialog = true
@@ -77,7 +78,8 @@ fun ContainerRoute(
                 errorMessage = uiState.errorMessage,
                 onDismissError = { viewModel.clearError() },
                 selectionOnly = selectionOnly,
-                allowCreate = allowCreate
+                allowCreate = allowCreate,
+                allowManage = allowManage,
             )
         }
 
@@ -86,24 +88,15 @@ fun ContainerRoute(
                 parentContainerName = uiState.containerPath.lastOrNull()?.name ?: "",
                 onBackClick = { subScreen = ContainerSubScreen.Selection },
                 onCreate = { name ->
-                    if (selectionOnly && onConfirmSelection != null) {
-                        viewModel.createContainer(
-                            name,
-                            uiState.selectedContainerId,
-                            onCreated = { newId ->
-                                onConfirmSelection(
-                                    ContainerEntity(
-                                        id = newId,
-                                        name = name.trim(),
-                                        parentId = uiState.selectedContainerId,
-                                    ),
-                                )
-                            },
-                        )
-                    } else {
-                        viewModel.createContainer(name, uiState.selectedContainerId)
-                        subScreen = ContainerSubScreen.Selection
-                    }
+                    val parentId = uiState.selectedContainerId
+                    viewModel.createContainer(
+                        name,
+                        parentId,
+                        onCreated = { newId ->
+                            viewModel.selectCreatedContainer(newId, parentId)
+                            subScreen = ContainerSubScreen.Selection
+                        },
+                    )
                 },
                 errorMessage = uiState.errorMessage,
                 onDismissError = { viewModel.clearError() }

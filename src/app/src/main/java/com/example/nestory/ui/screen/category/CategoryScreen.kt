@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,6 +32,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.nestory.data.local.database.AppDatabase
 import com.example.nestory.data.repository.CategoryRepositoryImpl
+import com.example.nestory.ui.components.GlobalInputMonitor
+import com.example.nestory.ui.components.InputMonitorState
+import com.example.nestory.ui.components.LocalInputMonitor
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.isPredefinedCategoryName
 
@@ -119,6 +125,7 @@ fun CategoryScreen(
     val selectedCategory = uiState.categories.firstOrNull { it.id == uiState.selectedCategoryId }
     val deleteTarget = uiState.categories.firstOrNull { it.id == uiState.deleteTargetId }
     val hasAnyCategory = uiState.categories.isNotEmpty()
+    val monitorState = remember { InputMonitorState() }
 
     BackHandler {
         when {
@@ -129,64 +136,70 @@ fun CategoryScreen(
         }
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Surface(
-            modifier = Modifier.fillMaxSize(),
-            color = GeneratedColor.FigmaFfffff
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 20.dp)
+    CompositionLocalProvider(LocalInputMonitor provides monitorState) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            Surface(
+                modifier = Modifier.fillMaxSize(),
+                color = GeneratedColor.FigmaFfffff
             ) {
-                CategoryHeader(
-                    title = when (uiState.mode) {
-                        CategoryMode.Selection -> "Chọn danh mục"
-                        CategoryMode.Create -> "Tạo danh mục mới"
-                        CategoryMode.Edit -> "Chỉnh sửa danh mục"
-                    },
-                    onBack = {
-                        if (uiState.mode == CategoryMode.Selection || exitOnFormBack) {
-                            onBack()
-                        } else {
-                            onEvent(CategoryEvent.OnCancelForm)
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                        .navigationBarsPadding()
+                        .padding(horizontal = 20.dp)
+                ) {
+                    CategoryHeader(
+                        title = when (uiState.mode) {
+                            CategoryMode.Selection -> "Chọn danh mục"
+                            CategoryMode.Create -> "Tạo danh mục mới"
+                            CategoryMode.Edit -> "Chỉnh sửa danh mục"
+                        },
+                        onBack = {
+                            if (uiState.mode == CategoryMode.Selection || exitOnFormBack) {
+                                onBack()
+                            } else {
+                                onEvent(CategoryEvent.OnCancelForm)
+                            }
                         }
-                    }
-                )
-                Spacer(modifier = Modifier.height(15.dp))
-                if (uiState.mode == CategoryMode.Selection) {
-                    CategorySelectionContent(
-                        uiState = uiState,
-                        filteredCategories = filteredCategories,
-                        selectedCategory = selectedCategory,
-                        hasAnyCategory = hasAnyCategory,
-                        onEvent = onEvent,
-                        selectionOnly = selectionOnly,
-                        allowCreate = allowCreate
                     )
-                } else {
-                    CategoryFormContent(
-                        uiState = uiState,
-                        onEvent = onEvent
+                    Spacer(modifier = Modifier.height(15.dp))
+                    if (uiState.mode == CategoryMode.Selection) {
+                        CategorySelectionContent(
+                            uiState = uiState,
+                            filteredCategories = filteredCategories,
+                            selectedCategory = selectedCategory,
+                            hasAnyCategory = hasAnyCategory,
+                            onEvent = onEvent,
+                            selectionOnly = selectionOnly,
+                            allowCreate = allowCreate
+                        )
+                    } else {
+                        CategoryFormContent(
+                            uiState = uiState,
+                            onEvent = onEvent
+                        )
+                    }
+                }
+            }
+
+            if (uiState.isDeleteDialogVisible && !selectionOnly) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(GeneratedColor.Figma000000.copy(alpha = 0.62f))
+                        .padding(top = 296.dp),
+                    contentAlignment = Alignment.TopCenter
+                ) {
+                    DeleteCategoryDialog(
+                        categoryName = deleteTarget?.name.orEmpty(),
+                        onConfirm = { onEvent(CategoryEvent.OnConfirmDelete) },
+                        onDismiss = { onEvent(CategoryEvent.OnDismissDeleteDialog) }
                     )
                 }
             }
-        }
 
-        if (uiState.isDeleteDialogVisible && !selectionOnly) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(GeneratedColor.Figma000000.copy(alpha = 0.62f))
-                    .padding(top = 296.dp),
-                contentAlignment = Alignment.TopCenter
-            ) {
-                DeleteCategoryDialog(
-                    categoryName = deleteTarget?.name.orEmpty(),
-                    onConfirm = { onEvent(CategoryEvent.OnConfirmDelete) },
-                    onDismiss = { onEvent(CategoryEvent.OnDismissDeleteDialog) }
-                )
-            }
+            GlobalInputMonitor()
         }
     }
 }

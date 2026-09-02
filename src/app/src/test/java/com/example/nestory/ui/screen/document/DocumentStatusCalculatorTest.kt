@@ -1,5 +1,6 @@
 package com.example.nestory.ui.screen.document
 
+import com.example.nestory.data.local.entity.ReminderEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -39,13 +40,35 @@ class DocumentStatusCalculatorTest {
     }
 
     @Test
-    fun dateExactlySixtyDaysAhead_returnsExpiringSoon() {
+    fun dateExactlySevenDaysAhead_returnsExpiringSoonByDefault() {
         val status = DocumentStatusCalculator.calculate(
-            expirationDate = "03/10/2026",
+            expirationDate = "11/08/2026",
             today = today,
         )
 
         assertEquals(DocumentStatus.ExpiringSoon, status)
+    }
+
+    @Test
+    fun enabledReminder_usesConfiguredLeadTime() {
+        val status = DocumentStatusCalculator.calculate(
+            expirationDate = "24/08/2026",
+            today = today,
+            reminder = ReminderEntity(isEnabled = true, leadTimeDays = 20),
+        )
+
+        assertEquals(DocumentStatus.ExpiringSoon, status)
+    }
+
+    @Test
+    fun disabledReminder_usesDefaultSevenDays() {
+        val status = DocumentStatusCalculator.calculate(
+            expirationDate = "24/08/2026",
+            today = today,
+            reminder = ReminderEntity(isEnabled = false, leadTimeDays = 20),
+        )
+
+        assertEquals(DocumentStatus.Active, status)
     }
 
     @Test

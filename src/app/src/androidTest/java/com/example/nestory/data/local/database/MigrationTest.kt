@@ -42,6 +42,15 @@ class MigrationTest {
                 assert(cursor.getString(1) == "keep me")
                 assert(cursor.isNull(2))
             }
+
+            db.query("SELECT lead_time_days, custom_lead_time_mode, repeat_daily, in_app_enabled, push_enabled FROM reminders WHERE id = 1").use { cursor ->
+                assert(cursor.moveToFirst())
+                assert(cursor.getInt(0) == 7)
+                assert(cursor.getInt(1) == 0)
+                assert(cursor.getInt(2) == 1)
+                assert(cursor.getInt(3) == 1)
+                assert(cursor.getInt(4) == 1)
+            }
         } finally {
             migrated.close()
         }

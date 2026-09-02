@@ -77,7 +77,13 @@ fun DocumentKitRoute(
 
     val allDocuments by documentRepository.observeAllDocuments().collectAsState(initial = emptyList())
     val containers by containerRepository.observeAllContainers().collectAsState(initial = emptyList())
+    val reminders by reminderRepository.observeAllReminders().collectAsState(initial = emptyList())
     val documentsById = remember(allDocuments) { allDocuments.associateBy { it.id } }
+    val remindersByDocumentId = remember(reminders) {
+        reminders
+            .filter { it.documentId != null }
+            .associateBy { it.documentId }
+    }
 
     var subScreen by remember { mutableStateOf(DocumentKitSubScreen.List) }
     var searchQuery by remember { mutableStateOf("") }
@@ -158,7 +164,10 @@ fun DocumentKitRoute(
                 category = "Chưa phân loại",
                 containerPath = buildContainerPath(doc.containerId, containers),
                 containerId = doc.containerId,
-                status = DocumentStatusCalculator.calculate(doc.expirationDate),
+                status = DocumentStatusCalculator.calculate(
+                    expirationDate = doc.expirationDate,
+                    reminder = remindersByDocumentId[doc.id],
+                ),
                 expiryDate = doc.expirationDate ?: "Chưa có hạn",
                 categoryColor = CategoryFallbackColor,
                 isFavorite = doc.isFavorite,

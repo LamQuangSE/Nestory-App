@@ -2,4 +2,4 @@
 // hash: bd71c4c458f786229fab79e512fce46e20996789e2658734134845ac34583fec
 package com.example.nestory.data.local.database
 
-const val DATABASE_VERSION: Int = 9
+const val DATABASE_VERSION: Int = 11

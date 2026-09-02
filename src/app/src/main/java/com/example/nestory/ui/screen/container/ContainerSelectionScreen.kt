@@ -23,6 +23,9 @@ import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.assets.AppImages
 import androidx.compose.foundation.Image
 import androidx.compose.ui.layout.ContentScale
+import com.example.nestory.ui.components.GlobalInputMonitor
+import com.example.nestory.ui.components.InputMonitorState
+import com.example.nestory.ui.components.LocalInputMonitor
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestorySpacing
 import com.example.nestory.ui.theme.NestoryTextStyles
@@ -47,14 +50,22 @@ fun ContainerSelectionScreen(
     modifier: Modifier = Modifier
 ) {
     val isEmpty = uiState.rootContainers.isEmpty()
+    val monitorState = remember { InputMonitorState() }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(GeneratedColor.FigmaFfffff)
-            .padding(horizontal = NestorySpacing.S20),
-        verticalArrangement = Arrangement.spacedBy(NestorySpacing.S15)
-    ) {
+    CompositionLocalProvider(LocalInputMonitor provides monitorState) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(GeneratedColor.FigmaFfffff)
+                .statusBarsPadding()
+                .navigationBarsPadding()
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = NestorySpacing.S20),
+                verticalArrangement = Arrangement.spacedBy(NestorySpacing.S15)
+            ) {
         Spacer(modifier = Modifier.height(NestorySpacing.S10))
 
         Row(
@@ -167,7 +178,11 @@ fun ContainerSelectionScreen(
             )
         }
 
-        Spacer(modifier = Modifier.height(NestorySpacing.S20))
+                Spacer(modifier = Modifier.height(NestorySpacing.S20))
+            }
+
+            GlobalInputMonitor()
+        }
     }
 }
 

@@ -32,16 +32,16 @@ interface ReminderDao {
     @Query("SELECT * FROM reminders WHERE id = :id LIMIT 1")
     suspend fun getById(id: Long): ReminderEntity?
 
-    @Query("SELECT * FROM reminders WHERE document_id = :documentId LIMIT 1")
+    @Query("SELECT * FROM reminders WHERE document_id = :documentId ORDER BY id DESC LIMIT 1")
     fun observeByDocumentId(documentId: Long): Flow<ReminderEntity?>
 
-    @Query("SELECT * FROM reminders WHERE document_id = :documentId LIMIT 1")
+    @Query("SELECT * FROM reminders WHERE document_id = :documentId ORDER BY id DESC LIMIT 1")
     suspend fun getByDocumentId(documentId: Long): ReminderEntity?
 
-    @Query("SELECT * FROM reminders WHERE document_kit_id = :documentKitId LIMIT 1")
+    @Query("SELECT * FROM reminders WHERE document_kit_id = :documentKitId ORDER BY id DESC LIMIT 1")
     fun observeByDocumentKitId(documentKitId: Long): Flow<ReminderEntity?>
 
-    @Query("SELECT * FROM reminders WHERE document_kit_id = :documentKitId LIMIT 1")
+    @Query("SELECT * FROM reminders WHERE document_kit_id = :documentKitId ORDER BY id DESC LIMIT 1")
     suspend fun getByDocumentKitId(documentKitId: Long): ReminderEntity?
 
     @Query("SELECT * FROM reminders WHERE is_enabled = 1")

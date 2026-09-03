@@ -32,4 +32,6 @@ interface DocumentRepository {
     suspend fun updateDocumentLocation(documentId: Long, containerId: Long): Result<Unit>
 
     suspend fun updateDocumentExpiryDate(documentId: Long, expirationDate: String?): Result<Unit>
+
+    suspend fun updateLastOpenedAt(documentId: Long, timestamp: Long): Result<Unit>
 }

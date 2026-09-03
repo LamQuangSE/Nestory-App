@@ -66,7 +66,42 @@ object AppIcons {
     val IcMinus = R.drawable.ic_minus
     val IcPlus = R.drawable.ic_plus
 
+    // Kit Icons
+    val KitCheckCircle = R.drawable.ic_kit_check_circle
+    val KitAlert = R.drawable.ic_kit_alert
+    val KitClose = R.drawable.ic_kit_close
+    val KitHome = R.drawable.ic_kit_home
+    val KitMotorbike = R.drawable.ic_kit_motorbike
+    val KitGraduate = R.drawable.ic_kit_graduate
+    val KitBus = R.drawable.ic_kit_bus
+    val KitGlobe = R.drawable.ic_kit_globe
+    val KitCalendar = R.drawable.ic_kit_calendar
+    val KitAlignLeft = R.drawable.ic_kit_align_left
+    val KitCategory = R.drawable.ic_kit_category
+    val KitFile = R.drawable.ic_kit_file
+    val KitTarget = R.drawable.ic_kit_target
+    val KitCameraOutline = R.drawable.ic_kit_camera_outline
+
+    // New icon for Filter screen
+    val IcFilterBill = R.drawable.ic_filter_bill
+    val IcFilterCalendar = R.drawable.ic_filter_calendar
+    val IcFilterContract = R.drawable.ic_filter_contract
+    val IcFilterDocument = R.drawable.ic_filter_document
+    val IcFilterFolder = R.drawable.ic_filter_folder
+    val IcFilterInsurance = R.drawable.ic_filter_insurance
+    val IcFilterMedical = R.drawable.ic_filter_medical
+    val IcFilterPdf = R.drawable.ic_filter_pdf
+    val IcFilterWallet = R.drawable.ic_filter_wallet
+    val IcFilterWarranty = R.drawable.ic_filter_warranty
+    val IcFilter = R.drawable.ic_filter
+
+    val KitStarred = R.drawable.ic_starred
+    val KitUnstarred = R.drawable.ic_unstarred
+
+    // Setting Icons
+    val WeuiFolderOutlined = R.drawable.ic_weui_folder_outlined
     val MdiExport = R.drawable.ic_mdi_export
     val MdiImport = R.drawable.ic_mdi_import
-    val WeuiFolderOutlined = R.drawable.ic_weui_folder_outlined
+    val CharmCircleCross = R.drawable.ic_gridicons_cross
+    val MaterialSymbolsPending = R.drawable.ic_vault_step_pending
 }

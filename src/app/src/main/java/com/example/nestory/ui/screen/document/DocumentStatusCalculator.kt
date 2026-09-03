@@ -1,43 +1,55 @@
 package com.example.nestory.ui.screen.document
 
-import com.example.nestory.domain.model.ExpiryReminderSettings
+import com.example.nestory.data.local.entity.ReminderEntity
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
-private val supportedDateFormats = listOf(
-    DateTimeFormatter.ofPattern("dd/MM/yyyy"),
-    DateTimeFormatter.ISO_LOCAL_DATE,
-)
+object DocumentStatusCalculator {
 
-fun calculateDocumentStatus(
-    expirationDate: String?,
-    settings: ExpiryReminderSettings,
-    today: LocalDate = LocalDate.now(),
-): DocumentStatus {
-    val expiryDate = parseExpirationDate(expirationDate) ?: return DocumentStatus.Active
+    /** Nếu reminder chưa bật cho giấy tờ thì trạng thái sắp hết hạn dùng mốc mặc định 7 ngày. */
+    const val DEFAULT_EXPIRING_SOON_LEAD_DAYS = 7L
 
-    if (expiryDate.isBefore(today)) {
-        return DocumentStatus.Expired
+    private val supportedDateFormats = listOf(
+        DateTimeFormatter.ofPattern("dd/MM/yyyy"),
+        DateTimeFormatter.ISO_LOCAL_DATE,
+    )
+
+    fun calculate(
+        expirationDate: String?,
+        today: LocalDate = LocalDate.now(),
+        reminder: ReminderEntity? = null,
+    ): DocumentStatus {
+        val expiryDate = parseExpirationDate(expirationDate) ?: return DocumentStatus.Active
+
+        if (expiryDate.isBefore(today)) {
+            return DocumentStatus.Expired
+        }
+
+        val leadDays = reminder
+            ?.takeIf { it.isEnabled }
+            ?.leadTimeDays
+            ?.coerceAtLeast(1)
+            ?.toLong()
+            ?: DEFAULT_EXPIRING_SOON_LEAD_DAYS
+        val reminderLimit = today.plusDays(leadDays)
+        return if (!expiryDate.isAfter(reminderLimit)) {
+            DocumentStatus.ExpiringSoon
+        } else {
+            DocumentStatus.Active
+        }
     }
 
-    val reminderLimit = today.plusDays(settings.leadTimeDays.toLong())
-    return if (settings.enabled && !expiryDate.isAfter(reminderLimit)) {
-        DocumentStatus.ExpiringSoon
-    } else {
-        DocumentStatus.Active
-    }
-}
+    fun parseExpirationDate(expirationDate: String?): LocalDate? {
+        val value = expirationDate?.trim().orEmpty()
+        if (value.isBlank()) return null
 
-fun parseExpirationDate(expirationDate: String?): LocalDate? {
-    val value = expirationDate?.trim().orEmpty()
-    if (value.isBlank()) return null
-
-    return supportedDateFormats.firstNotNullOfOrNull { formatter ->
-        try {
-            LocalDate.parse(value, formatter)
-        } catch (e: DateTimeParseException) {
-            null
+        return supportedDateFormats.firstNotNullOfOrNull { formatter ->
+            try {
+                LocalDate.parse(value, formatter)
+            } catch (e: DateTimeParseException) {
+                null
+            }
         }
     }
 }

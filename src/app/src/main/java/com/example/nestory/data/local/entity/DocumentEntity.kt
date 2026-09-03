@@ -5,12 +5,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import com.example.nestory.domain.model.DocumentCategory
 
-/**
- * Represents a document stored in the database.
- * Each document belongs to a container (folder) and can have optional metadata.
- */
 @Entity(
     tableName = "documents",
     foreignKeys = [
@@ -21,6 +16,7 @@ import com.example.nestory.domain.model.DocumentCategory
             onDelete = ForeignKey.RESTRICT,
             onUpdate = ForeignKey.NO_ACTION,
         ),
+        // Tuỳ chọn: Bạn có thể thêm ForeignKey cho Category nếu muốn chặt chẽ hơn
     ],
     indices = [Index(value = ["container_id"])],
 )
@@ -32,8 +28,8 @@ data class DocumentEntity(
     @ColumnInfo(name = "title")
     val title: String,
 
-    @ColumnInfo(name = "category")
-    val category: String,
+    @ColumnInfo(name = "category_id")
+    val categoryId: String,
 
     @ColumnInfo(name = "expiration_date")
     val expirationDate: String? = null,
@@ -41,9 +37,27 @@ data class DocumentEntity(
     @ColumnInfo(name = "notes")
     val notes: String? = null,
 
+    @ColumnInfo(name = "issue_date")
+    val issueDate: String? = null,
+
+    @ColumnInfo(name = "holder_name")
+    val holderName: String? = null,
+
+    @ColumnInfo(name = "document_number")
+    val documentNumber: String? = null,
+
+    @ColumnInfo(name = "ocr_text")
+    val ocrText: String? = null,
+
     @ColumnInfo(name = "is_favorite")
     val isFavorite: Boolean = false,
 
     @ColumnInfo(name = "container_id")
     val containerId: Long,
+
+    @ColumnInfo(name = "last_notified_status")
+    val lastNotifiedStatus: String? = null,
+
+    @ColumnInfo(name = "last_opened_at")
+    val lastOpenedAt: Long? = null,
 )

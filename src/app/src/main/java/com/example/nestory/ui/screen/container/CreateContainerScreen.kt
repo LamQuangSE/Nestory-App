@@ -24,6 +24,9 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
+import com.example.nestory.ui.components.GlobalInputMonitor
+import com.example.nestory.ui.components.InputMonitorState
+import com.example.nestory.ui.components.LocalInputMonitor
 
 enum class CreateContainerState {
     Default,
@@ -44,20 +47,25 @@ fun CreateContainerScreen(
     var containerName by remember { mutableStateOf("") }
     var currentState by remember { mutableStateOf(initialState) }
     var showNameError by remember { mutableStateOf(false) }
+    val monitorState = remember { InputMonitorState() }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(GeneratedColor.FigmaFfffff)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = 24.dp)
-                .padding(bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+    CompositionLocalProvider(LocalInputMonitor provides monitorState) {
+        Box(
+            modifier = modifier
+                .fillMaxSize()
+                .background(GeneratedColor.FigmaFfffff)
+                .statusBarsPadding()
+                .navigationBarsPadding()
         ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(horizontal = NestorySpacing.S20)
+                        .padding(bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
             // Frame 83 — Header
             Row(
                 modifier = Modifier
@@ -104,7 +112,8 @@ fun CreateContainerScreen(
                     showNameError = false
                     onDismissError()
                 },
-                placeholder = "Nhập tên container"
+                placeholder = "Nhập tên container",
+                isError = showNameError
             )
 
             // Error message when tapping Create with an empty name
@@ -135,6 +144,7 @@ fun CreateContainerScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
+                    .background(GeneratedColor.FigmaF3f6ff.copy(alpha = 0.5f), RoundedCornerShape(12.dp))
                     .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(12.dp))
                     .padding(horizontal = 15.dp)
                     .clickable { },
@@ -150,14 +160,12 @@ fun CreateContainerScreen(
                         style = NestoryTextStyles.Body15Medium,
                         color = GeneratedColor.Figma000000
                     )
-                    if (isParentLocked) {
-                        Icon(
-                            painter = painterResource(id = AppIcons.MaterialSymbolsLightLock),
-                            contentDescription = null,
-                            modifier = Modifier.size(25.dp),
-                            tint = GeneratedColor.Figma919191
-                        )
-                    }
+                    Icon(
+                        painter = painterResource(id = AppIcons.MaterialSymbolsLightLock),
+                        contentDescription = null,
+                        modifier = Modifier.size(25.dp),
+                        tint = GeneratedColor.Figma919191
+                    )
                 }
             }
 
@@ -189,33 +197,36 @@ fun CreateContainerScreen(
             }
         }
 
-        // Frame 128 — Action button (always solid blue, always enabled per Figma)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 24.dp)
-                .padding(vertical = 6.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp)
-                    .background(GeneratedColor.Figma1855ee, RoundedCornerShape(10.dp))
-                    .clickable {
-                        if (containerName.isBlank()) {
-                            showNameError = true
-                        } else {
-                            onCreate(containerName)
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Tạo container mới",
-                    style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
-                    color = GeneratedColor.FigmaFfffff
-                )
+                // Frame 128 — Action button (always solid blue, always enabled per Figma)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = NestorySpacing.S20)
+                        .padding(vertical = 6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(54.dp)
+                            .background(GeneratedColor.Figma1855ee, RoundedCornerShape(10.dp))
+                            .clickable {
+                                if (containerName.isBlank()) {
+                                    showNameError = true
+                                } else {
+                                    onCreate(containerName)
+                                }
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Tạo container mới",
+                            style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.SemiBold),
+                            color = GeneratedColor.FigmaFfffff
+                        )
+                    }
+                }
             }
+            GlobalInputMonitor()
         }
     }
 }

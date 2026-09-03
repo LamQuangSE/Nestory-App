@@ -1,6 +1,6 @@
 package com.example.nestory.ui.screen.document
 
-import com.example.nestory.domain.model.ExpiryReminderSettings
+import com.example.nestory.data.local.entity.ReminderEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -11,9 +11,8 @@ class DocumentStatusCalculatorTest {
 
     @Test
     fun expiredDate_returnsExpired() {
-        val status = calculateDocumentStatus(
+        val status = DocumentStatusCalculator.calculate(
             expirationDate = "03/08/2026",
-            settings = ExpiryReminderSettings(),
             today = today,
         )
 
@@ -21,10 +20,9 @@ class DocumentStatusCalculatorTest {
     }
 
     @Test
-    fun dateInsideLeadTime_whenReminderEnabled_returnsExpiringSoon() {
-        val status = calculateDocumentStatus(
+    fun dateInsideLeadTime_returnsExpiringSoon() {
+        val status = DocumentStatusCalculator.calculate(
             expirationDate = "11/08/2026",
-            settings = ExpiryReminderSettings(enabled = true, leadTimeDays = 7),
             today = today,
         )
 
@@ -33,9 +31,8 @@ class DocumentStatusCalculatorTest {
 
     @Test
     fun dateOutsideLeadTime_returnsActive() {
-        val status = calculateDocumentStatus(
-            expirationDate = "12/08/2026",
-            settings = ExpiryReminderSettings(enabled = true, leadTimeDays = 7),
+        val status = DocumentStatusCalculator.calculate(
+            expirationDate = "20/10/2026",
             today = today,
         )
 
@@ -43,21 +40,41 @@ class DocumentStatusCalculatorTest {
     }
 
     @Test
-    fun dateInsideLeadTime_whenReminderDisabled_returnsActive() {
-        val status = calculateDocumentStatus(
+    fun dateExactlySevenDaysAhead_returnsExpiringSoonByDefault() {
+        val status = DocumentStatusCalculator.calculate(
             expirationDate = "11/08/2026",
-            settings = ExpiryReminderSettings(enabled = false, leadTimeDays = 7),
             today = today,
+        )
+
+        assertEquals(DocumentStatus.ExpiringSoon, status)
+    }
+
+    @Test
+    fun enabledReminder_usesConfiguredLeadTime() {
+        val status = DocumentStatusCalculator.calculate(
+            expirationDate = "24/08/2026",
+            today = today,
+            reminder = ReminderEntity(isEnabled = true, leadTimeDays = 20),
+        )
+
+        assertEquals(DocumentStatus.ExpiringSoon, status)
+    }
+
+    @Test
+    fun disabledReminder_usesDefaultSevenDays() {
+        val status = DocumentStatusCalculator.calculate(
+            expirationDate = "24/08/2026",
+            today = today,
+            reminder = ReminderEntity(isEnabled = false, leadTimeDays = 20),
         )
 
         assertEquals(DocumentStatus.Active, status)
     }
 
     @Test
-    fun todayExpiration_whenReminderEnabled_returnsExpiringSoon() {
-        val status = calculateDocumentStatus(
+    fun todayExpiration_returnsExpiringSoon() {
+        val status = DocumentStatusCalculator.calculate(
             expirationDate = "04/08/2026",
-            settings = ExpiryReminderSettings(enabled = true, leadTimeDays = 7),
             today = today,
         )
 
@@ -68,11 +85,11 @@ class DocumentStatusCalculatorTest {
     fun blankOrInvalidDate_returnsActive() {
         assertEquals(
             DocumentStatus.Active,
-            calculateDocumentStatus(null, ExpiryReminderSettings(), today),
+            DocumentStatusCalculator.calculate(null, today),
         )
         assertEquals(
             DocumentStatus.Active,
-            calculateDocumentStatus("not-a-date", ExpiryReminderSettings(), today),
+            DocumentStatusCalculator.calculate("not-a-date", today),
         )
     }
 
@@ -80,8 +97,8 @@ class DocumentStatusCalculatorTest {
     fun parseExpirationDate_supportsIsoDate() {
         assertEquals(
             LocalDate.of(2026, 8, 11),
-            parseExpirationDate("2026-08-11"),
+            DocumentStatusCalculator.parseExpirationDate("2026-08-11"),
         )
-        assertNull(parseExpirationDate(""))
+        assertNull(DocumentStatusCalculator.parseExpirationDate(""))
     }
 }

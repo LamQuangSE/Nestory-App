@@ -1,64 +1,88 @@
 package com.example.nestory.ui.screen.setting
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import android.widget.Toast
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import kotlinx.coroutines.launch
+import com.example.nestory.data.local.entity.ReminderEntity
 import com.example.nestory.domain.model.ExpiryReminderSettings
 import com.example.nestory.ui.assets.AppIcons
+import com.example.nestory.ui.components.LocalInputMonitor
 import com.example.nestory.ui.components.NestoryScreen
+import com.example.nestory.ui.components.PrimaryActionButton
+import com.example.nestory.ui.screen.document.DocumentStatusCalculator
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestoryRadius
 import com.example.nestory.ui.theme.NestoryTextStyles
+import com.example.nestory.utils.notification.NotificationHelper
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 @Immutable
 data class ExpiryReminderUiState(
     val enabled: Boolean = true,
     val leadTimeDays: Int = 7,
+    val customLeadTimeMode: Boolean = false,
     val repeatDaily: Boolean = true,
     val inAppEnabled: Boolean = true,
-    val emailEnabled: Boolean = false,
     val pushEnabled: Boolean = true,
+    val hour: Int = 12,
+    val minute: Int = 0,
 )
 
 fun ExpiryReminderSettings.toUiState(): ExpiryReminderUiState =
     ExpiryReminderUiState(
         enabled = enabled,
         leadTimeDays = leadTimeDays,
+        customLeadTimeMode = false,
         repeatDaily = repeatDaily,
         inAppEnabled = inAppEnabled,
-        emailEnabled = emailEnabled,
         pushEnabled = pushEnabled,
+        hour = hour,
+        minute = minute,
     )
 
 fun ExpiryReminderUiState.toSettings(): ExpiryReminderSettings =
@@ -67,19 +91,75 @@ fun ExpiryReminderUiState.toSettings(): ExpiryReminderSettings =
         leadTimeDays = leadTimeDays,
         repeatDaily = repeatDaily,
         inAppEnabled = inAppEnabled,
-        emailEnabled = emailEnabled,
+        pushEnabled = pushEnabled,
+        hour = hour,
+        minute = minute,
+    )
+
+private val reminderDateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+
+/** Ánh xạ UI reminder sang ReminderEntity cho riêng 1 giấy tờ hoặc 1 bộ hồ sơ. */
+fun ExpiryReminderUiState.toReminderEntity(
+    documentId: Long? = null,
+    documentKitId: Long? = null,
+    expiryDate: String?,
+    id: Long = 0,
+): ReminderEntity {
+    val today = LocalDate.now()
+    val reminderDate = expiryDate
+        ?.let(DocumentStatusCalculator::parseExpirationDate)
+        ?.let { expiry ->
+            val configuredStartDate = expiry.minusDays(leadTimeDays.toLong())
+            val effectiveReminderDate = if (configuredStartDate.isBefore(today)) {
+                today
+            } else {
+                configuredStartDate
+            }
+            effectiveReminderDate.format(reminderDateFormatter)
+        }
+    return ReminderEntity(
+        id = id,
+        documentId = documentId,
+        documentKitId = documentKitId,
+        isEnabled = enabled,
+        reminderDate = reminderDate,
+        reminderTime = "%02d:%02d".format(hour, minute),
+        leadTimeDays = leadTimeDays,
+        customLeadTimeMode = customLeadTimeMode,
+        repeatDaily = repeatDaily,
+        inAppEnabled = inAppEnabled,
         pushEnabled = pushEnabled,
     )
+}
+
+/** Ánh xạ ngược ReminderEntity (của 1 giấy tờ/bộ hồ sơ) sang UI state. */
+fun ReminderEntity.toExpiryReminderUiState(expiryDate: String?): ExpiryReminderUiState {
+    val parts = reminderTime?.split(":") ?: emptyList()
+    val parsedHour = parts.getOrNull(0)?.toIntOrNull()
+    val parsedMinute = parts.getOrNull(1)?.toIntOrNull()
+    val standardDays = setOf(1, 3, 7, 14)
+    return ExpiryReminderUiState(
+        enabled = isEnabled,
+        leadTimeDays = leadTimeDays,
+        customLeadTimeMode = customLeadTimeMode || leadTimeDays !in standardDays,
+        repeatDaily = repeatDaily,
+        inAppEnabled = inAppEnabled,
+        pushEnabled = pushEnabled,
+        hour = parsedHour ?: 12,
+        minute = parsedMinute ?: 0,
+    )
+}
 
 @Composable
 fun SettingScreen(
     onBack: () -> Unit,
-    onExpiryReminderClick: () -> Unit,
     onCategoryClick: () -> Unit,
     onContainerClick: () -> Unit,
     onExportBackupClick: () -> Unit = {},
     onRestoreBackupClick: () -> Unit = {},
 ) {
+    BackHandler(onBack = onBack)
+
     NestoryScreen(
         horizontalPadding = 20.dp,
         verticalPadding = 0.dp,
@@ -90,16 +170,10 @@ fun SettingScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(300.dp)
                 .clip(NestoryRadius.R10)
                 .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
                 .background(GeneratedColor.FigmaFfffff),
         ) {
-            SettingMenuItem(
-                title = "Thông báo nhắc hạn",
-                icon = AppIcons.NestoryNotification,
-                onClick = onExpiryReminderClick,
-            )
             SettingMenuItem(
                 title = "Danh mục",
                 icon = AppIcons.FigmaCategory,
@@ -132,24 +206,109 @@ fun ExpiryReminderSettingScreen(
     onStateChange: (ExpiryReminderUiState) -> Unit,
     onBack: () -> Unit,
 ) {
+    BackHandler(onBack = onBack)
+    val context = androidx.compose.ui.platform.LocalContext.current
+
+    // Local state for immediate feedback to avoid flickering from async DataStore updates
+    var localState by remember { mutableStateOf(state) }
+    var savedState by remember { mutableStateOf(state) }
+    var pendingSaveState by remember { mutableStateOf<ExpiryReminderUiState?>(null) }
+
+    fun persistState(newState: ExpiryReminderUiState) {
+        localState = newState
+        savedState = newState
+        onStateChange(newState)
+    }
+
+    val pushPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        val pendingState = pendingSaveState
+        pendingSaveState = null
+        if (granted && pendingState != null) {
+            persistState(pendingState)
+        } else if (!granted && pendingState != null) {
+            val fallback = pendingState.copy(pushEnabled = false)
+            persistState(fallback)
+            Toast.makeText(context, "Bạn cần cấp quyền thông báo để nhận nhắc hạn.", Toast.LENGTH_SHORT).show()
+        }
+    }
+    
+    // Keep local state in sync with external state changes (e.g. initial load or background updates)
+    LaunchedEffect(state) {
+        if (localState == savedState || localState == state) {
+            localState = state
+        }
+        savedState = state
+    }
+
+    val updateDraftState: (ExpiryReminderUiState) -> Unit = { newState ->
+        localState = newState
+    }
+
+    fun saveStateWithPermission(newState: ExpiryReminderUiState) {
+        if (
+            newState.pushEnabled &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            pendingSaveState = newState
+            pushPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            persistState(newState)
+        }
+    }
+
+    val saveDraft: () -> Unit = {
+        saveStateWithPermission(localState)
+    }
+    val hasUnsavedChanges = localState != savedState
+
     NestoryScreen(
         horizontalPadding = 20.dp,
         verticalPadding = 0.dp,
         useStatusBarPadding = true,
-        scrollable = true,
     ) {
         SettingHeader(title = "Cài đặt thông báo nhắc hạn", onBack = onBack)
         Spacer(modifier = Modifier.height(15.dp))
-        ReminderMasterCard(
-            enabled = state.enabled,
-            onEnabledChange = { onStateChange(state.copy(enabled = it)) },
-        )
-        if (state.enabled) {
-            Spacer(modifier = Modifier.height(15.dp))
-            ReminderEnabledPanel(
-                state = state,
-                onStateChange = onStateChange,
+        
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+        ) {
+            ReminderMasterCard(
+                enabled = localState.enabled,
+                onEnabledChange = { enabled ->
+                    if (enabled) {
+                        saveStateWithPermission(ExpiryReminderUiState())
+                    } else {
+                        persistState(localState.copy(enabled = false))
+                    }
+                },
             )
+            
+            if (localState.enabled) {
+                Spacer(modifier = Modifier.height(15.dp))
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    ReminderEnabledPanel(
+                        state = localState,
+                        onStateChange = updateDraftState,
+                    )
+                    Spacer(modifier = Modifier.height(20.dp))
+                }
+                PrimaryActionButton(
+                    text = "Lưu",
+                    enabled = hasUnsavedChanges,
+                    onClick = saveDraft,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            } else {
+                Spacer(modifier = Modifier.weight(1f))
+            }
         }
     }
 }
@@ -179,7 +338,6 @@ private fun SettingHeader(
             text = title,
             style = NestoryTextStyles.Body20Bold,
             color = GeneratedColor.Figma000000,
-            modifier = Modifier.height(26.dp),
         )
     }
 }
@@ -215,7 +373,7 @@ private fun SettingMenuItem(
             Spacer(modifier = Modifier.width(10.dp))
             Text(
                 text = title,
-                style = NestoryTextStyles.Body15Semi.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W700),
+                style = NestoryTextStyles.Body15Semi.copy(fontWeight = FontWeight.W700),
                 color = GeneratedColor.Figma000000,
             )
         }
@@ -248,12 +406,12 @@ private fun ReminderMasterCard(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = "Nhắc hạn sử dụng",
-                style = NestoryTextStyles.Body15Semi.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W700),
+                style = NestoryTextStyles.Body15Semi.copy(fontWeight = FontWeight.W700),
                 color = GeneratedColor.Figma000000,
             )
             Text(
                 text = "Nhận thông báo khi giấy tờ sắp hết hạn",
-                style = NestoryTextStyles.Body10Semi.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W500),
+                style = NestoryTextStyles.Body10Semi.copy(fontWeight = FontWeight.W500),
                 color = GeneratedColor.Figma919191,
             )
         }
@@ -266,45 +424,122 @@ private fun ReminderEnabledPanel(
     state: ExpiryReminderUiState,
     onStateChange: (ExpiryReminderUiState) -> Unit,
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val currentState by rememberUpdatedState(state)
+    val testNotificationLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        if (granted) {
+            NotificationHelper(context).showTestNotification()
+        } else {
+            Toast.makeText(context, "Bạn cần cấp quyền thông báo để gửi thử nghiệm.", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val sendTestNotification = {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            testNotificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            NotificationHelper(context).showTestNotification()
+        }
+    }
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(647.dp)
             .clip(NestoryRadius.R10)
             .border(1.dp, GeneratedColor.FigmaE5e7eb, NestoryRadius.R10)
             .background(GeneratedColor.FigmaFfffff)
             .padding(top = 20.dp, bottom = 20.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         ReminderLeadTimeSection(
             selectedDays = state.leadTimeDays,
-            onSelectedDaysChange = { onStateChange(state.copy(leadTimeDays = it)) },
+            customMode = state.customLeadTimeMode,
+            onSelectedDaysChange = { days, customMode ->
+                onStateChange(
+                    currentState.copy(
+                        leadTimeDays = days,
+                        customLeadTimeMode = customMode,
+                    )
+                )
+            },
         )
-        Spacer(modifier = Modifier.height(10.dp))
         HorizontalDivider()
-        Spacer(modifier = Modifier.height(10.dp))
         ReminderFrequencySection(
             repeatDaily = state.repeatDaily,
-            onRepeatDailyChange = { onStateChange(state.copy(repeatDaily = it)) },
+            onRepeatDailyChange = { onStateChange(currentState.copy(repeatDaily = it)) },
         )
-        Spacer(modifier = Modifier.height(10.dp))
+        ReminderTimeOfDaySection(
+            hour = state.hour,
+            minute = state.minute,
+            onTimeChange = { h, m -> onStateChange(currentState.copy(hour = h, minute = m)) }
+        )
         HorizontalDivider()
-        Spacer(modifier = Modifier.height(10.dp))
         ReminderChannelSection(
             state = state,
             onStateChange = onStateChange,
         )
+        
+        // Nút Test Thông báo
+        Spacer(modifier = Modifier.height(10.dp))
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 20.dp)
+                .fillMaxWidth()
+                .height(45.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(GeneratedColor.FigmaFfffff)
+                .border(1.dp, GeneratedColor.Figma1855ee, RoundedCornerShape(8.dp))
+                .clickable { sendTestNotification() },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Gửi thông báo thử nghiệm ngay",
+                style = NestoryTextStyles.Body13Semi,
+                color = GeneratedColor.Figma1855ee
+            )
+        }
     }
 }
 
 @Composable
 private fun ReminderLeadTimeSection(
     selectedDays: Int,
-    onSelectedDaysChange: (Int) -> Unit,
+    customMode: Boolean,
+    onSelectedDaysChange: (Int, Boolean) -> Unit,
 ) {
+    val focusManager = LocalFocusManager.current
+    val monitor = LocalInputMonitor.current
+    val standardDays = remember { listOf(1, 3, 7, 14) }
+    var customText by remember(selectedDays, customMode) {
+        mutableStateOf(if (customMode) selectedDays.toString() else "30")
+    }
+    var isError by remember { mutableStateOf(false) }
+
+    LaunchedEffect(customText, customMode) {
+        if (!customMode || customText.isNotEmpty()) {
+            isError = false
+        }
+    }
+
+    val validateAndSubmit = remember(customText) {
+        {
+            val value = customText.toIntOrNull()
+            if (value == null || value <= 0) {
+                isError = true
+            } else {
+                isError = false
+                onSelectedDaysChange(value, true)
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(234.dp)
             .padding(horizontal = 20.dp),
     ) {
         SectionTitle(
@@ -312,21 +547,131 @@ private fun ReminderLeadTimeSection(
             subtitle = "Chọn thời điểm nhắc trước khi hết hạn",
         )
         Spacer(modifier = Modifier.height(10.dp))
-        listOf(1, 3, 7, 14).forEach { days ->
-            ReminderRadioRow(
-                text = "Trước $days ngày",
-                selected = selectedDays == days,
-                onClick = { onSelectedDaysChange(days) },
-            )
-            Spacer(modifier = Modifier.height(10.dp))
+        
+        standardDays.forEach { days ->
+            key(days) {
+                ReminderRadioRow(
+                    text = "Trước $days ngày",
+                    selected = !customMode && selectedDays == days,
+                    onClick = { 
+                        isError = false
+                        onSelectedDaysChange(days, false)
+                    },
+                )
+                Spacer(modifier = Modifier.height(3.dp))
+            }
         }
-        ReminderRadioRow(
-            text = "Tùy chỉnh",
-            selected = selectedDays !in setOf(1, 3, 7, 14),
-            onClick = { onSelectedDaysChange(30) },
-        )
+        
+        // Custom row with Input
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(35.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(modifier = Modifier.clickable { 
+                if (!customMode) {
+                    val nextDays = selectedDays.takeIf { it !in standardDays }
+                        ?: customText.toIntOrNull()?.takeIf { it > 0 }
+                        ?: 30
+                    customText = nextDays.toString()
+                    isError = false
+                    onSelectedDaysChange(nextDays, true)
+                }
+            }) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    SettingRadioMark(selected = customMode)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "Tùy chỉnh",
+                        style = NestoryTextStyles.Body15Medium.copy(fontWeight = FontWeight.W500),
+                        color = GeneratedColor.Figma000000,
+                    )
+                }
+            }
+            
+            if (customMode) {
+                Spacer(modifier = Modifier.width(15.dp))
+                Row(
+                    modifier = Modifier
+                        .width(50.dp)
+                        .height(28.dp)
+                        .clip(RoundedCornerShape(5.dp))
+                        .border(
+                            width = 1.dp, 
+                            color = if (isError) Color.Red else GeneratedColor.FigmaE5e7eb, 
+                            shape = RoundedCornerShape(5.dp)
+                        )
+                        .background(GeneratedColor.FigmaFfffff),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    BasicTextField(
+                        value = customText,
+                        onValueChange = { 
+                            val digits = it.filter { c -> c.isDigit() }
+                            if (digits.length <= 3) {
+                                customText = digits
+                                monitor.update(digits)
+                                val value = digits.toIntOrNull()
+                                if (value != null && value > 0) {
+                                    isError = false
+                                    onSelectedDaysChange(value, true)
+                                } else {
+                                    isError = digits.isNotEmpty()
+                                }
+                            }
+                        },
+                        textStyle = NestoryTextStyles.Body12Medium.copy(
+                            textAlign = TextAlign.Center,
+                            color = GeneratedColor.Figma000000
+                        ),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = { 
+                                validateAndSubmit()
+                                focusManager.clearFocus()
+                            }
+                        ),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) {
+                                    monitor.show(customText, "Số ngày")
+                                } else {
+                                    monitor.hide()
+                                }
+                                if (!focusState.isFocused && customText.isNotEmpty()) {
+                                    validateAndSubmit()
+                                }
+                            }
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "ngày",
+                    style = NestoryTextStyles.Body13Medium,
+                    color = GeneratedColor.Figma919191
+                )
+            }
+        }
+        if (customMode && isError) {
+            Text(
+                text = "Vui lòng nhập số ngày hợp lệ",
+                color = Color.Red,
+                style = NestoryTextStyles.Body10Semi,
+                modifier = Modifier.padding(start = 125.dp, top = 2.dp)
+            )
+        }
     }
 }
+
+
+
 
 @Composable
 private fun ReminderFrequencySection(
@@ -336,18 +681,17 @@ private fun ReminderFrequencySection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(99.dp)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 20.dp),
     ) {
         SectionTitle(
             title = "Tần suất nhắc lại",
             subtitle = "Nhắc lại nếu chưa đánh dấu đã xử lý",
         )
-        Spacer(modifier = Modifier.height(11.dp))
+        Spacer(modifier = Modifier.height(10.dp))
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(30.dp)
+                .height(35.dp)
                 .clip(RoundedCornerShape(5.dp))
                 .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(5.dp))
                 .padding(2.dp),
@@ -369,34 +713,159 @@ private fun ReminderFrequencySection(
 }
 
 @Composable
-private fun ReminderChannelSection(
-    state: ExpiryReminderUiState,
-    onStateChange: (ExpiryReminderUiState) -> Unit,
+private fun ReminderTimeOfDaySection(
+    hour: Int,
+    minute: Int,
+    onTimeChange: (Int, Int) -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .height(234.dp)
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 20.dp),
+    ) {
+        SectionTitle(
+            title = "Thời điểm nhắc lại trong ngày",
+            subtitle = "Chọn thời điểm ứng dụng gửi thông báo",
+        )
+        Spacer(modifier = Modifier.height(10.dp))
+        
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(88.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(10.dp))
+                    .background(GeneratedColor.FigmaFfffff),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
+            ) {
+                // Hour Wheel
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    TimeWheelPicker(
+                        range = 0..23,
+                        initialValue = hour,
+                        onValueChange = {
+                            if (it != hour) {
+                                onTimeChange(it, minute)
+                            }
+                        }
+                    )
+                }
+                
+                Text(
+                    text = ":",
+                    style = NestoryTextStyles.Body18Semi,
+                    color = GeneratedColor.Figma000000,
+                )
+                
+                // Minute Wheel
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    TimeWheelPicker(
+                        range = 0..59,
+                        initialValue = minute,
+                        onValueChange = {
+                            if (it != minute) {
+                                onTimeChange(hour, it)
+                            }
+                        },
+                        format = { it.toString().padStart(2, '0') }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun TimeWheelPicker(
+    range: IntRange,
+    initialValue: Int,
+    onValueChange: (Int) -> Unit,
+    format: (Int) -> String = { it.toString() }
+) {
+    val items = remember(range) { range.toList() }
+    val totalItems = items.size
+    val initialPage = remember(totalItems, initialValue) {
+        val index = items.indexOf(initialValue).let { if (it == -1) 0 else it }
+        500 * totalItems + index
+    }
+    
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { 1000 * totalItems }
+    )
+
+    LaunchedEffect(initialPage) {
+        if (pagerState.currentPage != initialPage) {
+            pagerState.scrollToPage(initialPage)
+        }
+    }
+
+    LaunchedEffect(pagerState.currentPage) {
+        val actualIndex = pagerState.currentPage % totalItems
+        onValueChange(items[actualIndex])
+    }
+
+    VerticalPager(
+        state = pagerState,
+        modifier = Modifier.height(88.dp),
+        contentPadding = PaddingValues(vertical = 31.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) { page ->
+        val actualIndex = page % totalItems
+        val value = items[actualIndex]
+        
+        // Optimize selection state check
+        val isSelected = pagerState.currentPage == page
+        
+        Box(
+            modifier = Modifier
+                .height(26.dp)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = format(value),
+                style = if (isSelected) NestoryTextStyles.Body15Semi else NestoryTextStyles.Body12Medium,
+                color = if (isSelected) GeneratedColor.Figma1855ee else GeneratedColor.Figma919191,
+                modifier = Modifier.alpha(if (isSelected) 1f else 0.5f)
+            )
+        }
+    }
+}
+
+
+
+@Composable
+private fun ReminderChannelSection(
+    state: ExpiryReminderUiState,
+    onStateChange: (ExpiryReminderUiState) -> Unit,
+) {
+    val currentState by rememberUpdatedState(state)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
     ) {
         SectionTitle(
             title = "Kênh thông báo",
             subtitle = "Chọn nơi nhận thông báo nhắc hạn",
         )
+        Spacer(modifier = Modifier.height(10.dp))
         ReminderSwitchRow(
             text = "Thông báo trong ứng dụng",
             checked = state.inAppEnabled,
-            onCheckedChange = { onStateChange(state.copy(inAppEnabled = it)) },
-        )
-        ReminderSwitchRow(
-            text = "Email",
-            checked = state.emailEnabled,
-            onCheckedChange = { onStateChange(state.copy(emailEnabled = it)) },
+            onCheckedChange = { onStateChange(currentState.copy(inAppEnabled = it)) },
         )
         ReminderSwitchRow(
             text = "Thông báo đẩy",
             checked = state.pushEnabled,
-            onCheckedChange = { onStateChange(state.copy(pushEnabled = it)) },
+            onCheckedChange = { onStateChange(currentState.copy(pushEnabled = it)) },
         )
     }
 }
@@ -406,15 +875,15 @@ private fun SectionTitle(
     title: String,
     subtitle: String,
 ) {
-    Column(modifier = Modifier.height(34.dp)) {
+    Column {
         Text(
             text = title,
-            style = NestoryTextStyles.Body15Semi.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W700),
+            style = NestoryTextStyles.Body15Semi.copy(fontWeight = FontWeight.W700),
             color = GeneratedColor.Figma000000,
         )
         Text(
             text = subtitle,
-            style = NestoryTextStyles.Body10Semi.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W500),
+            style = NestoryTextStyles.Body10Semi.copy(fontWeight = FontWeight.W500),
             color = GeneratedColor.Figma919191,
         )
     }
@@ -439,7 +908,7 @@ private fun ReminderRadioRow(
         Spacer(modifier = Modifier.width(10.dp))
         Text(
             text = text,
-            style = NestoryTextStyles.Body15Medium,
+            style = NestoryTextStyles.Body15Medium.copy(fontWeight = FontWeight.W500),
             color = GeneratedColor.Figma000000,
         )
     }
@@ -485,7 +954,7 @@ private fun FrequencyOption(
 ) {
     Box(
         modifier = modifier
-            .height(24.dp)
+            .fillMaxHeight()
             .clip(RoundedCornerShape(5.dp))
             .background(if (selected) GeneratedColor.Figma1855ee else Color.Transparent)
             .clickable(onClick = onClick),
@@ -493,7 +962,7 @@ private fun FrequencyOption(
     ) {
         Text(
             text = text,
-            style = NestoryTextStyles.Body10Semi.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W500),
+            style = NestoryTextStyles.Body10Semi.copy(fontWeight = FontWeight.W500),
             color = if (selected) GeneratedColor.FigmaFfffff else GeneratedColor.Figma000000,
         )
     }
@@ -513,7 +982,7 @@ private fun ReminderSwitchRow(
     ) {
         Text(
             text = text,
-            style = NestoryTextStyles.Body15Medium.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.W400),
+            style = NestoryTextStyles.Body15Medium.copy(fontWeight = FontWeight.W400),
             color = GeneratedColor.Figma000000,
             modifier = Modifier.weight(1f),
         )
@@ -544,15 +1013,8 @@ private fun HorizontalDivider() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(0.dp)
-            .drawBehind {
-                drawLine(
-                    color = GeneratedColor.FigmaE5e7eb,
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, 0f),
-                    strokeWidth = 1.dp.toPx(),
-                )
-            },
+            .height(1.dp)
+            .background(GeneratedColor.FigmaE5e7eb),
     )
 }
 
@@ -561,7 +1023,6 @@ private fun HorizontalDivider() {
 private fun SettingScreenPreview() {
     SettingScreen(
         onBack = {},
-        onExpiryReminderClick = {},
         onCategoryClick = {},
         onContainerClick = {},
     )

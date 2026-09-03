@@ -23,6 +23,11 @@ object NestoryTextStyles {
     val Title22Semi = Title22Bold.copy(fontWeight = FontWeight.W600)
     val Title21Bold = interStyle(FontWeight.W700, 21.sp, 25.41.sp)
     val Title21Semi = Title21Bold.copy(fontWeight = FontWeight.W600)
+    
+    // Bổ sung Title 20px chuẩn thiết kế Figma
+    val Title20Bold = interStyle(FontWeight.W700, 20.sp, 24.2.sp)
+    val Title20Semi = Title20Bold.copy(fontWeight = FontWeight.W600)
+    
     val Body20Medium = interStyle(FontWeight.W500, 20.sp, 24.2.sp)
     val Body20Semi = Body20Medium.copy(fontWeight = FontWeight.W600)
     val Body20Bold = Body20Medium.copy(fontWeight = FontWeight.W700)
@@ -38,6 +43,7 @@ object NestoryTextStyles {
     val Body14Semi = interStyle(FontWeight.W600, 14.sp, 16.94.sp)
     val Body13Semi = interStyle(FontWeight.W600, 13.sp, 15.73.sp)
     val Body13Medium = Body13Semi.copy(fontWeight = FontWeight.W500)
+    val Body13Bold = Body13Semi.copy(fontWeight = FontWeight.W700)
     val Body12Bold = interStyle(FontWeight.W700, 12.sp, 14.52.sp)
     val Body12Semi = interStyle(FontWeight.W600, 12.sp, 14.52.sp)
     val Body12Medium = interStyle(FontWeight.W500, 12.sp, 14.52.sp)

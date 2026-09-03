@@ -1,20 +1,19 @@
 package com.example.nestory.data.filesystem
 
 import android.content.Context
-import androidx.room.Room
 import com.example.nestory.data.local.database.AppDatabase
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class FileSystemManager(private val context: Context) {
+class FileSystemManager(private val context: Context) : VaultInitializer {
 
     fun isVaultInitialized(): Boolean {
         val prefs = context.getSharedPreferences("nestory_vault_prefs", Context.MODE_PRIVATE)
         return prefs.getBoolean("vault_initialized", false)
     }
 
-    suspend fun createVaultStructure(): VaultCreationResult = withContext(Dispatchers.IO) {
+    override suspend fun createVaultStructure(): VaultCreationResult = withContext(Dispatchers.IO) {
         val completedSteps = mutableListOf<VaultCreationStep>()
 
         val filesReady = runCatching { ensureDirectory(context.filesDir) }.getOrElse {
@@ -63,17 +62,8 @@ class FileSystemManager(private val context: Context) {
         completedSteps += VaultCreationStep.Preferences
 
         val databaseReady = runCatching {
-            val db = Room.databaseBuilder(
-                context.applicationContext,
-                AppDatabase::class.java,
-                "nestory_database",
-            ).addMigrations(AppDatabase.MIGRATION_1_2).build()
-
-            try {
-                db.openHelper.writableDatabase
-            } finally {
-                db.close()
-            }
+            val db = AppDatabase.getDatabase(context.applicationContext)
+            db.openHelper.writableDatabase
         }.isSuccess
         if (!databaseReady) {
             return@withContext VaultCreationResult(

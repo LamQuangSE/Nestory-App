@@ -30,8 +30,8 @@ import androidx.room.PrimaryKey
         ),
     ],
     indices = [
-        Index(value = ["document_id"]),
-        Index(value = ["document_kit_id"]),
+        Index(value = ["document_id"], unique = true),
+        Index(value = ["document_kit_id"], unique = true),
     ],
 )
 data class ReminderEntity(
@@ -46,4 +46,25 @@ data class ReminderEntity(
 
     @ColumnInfo(name = "is_enabled")
     val isEnabled: Boolean = true,
+
+    @ColumnInfo(name = "reminder_date")
+    val reminderDate: String? = null,
+
+    @ColumnInfo(name = "reminder_time")
+    val reminderTime: String? = null,
+
+    @ColumnInfo(name = "lead_time_days")
+    val leadTimeDays: Int = 7,
+
+    @ColumnInfo(name = "custom_lead_time_mode")
+    val customLeadTimeMode: Boolean = false,
+
+    @ColumnInfo(name = "repeat_daily")
+    val repeatDaily: Boolean = true,
+
+    @ColumnInfo(name = "in_app_enabled")
+    val inAppEnabled: Boolean = true,
+
+    @ColumnInfo(name = "push_enabled")
+    val pushEnabled: Boolean = true,
 )

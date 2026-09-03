@@ -77,6 +77,17 @@ class ContainerViewModel(
         }
     }
 
+    fun selectCreatedContainer(containerId: Long, parentId: Long?) {
+        _uiState.update { state ->
+            val path = buildContainerPath(containerId, state.allContainers)
+            state.copy(
+                selectedContainerId = containerId,
+                containerPath = path,
+                expandedIds = if (parentId != null) state.expandedIds + parentId else state.expandedIds,
+            )
+        }
+    }
+
     fun clearSelection() {
         _uiState.update { it.copy(selectedContainerId = null, containerPath = emptyList()) }
     }
@@ -92,14 +103,23 @@ class ContainerViewModel(
         return path
     }
 
-    fun createContainer(name: String, parentId: Long?) {
+    fun createContainer(name: String, parentId: Long?, onCreated: ((Long) -> Unit)? = null) {
         viewModelScope.launch {
             clearError()
+            _uiState.update { it.copy(isCreating = true) }
             val container = ContainerEntity(name = name, parentId = parentId)
             containerRepository.createContainer(container).fold(
-                onSuccess = { },
+                onSuccess = { newId ->
+                    _uiState.update { it.copy(isCreating = false) }
+                    onCreated?.invoke(newId)
+                },
                 onFailure = { error ->
-                    _uiState.update { it.copy(errorMessage = getErrorMessage(error)) }
+                    _uiState.update {
+                        it.copy(
+                            errorMessage = getErrorMessage(error),
+                            isCreating = false,
+                        )
+                    }
                 }
             )
         }

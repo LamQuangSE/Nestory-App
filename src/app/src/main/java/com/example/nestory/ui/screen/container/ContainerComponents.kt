@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -28,6 +29,8 @@ import com.example.nestory.ui.assets.AppIcons
 import com.example.nestory.ui.theme.GeneratedColor
 import com.example.nestory.ui.theme.NestorySpacing
 import com.example.nestory.ui.theme.NestoryTextStyles
+import com.example.nestory.ui.components.LocalInputMonitor
+import androidx.compose.ui.focus.onFocusChanged
 
 @Composable
 fun ContainerItem(
@@ -36,67 +39,72 @@ fun ContainerItem(
     isExpanded: Boolean = false,
     hasChildren: Boolean = false,
     level: Int = 0,
+    showDelete: Boolean = false,
     onToggle: () -> Unit = {},
     onItemClick: () -> Unit,
     onDeleteClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        color = if (isSelected) GeneratedColor.FigmaF3f6ff else Color.Transparent,
-        border = BorderStroke(1.dp, GeneratedColor.FigmaE5e7eb),
-        shape = RoundedCornerShape(NestorySpacing.S10)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .background(
+                if (isSelected) GeneratedColor.FigmaF3f6ff.copy(alpha = 0.5f)
+                else Color.Transparent
+            )
+            .padding(horizontal = NestorySpacing.S15),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier
-                .padding(horizontal = NestorySpacing.S15, vertical = NestorySpacing.S10),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Spacer(modifier = Modifier.width((level * 30).dp))
+        Spacer(modifier = Modifier.width((level * 28).dp))
 
-            if (hasChildren) {
-                Box(
-                    modifier = Modifier
-                        .size(20.dp)
-                        .clickable { onToggle() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        painter = painterResource(
-                            id = if (isExpanded) AppIcons.LsiconDownFilled
-                            else AppIcons.LsiconRightFilled
-                        ),
-                        contentDescription = if (isExpanded) "Collapse" else "Expand",
-                        modifier = Modifier.size(16.dp),
-                        tint = GeneratedColor.Figma919191
-                    )
-                }
-                Spacer(modifier = Modifier.width(NestorySpacing.S4))
-            } else {
-                Spacer(modifier = Modifier.width(20.dp))
-            }
-
-            Row(
+        if (hasChildren) {
+            Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .clickable { onItemClick() },
-                verticalAlignment = Alignment.CenterVertically
+                    .size(20.dp)
+                    .clickable { onToggle() },
+                contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    painter = painterResource(id = AppIcons.FigmaNavFolder),
-                    contentDescription = null,
-                    modifier = Modifier.size(24.dp),
+                    painter = painterResource(
+                        id = if (isExpanded) AppIcons.LsiconDownFilled
+                        else AppIcons.LsiconRightFilled
+                    ),
+                    contentDescription = if (isExpanded) "Collapse" else "Expand",
+                    modifier = Modifier.size(16.dp),
                     tint = GeneratedColor.Figma919191
                 )
-                Spacer(modifier = Modifier.width(NestorySpacing.S10))
-                Text(
-                    text = name,
-                    style = NestoryTextStyles.Body15Medium,
-                    color = GeneratedColor.Figma000000,
-                )
             }
+            Spacer(modifier = Modifier.width(NestorySpacing.S4))
+        } else {
+            Spacer(modifier = Modifier.width(20.dp))
+        }
 
-            if (onDeleteClick != null) {
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .clickable { onItemClick() },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                painter = painterResource(id = AppIcons.FigmaNavFolder),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+                tint = GeneratedColor.Figma1855ee
+            )
+            Spacer(modifier = Modifier.width(NestorySpacing.S10))
+            Text(
+                text = name,
+                style = NestoryTextStyles.Body15Medium,
+                color = GeneratedColor.Figma000000,
+            )
+        }
+
+        Box(
+            modifier = Modifier.size(48.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            if (showDelete && onDeleteClick != null) {
                 IconButton(onClick = onDeleteClick) {
                     Icon(
                         painter = painterResource(id = AppIcons.MageTrash),
@@ -116,9 +124,14 @@ fun ContainerSearchField(
     onValueChange: (String) -> Unit,
     placeholder: String = "Tìm container"
 ) {
+    val monitor = LocalInputMonitor.current
+
     OutlinedTextField(
         value = value,
-        onValueChange = onValueChange,
+        onValueChange = {
+            onValueChange(it)
+            monitor.update(it)
+        },
         placeholder = { Text(text = placeholder, style = NestoryTextStyles.Body13Medium) },
         leadingIcon = {
             Icon(
@@ -130,7 +143,11 @@ fun ContainerSearchField(
         },
         modifier = Modifier
             .fillMaxWidth()
-            .height(55.dp),
+            .height(55.dp)
+            .onFocusChanged {
+                if (it.isFocused) monitor.show(value, placeholder)
+                else monitor.hide()
+            },
         shape = RoundedCornerShape(NestorySpacing.S10),
         colors = TextFieldDefaults.colors(
             focusedContainerColor = Color.Transparent,
@@ -229,8 +246,11 @@ fun ContainerTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     isError: Boolean = false,
-    errorMessage: String? = null
+    errorMessage: String? = null,
+    useMonitor: Boolean = true
 ) {
+    val monitor = LocalInputMonitor.current
+
     Column(verticalArrangement = Arrangement.spacedBy(NestorySpacing.S4)) {
         Text(
             text = buildAnnotatedString {
@@ -250,11 +270,21 @@ fun ContainerTextField(
         )
         OutlinedTextField(
             value = value,
-            onValueChange = onValueChange,
+            onValueChange = {
+                onValueChange(it)
+                if (useMonitor) monitor.update(it)
+            },
             placeholder = { Text(text = placeholder, style = NestoryTextStyles.Body15Medium) },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(56.dp)
+                .onFocusChanged { 
+                    if (it.isFocused && useMonitor) {
+                        monitor.show(value, label)
+                    } else if (!it.isFocused) {
+                        monitor.hide()
+                    }
+                },
             shape = RoundedCornerShape(NestorySpacing.S10),
             isError = isError,
             colors = TextFieldDefaults.colors(
@@ -262,7 +292,9 @@ fun ContainerTextField(
                 unfocusedContainerColor = Color.Transparent,
                 focusedIndicatorColor = if (isError) GeneratedColor.FigmaFf0000 else GeneratedColor.Figma1855ee,
                 unfocusedIndicatorColor = GeneratedColor.FigmaE5e7eb,
-                errorIndicatorColor = GeneratedColor.FigmaFf0000
+                errorIndicatorColor = GeneratedColor.FigmaFf0000,
+                disabledContainerColor = Color.Transparent,
+                disabledIndicatorColor = GeneratedColor.FigmaE5e7eb
             ),
             textStyle = NestoryTextStyles.Body15Medium,
             singleLine = true
@@ -287,6 +319,9 @@ fun ContainerBreadcrumb(
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp)
+            .clip(RoundedCornerShape(NestorySpacing.S10))
+            .background(GeneratedColor.FigmaF3f6ff)
+            .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(NestorySpacing.S10))
             .padding(horizontal = NestorySpacing.S10),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -307,13 +342,15 @@ fun ContainerBreadcrumb(
             }
         }
         Spacer(modifier = Modifier.weight(1f))
-        IconButton(onClick = onClose) {
-            Icon(
-                painter = painterResource(id = AppIcons.GridiconsCross),
-                contentDescription = "Close",
-                modifier = Modifier.size(22.dp),
-                tint = GeneratedColor.Figma919191
-            )
+        if (pathSegments.isNotEmpty()) {
+            IconButton(onClick = onClose) {
+                Icon(
+                    painter = painterResource(id = AppIcons.GridiconsCross),
+                    contentDescription = "Close",
+                    modifier = Modifier.size(22.dp),
+                    tint = GeneratedColor.Figma919191
+                )
+            }
         }
     }
 }
@@ -323,35 +360,47 @@ fun ContainerFormField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isError: Boolean = false,
+    useMonitor: Boolean = true
 ) {
+    val monitor = LocalInputMonitor.current
+
     Box(
         modifier = modifier
             .fillMaxWidth()
             .height(48.dp)
-            .border(1.dp, GeneratedColor.FigmaE5e7eb, RoundedCornerShape(12.dp))
+            .border(1.dp, if (isError) GeneratedColor.FigmaFf0000 else GeneratedColor.FigmaE5e7eb, RoundedCornerShape(12.dp))
             .padding(horizontal = NestorySpacing.S15),
         contentAlignment = Alignment.CenterStart
     ) {
-        TextField(
+        BasicTextField(
             value = value,
-            onValueChange = onValueChange,
-            placeholder = {
-                Text(
-                    text = placeholder,
-                    style = NestoryTextStyles.Body15Medium,
-                    color = GeneratedColor.Figma919191
-                )
+            onValueChange = {
+                onValueChange(it)
+                if (useMonitor) monitor.update(it)
             },
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { 
+                    if (it.isFocused && useMonitor) {
+                        monitor.show(value, placeholder)
+                    } else if (!it.isFocused) {
+                        monitor.hide()
+                    }
+                },
             textStyle = NestoryTextStyles.Body15Medium.copy(color = GeneratedColor.Figma000000),
-            colors = TextFieldDefaults.colors(
-                focusedContainerColor = Color.Transparent,
-                unfocusedContainerColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent
-            ),
-            singleLine = true
+            singleLine = true,
+            decorationBox = { innerTextField ->
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        style = NestoryTextStyles.Body15Medium,
+                        color = GeneratedColor.Figma919191
+                    )
+                }
+                innerTextField()
+            }
         )
     }
 }

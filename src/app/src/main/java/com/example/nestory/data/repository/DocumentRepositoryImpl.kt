@@ -27,21 +27,33 @@ class DocumentRepositoryImpl(
     override suspend fun getDocumentsByContainer(containerId: Long): Result<List<DocumentEntity>> =
         runCatching { documentDao.getDocumentsByContainer(containerId) }
 
-    override fun searchDocuments(query: String): Flow<List<DocumentEntity>> =
-        documentDao.searchDocuments(query.trim())
+    override fun searchDocuments(query: String): Flow<List<DocumentEntity>> {
+        val cleanQuery = query.replace("""[^\p{L}\p{N}]+$""".toRegex(), "").trim()
+        return documentDao.searchDocuments(cleanQuery)
+    }
 
     override fun filterDocuments(filter: DocumentFilter): Flow<List<DocumentEntity>> =
         documentDao.filterDocuments(
-            category = filter.category,
+            categoryId = filter.categoryId,
             isFavorite = filter.isFavorite,
             containerId = filter.containerId,
         )
 
     override suspend fun createDocument(document: DocumentEntity): Result<Long> =
-        runCatching { documentDao.insert(document) }
+        runCatching {
+            if (document.title.isNotBlank() && documentDao.countByTitle(document.title, 0) > 0) {
+                throw IllegalArgumentException("Tên giấy tờ đã tồn tại")
+            }
+            documentDao.insert(document)
+        }
 
     override suspend fun updateDocument(document: DocumentEntity): Result<Unit> =
-        runCatching { documentDao.update(document) }
+        runCatching {
+            if (document.title.isNotBlank() && documentDao.countByTitle(document.title, document.id) > 0) {
+                throw IllegalArgumentException("Tên giấy tờ đã tồn tại")
+            }
+            documentDao.update(document)
+        }
 
     override suspend fun deleteDocument(document: DocumentEntity): Result<Unit> =
         runCatching { documentDao.delete(document) }
@@ -65,5 +77,12 @@ class DocumentRepositoryImpl(
         expirationDate: String?,
     ): Result<Unit> = runCatching {
         documentDao.updateDocumentExpiryDate(documentId, expirationDate)
+    }
+
+    override suspend fun updateLastOpenedAt(
+        documentId: Long,
+        timestamp: Long,
+    ): Result<Unit> = runCatching {
+        documentDao.updateLastOpenedAt(documentId, timestamp)
     }
 }

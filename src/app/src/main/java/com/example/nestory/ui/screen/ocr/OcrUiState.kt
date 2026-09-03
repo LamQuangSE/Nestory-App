@@ -8,7 +8,10 @@ import com.example.nestory.domain.model.DocumentDraft
 sealed interface OcrUiState {
     data object Idle : OcrUiState
     data object Processing : OcrUiState
-    data class Success(val draft: DocumentDraft) : OcrUiState
+    data class Success(
+        val draft: DocumentDraft,
+        val bitmaps: List<android.graphics.Bitmap> = emptyList()
+    ) : OcrUiState
     data class Error(val message: String) : OcrUiState
 }
 

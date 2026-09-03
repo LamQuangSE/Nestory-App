@@ -17,4 +17,9 @@ object AppImages {
     val ContainerEmptyState = R.drawable.img_container
 
     val ImgCccd = R.drawable.img_cccd
+    val EmptyDocument = R.drawable.img_empty_document
+    val ExportIllustration = R.drawable.img_export
+    val ImportIllustration = R.drawable.img_import
+    val ImgLock = R.drawable.img_lock
+    val ImgSuccess = R.drawable.img_success
 }
